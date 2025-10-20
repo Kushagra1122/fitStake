@@ -1,7 +1,7 @@
 import { network } from "hardhat";
 
 async function main() {
-  const { viem } = await network.connect();
+  const viem = await network.connect() as any;
   
   // Replace with your deployed contract address
   const contractAddress = "YOUR_CONTRACT_ADDRESS_HERE";
@@ -14,7 +14,7 @@ async function main() {
   }
 
   // Get the contract instance
-  const contract = await viem.getContractAt("ChallengeContract", contractAddress as `0x${string}`);
+  const contract = await viem.viem.getContractAt("ChallengeContract", contractAddress as `0x${string}`);
 
   console.log("Testing deployed ChallengeContract...");
 

@@ -138,11 +138,80 @@ pnpx envio init
 - **Input Validation**: All inputs validated with appropriate error messages
 - **Time-based Logic**: Challenge timing properly enforced
 
+## Phase 2 Status: ✅ COMPLETE
+
+This phase adds Lit Protocol integration for decentralized Strava verification oracle.
+
+### What's Implemented
+
+- **Lit Protocol Integration**: Complete oracle system using PKPs and Lit Actions
+- **Mock Strava Server**: Local testing infrastructure with realistic data
+- **PKP Management**: Automated minting, funding, and configuration
+- **Comprehensive Testing**: Local, Hardhat, and Sepolia testnet tests
+- **Deployment Scripts**: Automated Sepolia deployment with oracle linking
+
+### Oracle Architecture
+
+```
+┌──────────────┐     ┌─────────────┐     ┌──────────────┐
+│   User       │     │ Lit Action  │     │  Contract    │
+│  Completes   │────▶│  (datil-    │────▶│  (Sepolia)   │
+│  Run         │     │   test)     │     │              │
+└──────────────┘     └─────────────┘     └──────────────┘
+                           │
+                           ▼
+                     ┌─────────────┐
+                     │ Mock Strava │
+                     │   Server    │
+                     └─────────────┘
+```
+
+### Key Features
+
+- **Decentralized Oracle**: PKP-controlled verification system
+- **Automatic Verification**: Lit Actions validate Strava activities
+- **Mock Data Support**: Complete testing without real API calls
+- **Sepolia Deployment**: Production-ready testnet deployment
+- **Comprehensive Tests**: 25+ test cases covering all scenarios
+
+### Usage
+
+#### Local Testing
+```bash
+# Start mock Strava server
+npm run mock-strava
+
+# Test Lit Action locally
+npm run test-lit-local
+
+# Test Hardhat integration
+npm run test-lit-hardhat
+```
+
+#### Sepolia Deployment
+```bash
+# Mint PKP and deploy to Sepolia
+npm run deploy-sepolia-oracle
+
+# Run E2E test on Sepolia
+npm run test-lit-sepolia
+```
+
+#### Integration Tests
+```bash
+# Run comprehensive test suite
+npm test test/LitOracleIntegration.ts
+```
+
+### Documentation
+
+- **[Lit Protocol Guide](docs/LIT_PROTOCOL_GUIDE.md)** - Complete integration guide
+- **[Deployment Guide](DEPLOYMENT.md)** - Sepolia deployment instructions
+
 ## Next Phases
 
-- **Phase 2**: Lit Protocol oracle integration for Strava verification
 - **Phase 3**: Complete Envio indexer implementation
-- **Phase 4**: Betting contract and user statistics
+- **Phase 4**: Betting contract and user statistics  
 - **Phase 5**: Testnet deployment and finalization
 
 ## Development Notes
