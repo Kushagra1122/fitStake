@@ -1,57 +1,157 @@
-# Sample Hardhat 3 Beta Project (`node:test` and `viem`)
+# FitStake Web3 - Phase 1 Complete
 
-This project showcases a Hardhat 3 Beta project using the native Node.js test runner (`node:test`) and the `viem` library for Ethereum interactions.
+A Web3 mobile application that merges real-world running activities with crypto staking and betting mechanics, powered by decentralized smart contracts.
 
-To learn more about the Hardhat 3 Beta, please visit the [Getting Started guide](https://hardhat.org/docs/getting-started#getting-started-with-hardhat-3). To share your feedback, join our [Hardhat 3 Beta](https://hardhat.org/hardhat3-beta-telegram-group) Telegram group or [open an issue](https://github.com/NomicFoundation/hardhat/issues/new) in our GitHub issue tracker.
+## Phase 1 Status: ✅ COMPLETE
 
-## Project Overview
+This phase establishes the core smart contract infrastructure for fitness challenges with ETH staking.
 
-This example project includes:
+### What's Implemented
 
-- A simple Hardhat configuration file.
-- Foundry-compatible Solidity unit tests.
-- TypeScript integration tests using [`node:test`](nodejs.org/api/test.html), the new Node.js native test runner, and [`viem`](https://viem.sh/).
-- Examples demonstrating how to connect to different types of networks, including locally simulating OP mainnet.
+- **ChallengeContract.sol**: Complete smart contract for managing fitness challenges
+- **Comprehensive Test Suite**: Full test coverage using Hardhat 3's native test runner with viem
+- **Deployment Infrastructure**: Hardhat Ignition deployment module
+- **Envio Indexer Setup**: Basic indexer structure with GraphQL schema
+
+### Contract Features
+
+- **Challenge Creation**: Users can create running challenges with specific distance targets and stake amounts
+- **ETH Staking**: Participants stake ETH to join challenges
+- **Oracle Verification**: Placeholder for Lit Protocol integration (Phase 2)
+- **Automatic Distribution**: Failed participants' stakes are distributed to successful completers
+- **Binary Challenge System**: Complete or fail - no partial completion
+
+### Smart Contract Architecture
+
+```solidity
+// Core structs
+struct ChallengeDetails {
+    uint256 challengeId;
+    address creator;
+    string description;
+    uint256 targetDistance; // in meters
+    uint256 stakeAmount;
+    uint256 startTime;
+    uint256 endTime;
+    uint256 totalStaked;
+    uint256 participantCount;
+    bool finalized;
+}
+
+struct Participant {
+    address userAddress;
+    bool hasCompleted;
+    bool hasWithdrawn;
+    uint256 stakedAmount;
+}
+```
+
+### Key Functions
+
+- `createChallenge()` - Create new fitness challenges
+- `joinChallenge()` - Payable function to join with exact stake amount
+- `markTaskComplete()` - Oracle-only function to mark completion
+- `finalizeChallenge()` - Calculate and distribute winnings
+- `withdrawWinnings()` - Allow winners to withdraw their share
+- `setOracleAddress()` - Owner-only oracle management
 
 ## Usage
 
+### Prerequisites
+
+- Node.js 18+
+- Hardhat 3.0+
+- TypeScript
+
+### Installation
+
+```bash
+cd web3
+npm install
+```
+
 ### Running Tests
 
-To run all the tests in the project, execute the following command:
+```bash
+# Run all tests
+npm test
 
-```shell
-npx hardhat test
+# Run specific test file
+npx hardhat test test/ChallengeContract.ts
+
+# Run with coverage
+npx hardhat coverage
 ```
 
-You can also selectively run the Solidity or `node:test` tests:
+### Compilation
 
-```shell
-npx hardhat test solidity
-npx hardhat test nodejs
+```bash
+npm run compile
 ```
 
-### Make a deployment to Sepolia
+### Local Deployment
 
-This project includes an example Ignition module to deploy the contract. You can deploy this module to a locally simulated chain or to Sepolia.
+```bash
+# Start local Hardhat node
+npm run node
 
-To run the deployment to a local chain:
-
-```shell
-npx hardhat ignition deploy ignition/modules/Counter.ts
+# In another terminal, deploy contracts
+npm run deploy
 ```
 
-To run the deployment to Sepolia, you need an account with funds to send the transaction. The provided Hardhat configuration includes a Configuration Variable called `SEPOLIA_PRIVATE_KEY`, which you can use to set the private key of the account you want to use.
+### Testnet Deployment
 
-You can set the `SEPOLIA_PRIVATE_KEY` variable using the `hardhat-keystore` plugin or by setting it as an environment variable.
-
-To set the `SEPOLIA_PRIVATE_KEY` config variable using `hardhat-keystore`:
-
-```shell
-npx hardhat keystore set SEPOLIA_PRIVATE_KEY
+```bash
+# Deploy to Sepolia (requires SEPOLIA_PRIVATE_KEY environment variable)
+npx hardhat ignition deploy --network sepolia ignition/modules/ChallengeContract.ts
 ```
 
-After setting the variable, you can run the deployment with the Sepolia network:
+## Contract Events
 
-```shell
-npx hardhat ignition deploy --network sepolia ignition/modules/Counter.ts
+The contract emits the following events for indexing:
+
+- `ChallengeCreated` - When a new challenge is created
+- `UserJoined` - When a user joins a challenge
+- `TaskCompleted` - When oracle marks a user as completed
+- `ChallengeFinalized` - When challenge ends and winnings are calculated
+- `WinningsDistributed` - When winners withdraw their winnings
+
+## Envio Indexer
+
+Basic indexer setup is included in `/envio` directory:
+
+- **Schema**: GraphQL schema defining Challenge and Participant entities
+- **Config**: YAML configuration for event indexing
+- **Package**: Separate package.json for indexer dependencies
+
+To initialize the full Envio indexer:
+
+```bash
+cd envio
+pnpx envio init
 ```
+
+## Security Features
+
+- **Access Control**: Owner and oracle-only functions properly protected
+- **Reentrancy Protection**: Safe withdrawal patterns implemented
+- **Input Validation**: All inputs validated with appropriate error messages
+- **Time-based Logic**: Challenge timing properly enforced
+
+## Next Phases
+
+- **Phase 2**: Lit Protocol oracle integration for Strava verification
+- **Phase 3**: Complete Envio indexer implementation
+- **Phase 4**: Betting contract and user statistics
+- **Phase 5**: Testnet deployment and finalization
+
+## Development Notes
+
+- Uses Hardhat 3 with viem for modern Ethereum development
+- Native Node.js test runner for optimal performance
+- TypeScript throughout for type safety
+- Follows Solidity best practices and security patterns
+
+## License
+
+MIT License - see LICENSE file for details

@@ -1,0 +1,39 @@
+name: fitstake-indexer
+description: FitStake Challenge Contract Indexer
+version: 1.0.0
+
+network:
+  chainId: 31337
+  rpcUrl: http://localhost:8545
+
+contracts:
+  ChallengeContract:
+    address: "0x5FbDB2315678afecb367f032d93F642f64180aa3" # Will be updated after deployment
+    abi: ChallengeContract
+    startBlock: 0
+
+events:
+  ChallengeCreated:
+    contract: ChallengeContract
+    eventName: ChallengeCreated
+    handler: handleChallengeCreated
+
+  UserJoined:
+    contract: ChallengeContract
+    eventName: UserJoined
+    handler: handleUserJoined
+
+  TaskCompleted:
+    contract: ChallengeContract
+    eventName: TaskCompleted
+    handler: handleTaskCompleted
+
+  ChallengeFinalized:
+    contract: ChallengeContract
+    eventName: ChallengeFinalized
+    handler: handleChallengeFinalized
+
+  WinningsDistributed:
+    contract: ChallengeContract
+    eventName: WinningsDistributed
+    handler: handleWinningsDistributed

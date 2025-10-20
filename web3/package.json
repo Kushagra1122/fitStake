@@ -1,7 +1,14 @@
 {
-  "name": "web3",
+  "name": "fitstake-web3",
   "version": "1.0.0",
+  "description": "FitStake Web3 smart contracts and infrastructure",
   "type": "module",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy": "hardhat ignition deploy",
+    "node": "hardhat node"
+  },
   "devDependencies": {
     "@nomicfoundation/hardhat-ignition": "^3.0.3",
     "@nomicfoundation/hardhat-toolbox-viem": "^5.0.0",
@@ -10,5 +17,8 @@
     "hardhat": "^3.0.7",
     "typescript": "~5.8.0",
     "viem": "^2.38.3"
-  }
+  },
+  "keywords": ["web3", "fitness", "staking", "challenges", "hardhat"],
+  "author": "FitStake Team",
+  "license": "MIT"
 }

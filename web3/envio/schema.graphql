@@ -1,0 +1,25 @@
+type Challenge @entity {
+  id: ID!
+  challengeId: BigInt!
+  creator: String!
+  description: String!
+  targetDistance: BigInt!
+  stakeAmount: BigInt!
+  startTime: BigInt!
+  endTime: BigInt!
+  totalStaked: BigInt!
+  participantCount: Int!
+  finalized: Boolean!
+  participants: [Participant!]! @derivedFrom(field: "challenge")
+  createdAt: BigInt!
+}
+
+type Participant @entity {
+  id: ID!
+  challenge: Challenge!
+  userAddress: String!
+  stakedAmount: BigInt!
+  hasCompleted: Boolean!
+  hasWithdrawn: Boolean!
+  joinedAt: BigInt!
+}

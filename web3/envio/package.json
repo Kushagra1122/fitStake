@@ -1,0 +1,17 @@
+{
+  "name": "fitstake-envio-indexer",
+  "version": "1.0.0",
+  "description": "FitStake Challenge Contract Indexer using Envio",
+  "type": "module",
+  "scripts": {
+    "build": "envio build",
+    "start": "envio start",
+    "dev": "envio dev"
+  },
+  "dependencies": {
+    "@envio-dev/envio": "^1.0.0"
+  },
+  "keywords": ["envio", "indexer", "web3", "fitstake"],
+  "author": "FitStake Team",
+  "license": "MIT"
+}
