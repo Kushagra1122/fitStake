@@ -17,9 +17,11 @@ Decentralized oracle integration with Lit Protocol
 - **ChallengeContract.sol**: Complete smart contract with oracle integration
 - **Lit Action**: Strava activity verification logic (`verifyStravaActivity.js`)
 - **PKP Setup**: Programmable Key Pair wallet integration
+- **Oracle Backend**: Express.js service to trigger Lit Actions (`backend/lit-oracle-service.ts`)
 - **Mock Infrastructure**: Mock Strava server for testing
 - **Comprehensive Test Suite**: 39 tests covering all functionality
 - **Deployment Scripts**: Sepolia testnet deployment with oracle configuration
+- **Setup Scripts**: PKP minting, oracle configuration, and E2E testing
 - **Envio Indexer**: Preparatory structure for Phase 3+ (not active)
 
 ### Contract Features
@@ -73,12 +75,34 @@ struct Participant {
 - Node.js 18+
 - Hardhat 3.0+
 - TypeScript
+- Sepolia ETH (for deployment and PKP funding)
 
 ### Installation
 
 ```bash
 cd web3
 npm install
+```
+
+### Lit Protocol Oracle Setup
+
+**📚 See [LIT_ORACLE_GUIDE.md](./LIT_ORACLE_GUIDE.md) for complete setup instructions**
+
+Quick start:
+```bash
+# 1. Mint PKP (Programmable Key Pair)
+npm run mint-pkp
+
+# 2. Fund PKP with 0.1-0.2 Sepolia ETH (see guide for faucets)
+
+# 3. Set PKP as authorized oracle
+npm run set-oracle
+
+# 4. Start oracle backend service
+npm run backend
+
+# 5. Test end-to-end flow
+npm run test-lit-e2e
 ```
 
 ### Running Tests
@@ -93,6 +117,9 @@ npx hardhat test test/LitOracleIntegration.ts       # 14 tests
 
 # Test Lit Action locally
 npm run test-lit-local
+
+# Test on Sepolia with deployed contract
+npm run test-lit-e2e
 
 # Start mock Strava server (for development)
 npm run mock-strava

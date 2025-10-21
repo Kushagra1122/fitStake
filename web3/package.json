@@ -12,11 +12,15 @@
     "deploy-sepolia-oracle": "hardhat run scripts/deploy-sepolia-with-oracle.ts --network sepolia",
     "test-deployed": "hardhat run scripts/test-deployed-contract.ts --network sepolia",
     "mint-pkp": "hardhat run scripts/mint-pkp.ts",
+    "setup-oracle-wallet": "tsx scripts/simple-pkp-setup.ts",
     "set-oracle": "hardhat run scripts/set-oracle.ts --network sepolia",
     "backend": "tsx backend/lit-oracle-service.ts",
     "mock-strava": "node --loader ts-node/esm scripts/mock-strava-server.ts",
     "test-lit-local": "hardhat run scripts/test-lit-action-local.ts",
-    "test-lit-sepolia": "hardhat run scripts/e2e-sepolia-test.ts --network sepolia"
+    "test-lit-sepolia": "hardhat run scripts/e2e-sepolia-test.ts --network sepolia",
+    "test-lit-e2e": "hardhat run scripts/test-lit-oracle-e2e.ts --network sepolia",
+    "demo-oracle": "hardhat run scripts/demo-oracle.ts --network sepolia",
+    "test-low-stake": "hardhat run scripts/test-low-stake.ts --network sepolia"
   },
   "devDependencies": {
     "@lit-protocol/auth-helpers": "^4.0.0",
