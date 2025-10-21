@@ -24,12 +24,26 @@ Decentralized oracle integration with Lit Protocol
 - **Setup Scripts**: PKP minting, oracle configuration, and E2E testing
 - **Envio Indexer**: Preparatory structure for Phase 3+ (not active)
 
+### Contract Versions
+
+**Original Contract** (Sepolia: `0xbaf067fe68f032d9fdc906c6dcb32299baa2404f      `):
+- Basic TaskCompleted events
+- Functional for staking and verification
+- Deployed and tested
+
+**Enhanced Contract** (see `deployment-enhanced.json`):
+- Emits detailed activity data in events (timestamp, distance, duration, Strava ID)
+- Enables UI to display participant details without separate database
+- Same core functionality plus rich event data
+- See [ENHANCED_CONTRACT.md](./ENHANCED_CONTRACT.md) for details
+
 ### Contract Features
 
 - **Challenge Creation**: Users can create running challenges with specific distance targets and stake amounts
 - **ETH Staking**: Participants stake ETH to join challenges
 - **Oracle Verification**: ✅ Lit Protocol integration with PKP wallets
 - **Strava Activity Verification**: ✅ Real-time activity verification via Lit Actions
+- **Activity Data Events**: ✅ Enhanced contract emits completion timestamp, distance, duration, and Strava activity ID
 - **Automatic Distribution**: Failed participants' stakes are distributed to successful completers
 - **Binary Challenge System**: Complete or fail - no partial completion
 - **Secure Authorization**: Only authorized PKP oracle can mark tasks complete
@@ -180,9 +194,22 @@ The `envio/` directory contains **preparatory work for Phase 3+** (Frontend/Mobi
 ### Testnet Deployment
 
 ```bash
-# Deploy to Sepolia (requires SEPOLIA_PRIVATE_KEY environment variable)
+# Deploy original contract to Sepolia
 npx hardhat ignition deploy --network sepolia ignition/modules/ChallengeContract.ts
+
+# Or use simplified deployment script
+npm run deploy-sepolia
+
+# Deploy ENHANCED contract with activity data events
+npm run deploy-enhanced
 ```
+
+**Enhanced Contract**: Emits detailed Strava activity data (timestamp, distance, duration, activity ID) in events. After deployment:
+- Configuration saved to `deployment-enhanced.json`
+- Backend auto-loads enhanced config
+- Set oracle: `ENHANCED_CONTRACT_ADDRESS=<address> npm run set-oracle`
+- Test: `npm run test-enhanced`
+- Full guide: [ENHANCED_CONTRACT.md](./ENHANCED_CONTRACT.md)
 
 ## Contract Events
 

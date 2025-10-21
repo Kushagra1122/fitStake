@@ -26,4 +26,5 @@
 
 # Deployment info
 deployment-*.json
+deployment-enhanced.json
 .pkp-config.json

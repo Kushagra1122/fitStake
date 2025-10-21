@@ -19,7 +19,24 @@ const app = express();
 app.use(express.json());
 
 // Configuration
-const CONTRACT_ADDRESS = "0x21854089df4aeb1e0ac1770a43f5e892a8fd04d9";
+let CONTRACT_ADDRESS = "0xbaf067fe68f032d9fdc906c6dcb32299baa2404f      ";
+let FUNCTION_SELECTOR = "0xf7aeca30"; // Default for old contract
+
+// Try to load enhanced deployment config
+try {
+  const deploymentConfigPath = path.join(process.cwd(), 'deployment-enhanced.json');
+  if (fs.existsSync(deploymentConfigPath)) {
+    const deploymentConfig = JSON.parse(fs.readFileSync(deploymentConfigPath, 'utf8'));
+    CONTRACT_ADDRESS = deploymentConfig.contractAddress;
+    FUNCTION_SELECTOR = deploymentConfig.markTaskCompleteSelector;
+    console.log('✅ Loaded enhanced contract configuration');
+    console.log('   Contract:', CONTRACT_ADDRESS);
+    console.log('   Selector:', FUNCTION_SELECTOR);
+  }
+} catch (error) {
+  console.log('⚠️  No enhanced deployment config found, using defaults');
+}
+
 const PORT = process.env.ORACLE_PORT || 3000;
 const LIT_NETWORK = process.env.LIT_NETWORK || 'datil-test';
 
@@ -105,6 +122,7 @@ app.post('/verify-strava-run', async (req, res) => {
         challengeId: challengeId.toString(),
         userAddress: userAddress,
         contractAddress: CONTRACT_ADDRESS,
+        functionSelector: FUNCTION_SELECTOR,
         stravaAccessToken: stravaAccessToken || '',
         activityId: activityId || '',
         mockActivityData: mockActivityData || null
