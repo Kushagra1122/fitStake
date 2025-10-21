@@ -281,7 +281,7 @@ export default function CreateChallenge() {
 
               {/* Create Button */}
               <TouchableOpacity
-                className="bg-gradient-to-r from-purple-600 to-pink-600 py-5 rounded-2xl shadow-xl"
+                className="bg-purple-600 py-5 rounded-2xl shadow-xl border border-purple-700"
                 onPress={handleCreateChallenge}
                 disabled={isCreating}
                 activeOpacity={0.8}
@@ -292,8 +292,8 @@ export default function CreateChallenge() {
                     <Text className="text-white font-bold text-lg ml-3">Creating...</Text>
                   </View>
                 ) : (
-                  <Text className="text-white font-bold text-lg text-center tracking-wide">
-                    Create Challenge 🚀
+                  <Text className="text-white font-bold text-lg text-center ">
+                    Create Challenge
                   </Text>
                 )}
               </TouchableOpacity>

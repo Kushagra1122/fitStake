@@ -178,18 +178,18 @@ export default function MyChallenges() {
                   : "Complete your active challenges to see them here!"}
               </Text>
               {activeTab === 'active' && (
-                <View className="flex-row space-x-3">
+                <View className="flex-col space-y-3">
                   <TouchableOpacity
-                    className="bg-purple-600 px-6 py-3 rounded-xl mr-3"
+                    className="bg-purple-600 px-6 py-3 rounded-xl "
                     onPress={() => navigation.navigate('CreateChallenge')}
                   >
-                    <Text className="text-white font-bold">Create Challenge</Text>
+                    <Text className="text-white text-center font-bold">Create Challenge</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     className="bg-purple-600 px-6 py-3 rounded-xl"
                     onPress={() => navigation.navigate('JoinChallenge')}
                   >
-                    <Text className="text-white font-bold">Join Challenge</Text>
+                    <Text className="text-white text-center font-bold">Join Challenge</Text>
                   </TouchableOpacity>
                 </View>
               )}
