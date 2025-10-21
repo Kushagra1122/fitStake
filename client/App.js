@@ -3,7 +3,11 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Web3Provider } from './context/Web3Context';
 import ConnectWallet from './screens/ConnectWallet';
-import Home from './screens/Home'; // <-- create this screen
+import Home from './screens/Home';
+import CreateChallenge from './screens/CreateChallenge';
+import JoinChallenge from './screens/JoinChallenge';
+import MyChallenges from './screens/MyChallenges';
+import ConnectStrava from './screens/ConnectStrava';
 
 const Stack = createNativeStackNavigator();
 
@@ -14,6 +18,10 @@ export default function App() {
         <Stack.Navigator initialRouteName="ConnectWallet" screenOptions={{ headerShown: false }}>
           <Stack.Screen name="ConnectWallet" component={ConnectWallet} />
           <Stack.Screen name="Home" component={Home} />
+          <Stack.Screen name="CreateChallenge" component={CreateChallenge} />
+          <Stack.Screen name="JoinChallenge" component={JoinChallenge} />
+          <Stack.Screen name="MyChallenges" component={MyChallenges} />
+          <Stack.Screen name="ConnectStrava" component={ConnectStrava} />
         </Stack.Navigator>
       </NavigationContainer>
     </Web3Provider>

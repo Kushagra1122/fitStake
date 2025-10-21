@@ -40,7 +40,6 @@ export default function Home({ navigation }) {
     >
       <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
         <View className="px-6 pt-16">
-          {/* Header */}
           <Animated.View 
             style={{ 
               opacity: fadeAnim,
@@ -62,14 +61,12 @@ export default function Home({ navigation }) {
               </TouchableOpacity>
             </View>
 
-            {/* Stats Cards */}
             <View className="flex-row mb-6">
               <StatCard title="Active Challenges" value="0" icon="🏃" />
               <View className="w-4" />
               <StatCard title="Total Staked" value="0 ETH" icon="💰" />
             </View>
 
-            {/* Main Content Cards */}
             <View className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 mb-4 shadow-xl">
               <Text className="text-2xl font-black text-gray-900 mb-2">FitStake Dashboard</Text>
               <Text className="text-gray-600 text-base mb-6">
@@ -82,29 +79,32 @@ export default function Home({ navigation }) {
                   title="Create Challenge"
                   description="Set your fitness goal and stake"
                   color="from-purple-500 to-pink-500"
+                  onPress={() => navigation.navigate('CreateChallenge')}
+                />
+                <FeatureCard
+                  icon="🤝"
+                  title="Join Challenge"
+                  description="Browse and join existing challenges"
+                  color="from-blue-500 to-cyan-500"
+                  onPress={() => navigation.navigate('JoinChallenge')}
                 />
                 <FeatureCard
                   icon="📊"
                   title="My Challenges"
                   description="View and track your active goals"
-                  color="from-blue-500 to-cyan-500"
+                  color="from-green-500 to-emerald-500"
+                  onPress={() => navigation.navigate('MyChallenges')}
                 />
                 <FeatureCard
                   icon="🔗"
                   title="Connect Strava"
                   description="Link your fitness tracking app"
                   color="from-orange-500 to-red-500"
-                />
-                <FeatureCard
-                  icon="🏆"
-                  title="Leaderboard"
-                  description="See top performers in the community"
-                  color="from-green-500 to-emerald-500"
+                  onPress={() => navigation.navigate('ConnectStrava')}
                 />
               </View>
             </View>
 
-            {/* Info Card */}
             <View className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-3xl p-6 shadow-xl">
               <Text className="text-white text-xl font-bold mb-2">💡 How it works</Text>
               <Text className="text-white/90 text-sm leading-6">
@@ -121,7 +121,6 @@ export default function Home({ navigation }) {
   );
 }
 
-// Stat Card Component
 function StatCard({ title, value, icon }) {
   return (
     <View className="flex-1 bg-white/20 backdrop-blur-xl rounded-2xl p-4 border border-white/30">
@@ -132,12 +131,12 @@ function StatCard({ title, value, icon }) {
   );
 }
 
-// Feature Card Component
-function FeatureCard({ icon, title, description, color }) {
+function FeatureCard({ icon, title, description, color, onPress }) {
   return (
     <TouchableOpacity 
       className="bg-gray-50 rounded-2xl p-4 flex-row items-center mb-3 active:opacity-70"
       activeOpacity={0.7}
+      onPress={onPress}
     >
       <View className={`bg-gradient-to-r ${color} w-12 h-12 rounded-xl items-center justify-center mr-4`}>
         <Text className="text-2xl">{icon}</Text>

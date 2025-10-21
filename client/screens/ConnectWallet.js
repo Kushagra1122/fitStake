@@ -11,13 +11,11 @@ export default function ConnectWallet() {
   const { account, chainId, isConnecting, connectWallet, disconnectWallet, isConnected } = useWeb3();
   const navigation = useNavigation();
   
-  // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
   useEffect(() => {
-    // Entrance animations
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -98,7 +96,7 @@ export default function ConnectWallet() {
 
   return (
     <LinearGradient
-      colors={['#667eea', '#764ba2', '#f093fb']}
+      colors={['#667eea', '#764ba2']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       className="flex-1"
@@ -113,17 +111,17 @@ export default function ConnectWallet() {
           }}
         >
           {/* Header Section */}
-          <View className="mb-12 items-center">
-            <View className="bg-white/20 rounded-full p-4 mb-6">
+          <View className="mb-10 items-center">
+            <View className="bg-white/20 backdrop-blur-xl rounded-full p-6 mb-6 shadow-lg">
               <Text className="text-6xl">💪</Text>
             </View>
-            <Text className="text-4xl font-black text-white mb-3 text-center tracking-tight">
+            <Text className="text-5xl font-black text-white mb-3 text-center tracking-tight">
               FitStake
             </Text>
-            <Text className="text-white/90 text-center text-lg font-medium">
+            <Text className="text-white/90 text-center text-lg font-semibold mb-2">
               Stake your crypto, commit to fitness
             </Text>
-            <Text className="text-white/70 text-center text-sm mt-2">
+            <Text className="text-white/70 text-center text-sm">
               Connect your wallet to get started
             </Text>
           </View>
@@ -132,31 +130,31 @@ export default function ConnectWallet() {
           {isConnected && account ? (
             <View className="w-full">
               {/* Connected Card */}
-              <View className="bg-white/95 backdrop-blur-xl p-6 rounded-3xl shadow-2xl mb-4">
-                <View className="flex-row items-center justify-between mb-4">
-                  <Text className="text-gray-500 text-sm font-semibold uppercase tracking-wide">
-                    Connected
+              <View className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 shadow-2xl mb-4">
+                <View className="flex-row items-center justify-between mb-5">
+                  <Text className="text-gray-500 text-xs font-bold uppercase tracking-wider">
+                    Connected Wallet
                   </Text>
-                  <View className="bg-green-100 px-3 py-1 rounded-full">
+                  <View className="bg-green-500/20 px-3 py-1.5 rounded-full border border-green-500/30">
                     <Text className="text-green-700 text-xs font-bold">● Active</Text>
                   </View>
                 </View>
                 
-                <View className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-2xl mb-4">
-                  <Text className="text-gray-500 text-xs mb-1 font-medium">Wallet Address</Text>
-                  <Text className="text-gray-900 font-bold text-xl tracking-wider">
+                <View className="bg-gradient-to-r from-purple-50 to-pink-50 p-5 rounded-2xl mb-4">
+                  <Text className="text-gray-500 text-xs mb-2 font-semibold uppercase tracking-wide">Address</Text>
+                  <Text className="text-gray-900 font-black text-2xl tracking-wider">
                     {account.slice(0, 6)}...{account.slice(-4)}
                   </Text>
                 </View>
 
                 {chainId && (
-                  <View className="flex-row items-center bg-gray-50 p-4 rounded-xl">
+                  <View className="flex-row items-center bg-gray-50 p-4 rounded-2xl">
                     <View 
                       className="w-3 h-3 rounded-full mr-3"
                       style={{ backgroundColor: getChainColor(chainId) }}
                     />
                     <View className="flex-1">
-                      <Text className="text-gray-500 text-xs font-medium mb-1">Network</Text>
+                      <Text className="text-gray-500 text-xs font-semibold mb-1 uppercase tracking-wide">Network</Text>
                       <Text className="text-gray-900 font-bold text-base">
                         {getChainName(chainId)}
                       </Text>
@@ -167,11 +165,11 @@ export default function ConnectWallet() {
 
               {/* Action Buttons */}
               <TouchableOpacity
-                className="bg-gradient-to-r from-purple-600 to-pink-600 px-8 py-5 rounded-2xl shadow-xl mb-3 active:opacity-80"
+                className="bg-white px-8 py-5 rounded-2xl shadow-2xl mb-3"
                 onPress={handleContinue}
                 activeOpacity={0.8}
               >
-                <Text className="text-white font-bold text-lg text-center tracking-wide">
+                <Text className="text-purple-600 font-black text-lg text-center tracking-wide">
                   Continue to App →
                 </Text>
               </TouchableOpacity>
@@ -181,7 +179,7 @@ export default function ConnectWallet() {
                 onPress={handleDisconnect}
                 activeOpacity={0.7}
               >
-                <Text className="text-white font-semibold text-base text-center">
+                <Text className="text-white font-bold text-base text-center">
                   Disconnect Wallet
                 </Text>
               </TouchableOpacity>
@@ -189,7 +187,7 @@ export default function ConnectWallet() {
           ) : (
             <View className="w-full">
               {/* Features List */}
-              <View className="bg-white/10 backdrop-blur-xl p-6 rounded-3xl mb-6 border border-white/20">
+              <View className="bg-white/10 backdrop-blur-xl rounded-3xl p-6 mb-6 border border-white/20">
                 <FeatureItem icon="🏃" text="Create fitness challenges" />
                 <FeatureItem icon="💰" text="Stake crypto on your goals" />
                 <FeatureItem icon="🔗" text="Connect with Strava" />
@@ -198,7 +196,7 @@ export default function ConnectWallet() {
 
               {/* Connect Button */}
               <TouchableOpacity
-                className="bg-white px-8 py-5 rounded-2xl shadow-2xl active:opacity-90"
+                className="bg-white px-8 py-5 rounded-2xl shadow-2xl mb-3"
                 onPress={handleConnect}
                 disabled={isConnecting}
                 activeOpacity={0.9}
@@ -206,18 +204,18 @@ export default function ConnectWallet() {
                 {isConnecting ? (
                   <View className="flex-row items-center justify-center">
                     <ActivityIndicator color="#667eea" size="small" />
-                    <Text className="text-purple-600 font-bold text-lg ml-3">
+                    <Text className="text-purple-600 font-black text-lg ml-3">
                       Connecting...
                     </Text>
                   </View>
                 ) : (
-                  <Text className="text-purple-600 font-bold text-lg text-center tracking-wide">
+                  <Text className="text-purple-600 font-black text-lg text-center tracking-wide">
                     Connect Wallet
                   </Text>
                 )}
               </TouchableOpacity>
 
-              <Text className="text-white/60 text-center text-xs mt-4">
+              <Text className="text-white/60 text-center text-xs">
                 Supports MetaMask & WalletConnect
               </Text>
             </View>
@@ -229,12 +227,13 @@ export default function ConnectWallet() {
   );
 }
 
-// Feature Item Component
 function FeatureItem({ icon, text }) {
   return (
-    <View className="flex-row items-center mb-3 last:mb-0">
-      <Text className="text-2xl mr-3">{icon}</Text>
-      <Text className="text-white font-medium text-base flex-1">{text}</Text>
+    <View className="flex-row items-center mb-4 last:mb-0">
+      <View className="bg-white/10 w-10 h-10 rounded-xl items-center justify-center mr-3">
+        <Text className="text-2xl">{icon}</Text>
+      </View>
+      <Text className="text-white font-semibold text-base flex-1">{text}</Text>
     </View>
   );
 }
