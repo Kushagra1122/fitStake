@@ -1,9 +1,11 @@
 import { StatusBar } from 'expo-status-bar';
 import { Text, View, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useWeb3 } from '../context/Web3Context';
+import { useNavigation } from '@react-navigation/native'; // <-- Add navigation
 
 export default function ConnectWallet() {
   const { account, chainId, isConnecting, connectWallet, disconnectWallet } = useWeb3();
+  const navigation = useNavigation(); // <-- Initialize navigation
 
   const handleConnect = async () => {
     try {
@@ -21,6 +23,10 @@ export default function ConnectWallet() {
     } catch (error) {
       Alert.alert('Error', 'Failed to disconnect wallet');
     }
+  };
+
+  const handleContinue = () => {
+    navigation.navigate('Home'); // <-- Navigate to your homepage screen
   };
 
   const getChainName = (id) => {
@@ -61,11 +67,20 @@ export default function ConnectWallet() {
           </View>
 
           <TouchableOpacity
-            className="bg-red-500 px-8 py-4 rounded-2xl shadow-lg"
+            className="bg-red-500 px-8 py-4 rounded-2xl shadow-lg mb-4"
             onPress={handleDisconnect}
           >
             <Text className="text-white font-bold text-lg text-center">
               Disconnect Wallet
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            className="bg-green-600 px-8 py-4 rounded-2xl shadow-lg"
+            onPress={handleContinue}
+          >
+            <Text className="text-white font-bold text-lg text-center">
+              Continue to Homepage
             </Text>
           </TouchableOpacity>
         </View>
