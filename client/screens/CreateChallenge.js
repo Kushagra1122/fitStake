@@ -19,7 +19,7 @@ import { getActivityIcon, formatDuration } from '../utils/helpers';
 
 export default function CreateChallenge() {
   const navigation = useNavigation();
-  const { account, isConnected } = useWeb3();
+  const { account, isConnected, getSigner } = useWeb3();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   // Form state
@@ -67,41 +67,31 @@ export default function CreateChallenge() {
       return;
     }
 
+    if (!isConnected) {
+      Alert.alert('Error', 'Please connect your wallet first');
+      return;
+    }
+
     setIsCreating(true);
 
     try {
-      // TODO: Uncomment when smart contract is ready
-      // const signer = await getSigner(); // Get from Web3Context
-      // const challengeData = {
-      //   name: challengeName,
-      //   activityType,
-      //   targetDistance: parseFloat(targetDistance),
-      //   duration: parseInt(duration),
-      //   stakeAmount: parseFloat(stakeAmount),
-      // };
-      // 
-      // const result = await createChallengeContract(signer, challengeData);
-      // 
-      // Alert.alert(
-      //   'Challenge Created! 🎉',
-      //   `Your ${challengeName} challenge has been created successfully!\n\nTransaction: ${result.transactionHash}`,
-      //   [
-      //     {
-      //       text: 'View My Challenges',
-      //       onPress: () => navigation.navigate('Home'),
-      //     },
-      //   ]
-      // );
-
-      // Simulate API call for now
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
+      const signer = getSigner();
+      const challengeData = {
+        description: challengeName,
+        activityType,
+        targetDistance: parseFloat(targetDistance),
+        duration: parseInt(duration),
+        stakeAmount: parseFloat(stakeAmount),
+      };
+      
+      const result = await createChallengeContract(signer, challengeData);
+      
       Alert.alert(
         'Challenge Created! 🎉',
-        `Your ${challengeName} challenge has been created successfully!`,
+        `Your "${challengeName}" challenge has been created successfully!\n\nTransaction: ${result.transactionHash.substring(0, 10)}...${result.transactionHash.substring(result.transactionHash.length - 8)}${result.challengeId ? `\n\nChallenge ID: ${result.challengeId}` : ''}`,
         [
           {
-            text: 'View My Challenges',
+            text: 'OK',
             onPress: () => navigation.navigate('Home'),
           },
         ]

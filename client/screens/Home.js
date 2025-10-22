@@ -1,14 +1,18 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Animated, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useWeb3 } from '../context/Web3Context';
+import { getUserChallenges } from '../services/contract';
 
 const { width } = Dimensions.get('window');
 
 export default function Home({ navigation }) {
-  const { account, chainId, disconnectWallet } = useWeb3();
+  const { account, chainId, disconnectWallet, getProvider } = useWeb3();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+  
+  const [activeChallengesCount, setActiveChallengesCount] = useState(0);
+  const [totalStaked, setTotalStaked] = useState('0');
 
   useEffect(() => {
     Animated.parallel([
@@ -24,7 +28,32 @@ export default function Home({ navigation }) {
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+
+    loadUserStats();
+  }, [account]);
+
+  const loadUserStats = async () => {
+    if (!account) {
+      return;
+    }
+
+    try {
+      const provider = getProvider();
+      const userChallenges = await getUserChallenges(provider, account);
+      
+      // Count active challenges (not completed/finalized)
+      const activeChallenges = userChallenges.filter(c => !c.finalized && !c.hasWithdrawn);
+      setActiveChallengesCount(activeChallenges.length);
+      
+      // Calculate total staked
+      const total = activeChallenges.reduce((sum, challenge) => {
+        return sum + parseFloat(challenge.stakeAmount || '0');
+      }, 0);
+      setTotalStaked(total.toFixed(4));
+    } catch (error) {
+      console.error('Error loading user stats:', error);
+    }
+  };
 
   const handleDisconnect = async () => {
     await disconnectWallet();
@@ -62,9 +91,9 @@ export default function Home({ navigation }) {
             </View>
 
             <View className="flex-row mb-6">
-              <StatCard title="Active Challenges" value="0" icon="🏃" />
+              <StatCard title="Active Challenges" value={activeChallengesCount.toString()} icon="🏃" />
               <View className="w-4" />
-              <StatCard title="Total Staked" value="0 ETH" icon="💰" />
+              <StatCard title="Total Staked" value={`${totalStaked} ETH`} icon="💰" />
             </View>
 
             <View className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 mb-4 shadow-xl">

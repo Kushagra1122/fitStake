@@ -59,29 +59,40 @@ export default function MyChallenges() {
   };
 
   const handleCompleteChallenge = async (challenge) => {
+    if (!challenge.finalized) {
+      Alert.alert(
+        'Challenge Not Finalized',
+        'This challenge needs to be finalized before you can withdraw. The challenge must be past its end date.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    if (challenge.hasWithdrawn) {
+      Alert.alert('Already Withdrawn', 'You have already withdrawn your funds from this challenge.');
+      return;
+    }
+
     Alert.alert(
-      'Complete Challenge',
-      `Mark "${challenge.name}" as complete and claim your rewards?`,
+      'Withdraw Winnings',
+      `Withdraw your stake${challenge.isCompleted ? ' + rewards' : ''} from "${challenge.name}"?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Claim Rewards',
+          text: 'Withdraw',
           onPress: async () => {
             try {
-              // TODO: Uncomment when smart contract is ready
-              // const signer = await getSigner(); // Get from Web3Context
-              // const result = await completeChallenge(signer, challenge.id);
-              // 
-              // Alert.alert(
-              //   'Success! 🎉',
-              //   `Rewards claimed!\n\nTransaction: ${result.transactionHash}`,
-              //   [{ text: 'OK', onPress: () => loadMyChallenges() }]
-              // );
-
-              Alert.alert('Coming Soon', 'Challenge completion will be automated with Strava verification!');
+              const signer = getSigner();
+              const result = await withdrawWinnings(signer, challenge.id);
+              
+              Alert.alert(
+                'Success! 🎉',
+                `Funds withdrawn!\n\nTransaction: ${result.transactionHash.substring(0, 10)}...${result.transactionHash.substring(result.transactionHash.length - 8)}`,
+                [{ text: 'OK', onPress: () => loadMyChallenges() }]
+              );
             } catch (error) {
-              console.error('Error completing challenge:', error);
-              Alert.alert('Error', error.message || 'Failed to complete challenge.');
+              console.error('Error withdrawing winnings:', error);
+              Alert.alert('Error', error.message || 'Failed to withdraw winnings.');
             }
           },
         },

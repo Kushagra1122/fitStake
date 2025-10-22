@@ -260,6 +260,43 @@ export const Web3Provider = ({ children }) => {
     }
   };
 
+  /**
+   * Get a provider for reading blockchain data
+   * Uses public RPC endpoint for Sepolia
+   */
+  const getProvider = () => {
+    // For React Native, we use JsonRpcProvider with public endpoint
+    return new ethers.JsonRpcProvider('https://eth-sepolia.g.alchemy.com/v2/demo');
+  };
+
+  /**
+   * Get a signer for sending transactions
+   * Uses WalletConnect session to create a signer
+   */
+  const getSigner = () => {
+    if (!signClientRef.current || !session || !account) {
+      throw new Error('Not connected to wallet');
+    }
+
+    // Create a custom signer that uses WalletConnect for signing
+    const provider = getProvider();
+    
+    // Create a Wallet instance that wraps WalletConnect
+    const walletConnectSigner = new ethers.JsonRpcSigner(provider, account);
+    
+    // Override sendTransaction to use WalletConnect
+    const originalSendTransaction = walletConnectSigner.sendTransaction.bind(walletConnectSigner);
+    walletConnectSigner.sendTransaction = async (transaction) => {
+      // Use WalletConnect's sendTransaction
+      const txHash = await sendTransaction(transaction);
+      
+      // Return a transaction response object
+      return provider.getTransaction(txHash);
+    };
+
+    return walletConnectSigner;
+  };
+
   const value = {
     account,
     chainId,
@@ -270,6 +307,8 @@ export const Web3Provider = ({ children }) => {
     switchChain,
     sendTransaction,
     signMessage,
+    getProvider,
+    getSigner,
   };
 
   return <Web3Context.Provider value={value}>{children}</Web3Context.Provider>;

@@ -16,7 +16,7 @@ import { getActivityIcon, getDaysLeft, getStatusColor } from '../utils/helpers';
 
 export default function JoinChallenge() {
   const navigation = useNavigation();
-  const { account, isConnected } = useWeb3();
+  const { account, isConnected, getSigner, getProvider } = useWeb3();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const [challenges, setChallenges] = useState([]);
@@ -36,20 +36,16 @@ export default function JoinChallenge() {
   const loadChallenges = async () => {
     setIsLoading(true);
     try {
-      // TODO: Uncomment when smart contract is ready
-      // const provider = await getProvider(); // Get from Web3Context
-      // const challengesList = await getActiveChallenges(provider);
-      // 
-      // // Add activity icons to each challenge
-      // const challengesWithIcons = challengesList.map(challenge => ({
-      //   ...challenge,
-      //   icon: getActivityIcon(challenge.activityType),
-      // }));
-      // 
-      // setChallenges(challengesWithIcons);
+      const provider = getProvider();
+      const challengesList = await getActiveChallenges(provider);
       
-      // For now, return empty array until smart contract is integrated
-      setChallenges([]);
+      // Add activity icons to each challenge
+      const challengesWithIcons = challengesList.map(challenge => ({
+        ...challenge,
+        icon: getActivityIcon(challenge.activityType),
+      }));
+      
+      setChallenges(challengesWithIcons);
     } catch (error) {
       console.error('Error loading challenges:', error);
       Alert.alert('Error', 'Failed to load challenges. Please try again.');
@@ -59,6 +55,11 @@ export default function JoinChallenge() {
   };
 
   const handleJoinChallenge = async (challenge) => {
+    if (!isConnected) {
+      Alert.alert('Error', 'Please connect your wallet first');
+      return;
+    }
+
     Alert.alert(
       'Join Challenge',
       `Join "${challenge.name}"?\n\nStake: ${challenge.stakeAmount} ETH\nTarget: ${challenge.targetDistance} ${challenge.unit} in ${challenge.duration} days`,
@@ -69,24 +70,23 @@ export default function JoinChallenge() {
           onPress: async () => {
             setJoiningId(challenge.id);
             try {
-              // TODO: Uncomment when smart contract is ready
-              // const signer = await getSigner(); // Get from Web3Context
-              // const result = await joinChallengeContract(
-              //   signer,
-              //   challenge.id,
-              //   challenge.stakeAmount
-              // );
-              
-              // Simulate transaction for now
-              await new Promise(resolve => setTimeout(resolve, 2000));
+              const signer = getSigner();
+              const result = await joinChallengeContract(
+                signer,
+                challenge.id,
+                challenge.stakeAmount
+              );
               
               Alert.alert(
                 'Success! 🎉',
-                `You've joined "${challenge.name}"!\n\nStart tracking your activities on Strava to complete this challenge.`,
+                `You've joined "${challenge.name}"!\n\nTransaction: ${result.transactionHash.substring(0, 10)}...${result.transactionHash.substring(result.transactionHash.length - 8)}\n\nStart tracking your activities on Strava to complete this challenge.`,
                 [
                   {
-                    text: 'View My Challenges',
-                    onPress: () => navigation.navigate('Home'),
+                    text: 'OK',
+                    onPress: () => {
+                      loadChallenges(); // Reload to reflect updated participant count
+                      navigation.navigate('Home');
+                    },
                   },
                 ]
               );
