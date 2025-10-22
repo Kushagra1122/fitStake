@@ -7,11 +7,28 @@ import {
   Alert,
   Animated,
   ActivityIndicator,
-  Linking,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useWeb3 } from '../context/Web3Context';
 import { useNavigation } from '@react-navigation/native';
+import { useWeb3 } from '../context/Web3Context';
+import * as WebBrowser from 'expo-web-browser';
+import * as AuthSession from 'expo-auth-session';
+import * as SecureStore from 'expo-secure-store';
+
+WebBrowser.maybeCompleteAuthSession();
+
+// --- Strava Configuration ---
+const STRAVA_CLIENT_ID = '181674';
+const STRAVA_CLIENT_SECRET = '46a8af60e705928e270cdb45cc7cf1884d14d7a2';
+
+// we'll get this after the auth call after users will allow to the strava poppup box.
+const STRAVA_TOKEN_KEY = 'strava_token';
+
+const discovery = {
+  authorizationEndpoint: 'https://www.strava.com/oauth/authorize',
+  tokenEndpoint: 'https://www.strava.com/api/v3/oauth/token',
+};
 
 export default function ConnectStrava() {
   const navigation = useNavigation();
@@ -21,6 +38,35 @@ export default function ConnectStrava() {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [stravaData, setStravaData] = useState(null);
+
+  // --- AuthSession Configuration ---
+  // Use custom scheme that matches app.json
+  const redirectUri = AuthSession.makeRedirectUri({
+    useProxy: true,
+  });
+  // Log the redirect URI so you can register it (exact match) in Strava developer settings
+  console.log('Auth redirectUri (register this exact URL in Strava):', redirectUri);
+  // const redirectUri = AuthSession.makeRedirectUri({
+  //   scheme: 'fitstake',
+  //   path: 'redirect',
+  // });
+
+  // const [request, response, promptAsync] = AuthSession.useAuthRequest(
+  //   {
+  //     clientId: STRAVA_CLIENT_ID,
+  //     scopes: ['read', 'activity:read_all'],
+  //     redirectUri: 'http://localhost/',
+  //   },
+  //   discovery
+  // );
+  const [request, response, promptAsync] = AuthSession.useAuthRequest(
+    {
+      clientId: STRAVA_CLIENT_ID,
+      scopes: ['read', 'activity:read_all'],
+      redirectUri: redirectUri,
+    },
+    discovery
+  );
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -32,68 +78,134 @@ export default function ConnectStrava() {
     checkStravaConnection();
   }, []);
 
+  // --- Handle OAuth response ---
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const { code } = response.params;
+      console.log('✅ Authorization successful, exchanging code for token...');
+      exchangeCodeForToken(code);
+    } else if (response?.type === 'error') {
+      setIsConnecting(false);
+      console.error('❌ Auth error:', response.error);
+      Alert.alert('Authentication Error', `${response.error?.message || 'Unknown error'}`);
+    } else if (response?.type === 'dismiss') {
+      setIsConnecting(false);
+      console.log('ℹ️ User dismissed authentication');
+    }
+  }, [response]);
+
   const checkStravaConnection = async () => {
     try {
-      // TODO: Check if Strava is already connected
-      // const connected = await checkStravaToken(account);
-      // if (connected) {
-      //   const data = await getStravaProfile();
-      //   setStravaData(data);
-      //   setIsConnected(true);
-      // }
-      
-      // For now, default to not connected
-      setIsConnected(false);
+      const tokenString = await SecureStore.getItemAsync(STRAVA_TOKEN_KEY);
+      if (tokenString) {
+        const token = JSON.parse(tokenString);
+        const profile = await getStravaProfile(token.access_token);
+        setStravaData(profile);
+        setIsConnected(true);
+      }
     } catch (error) {
       console.error('Error checking Strava connection:', error);
     }
   };
 
-  const handleConnectStrava = async () => {
-    setIsConnecting(true);
-    try {
-      // TODO: Implement Strava OAuth flow
-      // const authUrl = await getStravaAuthUrl(account);
-      // const supported = await Linking.canOpenURL(authUrl);
-      // 
-      // if (supported) {
-      //   await Linking.openURL(authUrl);
-      //   // Handle OAuth callback
-      //   // const token = await handleOAuthCallback();
-      //   // await saveStravaToken(account, token);
-      //   // const profile = await getStravaProfile(token);
-      //   // setStravaData(profile);
-      //   // setIsConnected(true);
-      // }
 
-      // Simulate connection for now
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      Alert.alert(
-        'Strava Connected! 🎉',
-        'Your Strava account has been connected successfully. Your activities will now be tracked automatically.',
-        [{ text: 'OK' }]
-      );
-      
-      // Simulate connected state
-      setIsConnected(true);
-      setStravaData({
-        name: 'Athlete Name',
-        username: 'athlete_username',
-        profile_image: null,
+  //this is correct
+  const exchangeCodeForToken = async (code) => {
+    try {
+      const tokenResponse = await fetch(discovery.tokenEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          client_id: STRAVA_CLIENT_ID,
+          client_secret: STRAVA_CLIENT_SECRET,
+          code: code,
+          grant_type: 'authorization_code',
+        }),
       });
+
+      const tokenData = await tokenResponse.json();
+
+      if (tokenData.access_token) {
+        await SecureStore.setItemAsync(STRAVA_TOKEN_KEY, JSON.stringify(tokenData));
+        const profile = await getStravaProfile(tokenData.access_token);
+        setStravaData(profile);
+        setIsConnected(true);
+        
+        // Show success message and navigate to home
+        Alert.alert(
+          'Connected! 🎉',
+          'Your Strava account has been linked successfully.',
+          [
+            {
+              text: 'Continue',
+              onPress: () => navigation.navigate('Home'),
+            },
+          ]
+        );
+      } else {
+        throw new Error(tokenData.message || 'Failed to retrieve access token');
+      }
     } catch (error) {
-      console.error('Error connecting Strava:', error);
-      Alert.alert('Connection Failed', error.message || 'Failed to connect to Strava. Please try again.');
+      console.error('Token Exchange Error:', error);
+      Alert.alert('Connection Failed', error.message);
     } finally {
       setIsConnecting(false);
+    }
+  };
+
+  const getStravaProfile = async (accessToken) => {
+    const profileResponse = await fetch('https://www.strava.com/api/v3/athlete', {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+    
+    if (!profileResponse.ok) {
+      throw new Error('Failed to fetch Strava profile');
+    }
+    
+    const profileData = await profileResponse.json();
+    return {
+      name: `${profileData.firstname} ${profileData.lastname}`,
+      username: profileData.username,
+      profile_image: profileData.profile_medium,
+      id: profileData.id,
+    };
+  };
+
+  const handleConnectStrava = async () => {
+    console.log("\n\n\n")
+    console.log('🔗 Starting Strava OAuth...');
+    console.log('📍 Redirect URI:', redirectUri);
+    console.log("\n\n\n")
+    console.log(request);
+    console.log("\n\n\n")
+    console.log(request.redirectUri);
+    console.log("\n\n\n")
+    console.log(request.url);
+    console.log("\n\n\n")
+    setIsConnecting(true);
+    
+    try {
+      await promptAsync();
+
+      console.log("\n\n\n")
+      console.log(response)
+      console.log("\n\n\n")
+
+    } catch (error) {
+      console.error('OAuth Error:', error);
+      setIsConnecting(false);
+      Alert.alert('Error', 'Failed to open Strava authorization. Please try again.');
     }
   };
 
   const handleDisconnectStrava = async () => {
     Alert.alert(
       'Disconnect Strava?',
-      'Are you sure you want to disconnect your Strava account? Your progress tracking will be disabled.',
+      'Are you sure you want to disconnect your Strava account?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -101,9 +213,7 @@ export default function ConnectStrava() {
           style: 'destructive',
           onPress: async () => {
             try {
-              // TODO: Remove Strava token
-              // await removeStravaToken(account);
-              
+              await SecureStore.deleteItemAsync(STRAVA_TOKEN_KEY);
               setIsConnected(false);
               setStravaData(null);
               Alert.alert('Disconnected', 'Strava account disconnected successfully.');
@@ -118,13 +228,14 @@ export default function ConnectStrava() {
 
   const handleSyncActivities = async () => {
     try {
-      // TODO: Sync recent activities
-      // const activities = await syncStravaActivities(account);
-      // Alert.alert('Success', `Synced ${activities.length} activities`);
-      
-      Alert.alert('Coming Soon', 'Manual activity sync will be available soon!');
+      const tokenString = await SecureStore.getItemAsync(STRAVA_TOKEN_KEY);
+      if (tokenString) {
+        const token = JSON.parse(tokenString);
+        // TODO: Implement activity sync
+        Alert.alert('Coming Soon', 'Manual activity sync will be available soon!');
+      }
     } catch (error) {
-      Alert.alert('Error', 'Failed to sync activities');
+      Alert.alert('Error', 'Failed to sync activities.');
     }
   };
 
@@ -178,11 +289,10 @@ export default function ConnectStrava() {
 
                 <View className="bg-gradient-to-r from-orange-50 to-red-50 p-4 rounded-2xl mb-4">
                   <View className="flex-row items-center mb-2">
-                    <View className="bg-orange-500 w-12 h-12 rounded-full items-center justify-center mr-3">
-                      <Text className="text-white text-xl font-bold">
-                        {stravaData.name?.charAt(0) || 'S'}
-                      </Text>
-                    </View>
+                    <Image
+                      source={{ uri: stravaData.profile_image }}
+                      className="w-12 h-12 rounded-full mr-3 bg-orange-200"
+                    />
                     <View className="flex-1">
                       <Text className="text-gray-900 font-bold text-lg">
                         {stravaData.name || 'Strava Athlete'}
@@ -214,7 +324,6 @@ export default function ConnectStrava() {
                   Sync Activities 🔄
                 </Text>
               </TouchableOpacity>
-
               <TouchableOpacity
                 className="bg-white/20 backdrop-blur-xl px-8 py-4 rounded-2xl border border-white/30"
                 onPress={handleDisconnectStrava}
@@ -257,7 +366,7 @@ export default function ConnectStrava() {
               <TouchableOpacity
                 className="bg-gradient-to-r from-orange-500 to-red-500 px-8 py-5 rounded-2xl shadow-2xl mb-4"
                 onPress={handleConnectStrava}
-                disabled={isConnecting}
+                disabled={isConnecting || !request}
                 activeOpacity={0.9}
               >
                 {isConnecting ? (
@@ -275,7 +384,6 @@ export default function ConnectStrava() {
                 )}
               </TouchableOpacity>
 
-              {/* Info Card */}
               <View className="bg-white/10 backdrop-blur-xl rounded-2xl p-4 border border-white/20">
                 <Text className="text-white font-bold text-sm mb-2">💡 How it works</Text>
                 <Text className="text-white/80 text-xs leading-5">
@@ -293,7 +401,6 @@ export default function ConnectStrava() {
   );
 }
 
-// Feature Item Component
 function FeatureItem({ icon, title, description }) {
   return (
     <View className="flex-row items-start mb-4 last:mb-0">
@@ -308,7 +415,6 @@ function FeatureItem({ icon, title, description }) {
   );
 }
 
-// Stat Box Component
 function StatBox({ label, value, icon }) {
   return (
     <View className="flex-1 items-center">
