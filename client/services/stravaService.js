@@ -33,6 +33,12 @@ const STRAVA_REFRESH_TOKEN_KEY = 'strava_refresh_token';
 const STRAVA_ATHLETE_KEY = 'strava_athlete_data';
 const STRAVA_TOKEN_EXPIRY_KEY = 'strava_token_expiry';
 
+console.log('🔧 Strava Service Initialized');
+console.log('📊 Config:', {
+  clientId: STRAVA_CLIENT_ID ? `${STRAVA_CLIENT_ID.substring(0, 8)}...` : 'MISSING',
+  oauthServer: OAUTH_SERVER_URL,
+});
+
 /**
  * Logs debug information
  */
@@ -52,33 +58,14 @@ const logError = (step, error) => {
  */
 const storeTokens = async (accessToken, refreshToken, expiresAt, athlete) => {
   try {
-    logDebug('💾 Storing tokens to SecureStore...', {
-      hasAccessToken: !!accessToken,
-      hasRefreshToken: !!refreshToken,
-      expiresAt,
-      hasAthlete: !!athlete,
-      athleteId: athlete?.id
-    });
-    
     await SecureStore.setItemAsync(STRAVA_ACCESS_TOKEN_KEY, accessToken);
-    logDebug('✅ Stored access token', {});
-    
     await SecureStore.setItemAsync(STRAVA_REFRESH_TOKEN_KEY, refreshToken);
-    logDebug('✅ Stored refresh token', {});
-    
     await SecureStore.setItemAsync(STRAVA_TOKEN_EXPIRY_KEY, expiresAt.toString());
-    logDebug('✅ Stored expiry', {});
-    
     await SecureStore.setItemAsync(STRAVA_ATHLETE_KEY, JSON.stringify(athlete));
-    logDebug('✅ Stored athlete data', {});
     
-    logDebug('✅ All tokens stored successfully', { expiresAt, athleteId: athlete?.id });
     return true;
   } catch (error) {
-    logError('❌ Error storing tokens', {
-      error: error.message,
-      stack: error.stack
-    });
+    console.error('Error storing tokens:', error.message);
     return false;
   }
 };
@@ -101,9 +88,10 @@ const getStoredTokens = async () => {
         athlete: athleteData ? JSON.parse(athleteData) : null
       };
     }
+    
     return null;
   } catch (error) {
-    logError('Error retrieving tokens', error);
+    console.error('Error retrieving tokens:', error.message);
     return null;
   }
 };
@@ -112,36 +100,61 @@ const getStoredTokens = async () => {
  * Check if token is expired
  */
 const isTokenExpired = (expiresAt) => {
-  return Date.now() / 1000 >= expiresAt;
+  const now = Date.now() / 1000;
+  return now >= expiresAt;
 };
 
 /**
  * Refresh access token
  */
 const refreshAccessToken = async (refreshToken) => {
+  console.log('═══════════════════════════════════════════════════');
+  console.log('🔄 [REFRESH_TOKEN] Starting token refresh...');
+  console.log('═══════════════════════════════════════════════════');
+  
   try {
     logDebug('Refreshing access token', { refreshToken: refreshToken.substring(0, 10) + '...' });
+    
+    const requestBody = {
+      client_id: STRAVA_CLIENT_ID,
+      client_secret: STRAVA_CLIENT_SECRET,
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+    };
+    
+    console.log('📤 [REFRESH_TOKEN] Sending refresh request to:', STRAVA_TOKEN_URL);
+    console.log('📊 [REFRESH_TOKEN] Request body:', {
+      hasClientId: !!requestBody.client_id,
+      hasClientSecret: !!requestBody.client_secret,
+      grantType: requestBody.grant_type,
+      hasRefreshToken: !!requestBody.refresh_token
+    });
     
     const response = await fetch(STRAVA_TOKEN_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        client_id: STRAVA_CLIENT_ID,
-        client_secret: STRAVA_CLIENT_SECRET,
-        grant_type: 'refresh_token',
-        refresh_token: refreshToken,
-      }),
+      body: JSON.stringify(requestBody),
+    });
+
+    console.log('📥 [REFRESH_TOKEN] Response received:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok
     });
 
     const data = await response.json();
     logDebug('Token refresh response', data);
 
     if (!response.ok) {
+      console.error('❌ [REFRESH_TOKEN] Refresh failed:', data);
       throw new Error(data.message || 'Failed to refresh token');
     }
 
+    console.log('✅ [REFRESH_TOKEN] Token refreshed successfully');
+    console.log('💾 [REFRESH_TOKEN] Storing new tokens...');
+    
     // Store new tokens
     await storeTokens(
       data.access_token,
@@ -150,9 +163,14 @@ const refreshAccessToken = async (refreshToken) => {
       data.athlete
     );
 
+    console.log('═══════════════════════════════════════════════════');
+    console.log('✅ [REFRESH_TOKEN] Token refresh complete!');
+    console.log('═══════════════════════════════════════════════════');
+    
     return data.access_token;
   } catch (error) {
     logError('Error refreshing token', error);
+    console.log('═══════════════════════════════════════════════════');
     throw error;
   }
 };
@@ -164,12 +182,12 @@ const getValidAccessToken = async () => {
   const tokens = await getStoredTokens();
   
   if (!tokens) {
-    throw new Error('No stored tokens found');
+    throw new Error('Not connected to Strava. Please connect your account first.');
   }
 
   if (isTokenExpired(tokens.expiresAt)) {
-    logDebug('Token expired, refreshing', {});
-    return await refreshAccessToken(tokens.refreshToken);
+    const newToken = await refreshAccessToken(tokens.refreshToken);
+    return newToken;
   }
 
   return tokens.accessToken;
@@ -179,6 +197,10 @@ const getValidAccessToken = async () => {
  * Exchange authorization code for tokens
  */
 const exchangeCodeForToken = async (code) => {
+  console.log('═══════════════════════════════════════════════════');
+  console.log('🔄 [EXCHANGE_CODE] Starting code exchange...');
+  console.log('═══════════════════════════════════════════════════');
+  
   try {
     logDebug('📤 Exchanging code for token', { 
       code: code.substring(0, 10) + '...',
@@ -203,6 +225,7 @@ const exchangeCodeForToken = async (code) => {
       grantType: requestBody.grant_type
     });
 
+    console.log('📤 [EXCHANGE_CODE] Sending request to Strava...');
     const response = await fetch(STRAVA_TOKEN_URL, {
       method: 'POST',
       headers: {
@@ -237,11 +260,13 @@ const exchangeCodeForToken = async (code) => {
         status: response.status,
         data: data
       });
+      console.log('═══════════════════════════════════════════════════');
       throw new Error(data.message || `Failed to exchange code for token (${response.status})`);
     }
 
     if (!data.access_token) {
       logError('❌ No access token in response', { data });
+      console.log('═══════════════════════════════════════════════════');
       throw new Error('No access token received from Strava');
     }
 
@@ -257,10 +282,15 @@ const exchangeCodeForToken = async (code) => {
 
     if (!stored) {
       logError('❌ Failed to store tokens', {});
+      console.log('═══════════════════════════════════════════════════');
       throw new Error('Failed to store tokens securely');
     }
 
     logDebug('✅ Tokens stored successfully', {});
+
+    console.log('═══════════════════════════════════════════════════');
+    console.log('✅ [EXCHANGE_CODE] Code exchange complete!');
+    console.log('═══════════════════════════════════════════════════');
 
     return {
       accessToken: data.access_token,
@@ -274,6 +304,7 @@ const exchangeCodeForToken = async (code) => {
       stack: error.stack,
       name: error.name
     });
+    console.log('═══════════════════════════════════════════════════');
     throw error;
   }
 };
@@ -282,6 +313,10 @@ const exchangeCodeForToken = async (code) => {
  * Initialize OAuth flow with Express server
  */
 const connectStrava = async () => {
+  console.log('═══════════════════════════════════════════════════');
+  console.log('🚀 [CONNECT_STRAVA] Starting OAuth flow...');
+  console.log('═══════════════════════════════════════════════════');
+  
   try {
     const redirectUri = REDIRECT_URI;
     const sessionId = Date.now().toString();
@@ -298,16 +333,23 @@ const connectStrava = async () => {
 
     logDebug('🌐 Opening auth URL', { 
       authUrl: authUrl.substring(0, 150) + '...',
-      hasState: authUrl.includes('state=')
+      hasState: authUrl.includes('state='),
+      fullAuthUrl: authUrl
     });
 
     logDebug('📱 Opening browser for authorization...', {});
+    
+    console.log('📱 [CONNECT_STRAVA] Opening browser with WebBrowser.openBrowserAsync()');
     
     // Open browser for Strava authorization
     // User will authorize, then server handles the callback
     const result = await WebBrowser.openBrowserAsync(authUrl);
     
     logDebug('📱 Browser closed/returned', { type: result.type });
+    console.log('📱 [CONNECT_STRAVA] Browser result:', {
+      type: result.type,
+      url: result.url
+    });
 
     // After user authorizes and browser redirects to server,
     // the server processes the code and stores the result
@@ -315,6 +357,7 @@ const connectStrava = async () => {
     
     if (result.type === 'cancel') {
       logDebug('❌ User cancelled authorization', {});
+      console.log('═══════════════════════════════════════════════════');
       return {
         success: false,
         error: 'Authorization cancelled'
@@ -327,6 +370,8 @@ const connectStrava = async () => {
       serverUrl: OAUTH_SERVER_URL 
     });
     
+    console.log('🔍 [CONNECT_STRAVA] Starting server polling...');
+    
     const maxAttempts = 20; // Increased to 20 attempts (20 seconds)
     const pollInterval = 1000; // 1 second
     
@@ -335,7 +380,11 @@ const connectStrava = async () => {
         url: `${OAUTH_SERVER_URL}/auth-status/${sessionId}` 
       });
       
+      console.log(`🔄 [CONNECT_STRAVA] Poll attempt ${attempt}/${maxAttempts}`);
+      
       try {
+        console.log(`📤 [CONNECT_STRAVA] Fetching: ${OAUTH_SERVER_URL}/auth-status/${sessionId}`);
+        
         const statusResponse = await fetch(`${OAUTH_SERVER_URL}/auth-status/${sessionId}`, {
           method: 'GET',
           headers: {
@@ -349,7 +398,14 @@ const connectStrava = async () => {
           statusText: statusResponse.statusText
         });
         
+        console.log(`📥 [CONNECT_STRAVA] Server response:`, {
+          status: statusResponse.status,
+          ok: statusResponse.ok,
+          statusText: statusResponse.statusText
+        });
+        
         if (statusResponse.ok) {
+          console.log('✅ [CONNECT_STRAVA] Got 200 OK response, parsing JSON...');
           const authData = await statusResponse.json();
           
           logDebug('✅ Got auth data from server', {
@@ -358,10 +414,21 @@ const connectStrava = async () => {
             hasRefreshToken: !!authData.refreshToken,
             hasAthlete: !!authData.athlete,
             athleteId: authData.athlete?.id,
-            athleteName: authData.athlete ? `${authData.athlete.firstname} ${authData.athlete.lastname}` : 'N/A'
+            athleteName: authData.athlete ? `${authData.athlete.firstname} ${authData.athlete.lastname}` : 'N/A',
+            fullData: JSON.stringify(authData).substring(0, 300)
+          });
+          
+          console.log('📊 [CONNECT_STRAVA] Auth data:', {
+            success: authData.success,
+            hasAccessToken: !!authData.accessToken,
+            hasRefreshToken: !!authData.refreshToken,
+            hasAthlete: !!authData.athlete,
+            error: authData.error
           });
           
           if (authData.success) {
+            console.log('✅ [CONNECT_STRAVA] Success! Storing tokens...');
+            
             // Store tokens
             logDebug('💾 Storing tokens from server response...', {});
             await storeTokens(
@@ -372,12 +439,18 @@ const connectStrava = async () => {
             );
             
             logDebug('✅ OAuth complete! Returning to app...', {});
+            
+            console.log('═══════════════════════════════════════════════════');
+            console.log('🎉 [CONNECT_STRAVA] OAuth flow complete!');
+            console.log('═══════════════════════════════════════════════════');
+            
             return {
               success: true,
               athlete: authData.athlete
             };
           } else {
             logError('❌ Server returned error', { error: authData.error });
+            console.log('═══════════════════════════════════════════════════');
             return {
               success: false,
               error: authData.error || 'Authentication failed'
@@ -390,6 +463,9 @@ const connectStrava = async () => {
             maxAttempts,
             willRetry: attempt < maxAttempts
           });
+          
+          console.log(`⏳ [CONNECT_STRAVA] Session not ready (404), waiting ${pollInterval}ms...`);
+          
           await new Promise(resolve => setTimeout(resolve, pollInterval));
           continue;
         } else {
@@ -398,6 +474,9 @@ const connectStrava = async () => {
             status: statusResponse.status,
             errorText: errorText.substring(0, 200)
           });
+          
+          console.error(`⚠️ [CONNECT_STRAVA] Unexpected status ${statusResponse.status}:`, errorText.substring(0, 200));
+          
           throw new Error(`Server returned ${statusResponse.status}: ${errorText}`);
         }
       } catch (pollError) {
@@ -408,15 +487,25 @@ const connectStrava = async () => {
           willRetry: attempt < maxAttempts
         });
         
+        console.error(`❌ [CONNECT_STRAVA] Poll attempt ${attempt} failed:`, {
+          error: pollError.message,
+          stack: pollError.stack
+        });
+        
         if (attempt === maxAttempts) {
           logError('❌ Max poll attempts reached', { maxAttempts });
+          console.log('═══════════════════════════════════════════════════');
           throw new Error('Timeout: Failed to get authorization result from server. Please try again.');
         }
         
         // Wait before retrying
+        console.log(`⏳ [CONNECT_STRAVA] Waiting ${pollInterval}ms before retry...`);
         await new Promise(resolve => setTimeout(resolve, pollInterval));
       }
     }
+    
+    console.log('⏰ [CONNECT_STRAVA] Timeout reached after all poll attempts');
+    console.log('═══════════════════════════════════════════════════');
     
     return {
       success: false,
@@ -429,6 +518,8 @@ const connectStrava = async () => {
       errorStack: error.stack
     });
     
+    console.log('═══════════════════════════════════════════════════');
+    
     return {
       success: false,
       error: error.message || 'An unknown error occurred during OAuth',
@@ -440,20 +531,33 @@ const connectStrava = async () => {
  * Get athlete profile
  */
 const getAthleteProfile = async () => {
+  console.log('═══════════════════════════════════════════════════');
+  console.log('👤 [GET_ATHLETE_PROFILE] Fetching athlete profile...');
+  console.log('═══════════════════════════════════════════════════');
+  
   try {
+    console.log('🔑 [GET_ATHLETE_PROFILE] Getting valid access token...');
     const accessToken = await getValidAccessToken();
     
     logDebug('Fetching athlete profile', {});
 
+    console.log('📤 [GET_ATHLETE_PROFILE] Sending request to:', `${STRAVA_API_BASE}/athlete`);
     const response = await fetch(`${STRAVA_API_BASE}/athlete`, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
       },
     });
 
+    console.log('📥 [GET_ATHLETE_PROFILE] Response received:', {
+      status: response.status,
+      ok: response.ok
+    });
+
     const data = await response.json();
 
     if (!response.ok) {
+      console.error('❌ [GET_ATHLETE_PROFILE] Request failed:', data);
+      console.log('═══════════════════════════════════════════════════');
       throw new Error(data.message || 'Failed to fetch athlete profile');
     }
 
@@ -464,12 +568,18 @@ const getAthleteProfile = async () => {
       lastname: data.lastname
     });
 
+    console.log('💾 [GET_ATHLETE_PROFILE] Updating stored athlete data...');
     // Update stored athlete data
     await SecureStore.setItemAsync(STRAVA_ATHLETE_KEY, JSON.stringify(data));
+
+    console.log('═══════════════════════════════════════════════════');
+    console.log('✅ [GET_ATHLETE_PROFILE] Profile fetched successfully!');
+    console.log('═══════════════════════════════════════════════════');
 
     return data;
   } catch (error) {
     logError('Error fetching athlete profile', error);
+    console.log('═══════════════════════════════════════════════════');
     throw error;
   }
 };
@@ -477,20 +587,16 @@ const getAthleteProfile = async () => {
 /**
  * Get athlete activities
  */
-const getAthleteActivities = async (page = 1, perPage = 30) => {
+const getAthleteActivities = async () => {
   try {
     const accessToken = await getValidAccessToken();
-    
-    logDebug('Fetching athlete activities', { page, perPage });
 
-    const response = await fetch(
-      `${STRAVA_API_BASE}/athlete/activities?page=${page}&per_page=${perPage}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      }
-    );
+    const url = `${STRAVA_API_BASE}/athlete/activities`;
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
 
     const data = await response.json();
 
@@ -498,11 +604,9 @@ const getAthleteActivities = async (page = 1, perPage = 30) => {
       throw new Error(data.message || 'Failed to fetch activities');
     }
 
-    logDebug('Activities fetched', { count: data.length });
-
     return data;
   } catch (error) {
-    logError('Error fetching activities', error);
+    console.error('Error fetching activities:', error.message);
     throw error;
   }
 };
@@ -511,22 +615,36 @@ const getAthleteActivities = async (page = 1, perPage = 30) => {
  * Get specific activity details
  */
 const getActivity = async (activityId) => {
+  console.log('═══════════════════════════════════════════════════');
+  console.log('🔍 [GET_ACTIVITY] Fetching activity details...');
+  console.log('📊 [GET_ACTIVITY] Activity ID:', activityId);
+  console.log('═══════════════════════════════════════════════════');
+  
   try {
+    console.log('🔑 [GET_ACTIVITY] Getting valid access token...');
     const accessToken = await getValidAccessToken();
     
     logDebug('Fetching activity details', { activityId });
 
-    const response = await fetch(
-      `${STRAVA_API_BASE}/activities/${activityId}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      }
-    );
+    const url = `${STRAVA_API_BASE}/activities/${activityId}`;
+    console.log('📤 [GET_ACTIVITY] Sending request to:', url);
+    
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
+
+    console.log('📥 [GET_ACTIVITY] Response received:', {
+      status: response.status,
+      ok: response.ok
+    });
 
     const data = await response.json();
+    
     if (!response.ok) {
+      console.error('❌ [GET_ACTIVITY] Request failed:', data);
+      console.log('═══════════════════════════════════════════════════');
       throw new Error(data.message || 'Failed to fetch activity');
     }
 
@@ -537,9 +655,20 @@ const getActivity = async (activityId) => {
       distance: data.distance
     });
 
+    console.log('✅ [GET_ACTIVITY] Activity fetched:', {
+      id: data.id,
+      name: data.name,
+      type: data.type,
+      distance: data.distance,
+      duration: data.moving_time
+    });
+
+    console.log('═══════════════════════════════════════════════════');
+
     return data;
   } catch (error) {
     logError('Error fetching activity', error);
+    console.log('═══════════════════════════════════════════════════');
     throw error;
   }
 };
@@ -552,6 +681,7 @@ const isConnected = async () => {
     const tokens = await getStoredTokens();
     return tokens !== null;
   } catch (error) {
+    console.error('Error checking connection:', error.message);
     return false;
   }
 };
@@ -564,6 +694,7 @@ const getStoredAthlete = async () => {
     const tokens = await getStoredTokens();
     return tokens?.athlete || null;
   } catch (error) {
+    console.error('Error getting stored athlete:', error.message);
     return null;
   }
 };
@@ -577,13 +708,15 @@ const disconnect = async () => {
     await SecureStore.deleteItemAsync(STRAVA_REFRESH_TOKEN_KEY);
     await SecureStore.deleteItemAsync(STRAVA_TOKEN_EXPIRY_KEY);
     await SecureStore.deleteItemAsync(STRAVA_ATHLETE_KEY);
-    logDebug('Disconnected successfully', {});
+    
     return true;
   } catch (error) {
-    logError('Error disconnecting', error);
+    console.error('Error disconnecting:', error.message);
     return false;
   }
 };
+
+console.log('📦 Exporting Strava Service');
 
 export default {
   connectStrava,
