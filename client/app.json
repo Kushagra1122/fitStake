@@ -3,6 +3,7 @@
     "name": "fitStake",
     "slug": "fit-stake",
     "version": "1.0.0",
+    "scheme": "fitstake",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",

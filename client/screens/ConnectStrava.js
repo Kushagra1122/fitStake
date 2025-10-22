@@ -18,7 +18,8 @@ import * as SecureStore from 'expo-secure-store';
 
 WebBrowser.maybeCompleteAuthSession();
 
-
+const STRAVA_CLIENT_ID = process.env.EXPO_PUBLIC_STRAVA_CLIENT_ID;
+const STRAVA_CLIENT_SECRET = process.env.EXPO_PUBLIC_STRAVA_CLIENT_SECRET;
 
 // we'll get this after the auth call after users will allow to the strava poppup box.
 const STRAVA_TOKEN_KEY = 'strava_token';
@@ -39,15 +40,15 @@ export default function ConnectStrava() {
 
   // --- AuthSession Configuration ---
   // Use custom scheme that matches app.json
-  const redirectUri = AuthSession.makeRedirectUri({
-    useProxy: true,
-  });
-  // Log the redirect URI so you can register it (exact match) in Strava developer settings
-  console.log('Auth redirectUri (register this exact URL in Strava):', redirectUri);
   // const redirectUri = AuthSession.makeRedirectUri({
-  //   scheme: 'fitstake',
-  //   path: 'redirect',
+  //   useProxy: true,
   // });
+  const redirectUri = AuthSession.makeRedirectUri();
+  console.log("\n\n\n")
+  console.log('Auth redirectUrIIIIIIIIIIIII:', redirectUri);
+  console.log("\n\n\n")
+  // Log the redirect URI so you can register it (exact match) in Strava developer settings
+
 
   // const [request, response, promptAsync] = AuthSession.useAuthRequest(
   //   {
@@ -174,16 +175,16 @@ export default function ConnectStrava() {
   };
 
   const handleConnectStrava = async () => {
-    console.log("\n\n\n")
-    console.log('🔗 Starting Strava OAuth...');
-    console.log('📍 Redirect URI:', redirectUri);
-    console.log("\n\n\n")
-    console.log(request);
-    console.log("\n\n\n")
-    console.log(request.redirectUri);
-    console.log("\n\n\n")
-    console.log(request.url);
-    console.log("\n\n\n")
+    // console.log("\n\n\n")
+    // console.log('🔗 Starting Strava OAuth...');
+    // console.log('📍 Redirect URI:', redirectUri);
+    // console.log("\n\n\n")
+    // console.log(request);
+    // console.log("\n\n\n")
+    // console.log(request.redirectUri);
+    // console.log("\n\n\n")
+    // console.log(request.url);
+    // console.log("\n\n\n")
     setIsConnecting(true);
     
     try {
