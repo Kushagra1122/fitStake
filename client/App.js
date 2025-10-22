@@ -29,8 +29,13 @@ const linking = {
 export default function App() {
   return (
     <Web3Provider>
+<<<<<<< HEAD
       <NavigationContainer linking={linking}>
         <Stack.Navigator initialRouteName="ConnectWallet" screenOptions={{ headerShown: false }}>
+=======
+      <NavigationContainer>
+        <Stack.Navigator initialRouteName="ConnectStrava" screenOptions={{ headerShown: false }}>
+>>>>>>> 371d86680ff50dbe8ce75da249a1e1186ee18bc1
           <Stack.Screen name="ConnectWallet" component={ConnectWallet} />
           <Stack.Screen name="Home" component={Home} />
           <Stack.Screen name="CreateChallenge" component={CreateChallenge} />

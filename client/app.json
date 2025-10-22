@@ -31,6 +31,7 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
+<<<<<<< HEAD
       "package": "com.kush1122.fitstake",
       "intentFilters": [
         {
@@ -45,13 +46,20 @@
           "category": ["BROWSABLE", "DEFAULT"]
         }
       ]
+=======
+      "package": "com.anonymous.fitstake"
+>>>>>>> 371d86680ff50dbe8ce75da249a1e1186ee18bc1
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "extra": {
       "eas": {
+<<<<<<< HEAD
         "projectId": "056af5f7-f52f-4e75-aad1-18464e45e9ea"
+=======
+        "projectId": "0e1ad736-1535-4b2a-9934-de651043c7d6"
+>>>>>>> 371d86680ff50dbe8ce75da249a1e1186ee18bc1
       }
     }
   }
