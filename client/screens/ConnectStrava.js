@@ -18,9 +18,7 @@ import * as SecureStore from 'expo-secure-store';
 
 WebBrowser.maybeCompleteAuthSession();
 
-// --- Strava Configuration ---
-const STRAVA_CLIENT_ID = '181674';
-const STRAVA_CLIENT_SECRET = '46a8af60e705928e270cdb45cc7cf1884d14d7a2';
+
 
 // we'll get this after the auth call after users will allow to the strava poppup box.
 const STRAVA_TOKEN_KEY = 'strava_token';
