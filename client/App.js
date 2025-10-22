@@ -15,7 +15,7 @@ export default function App() {
   return (
     <Web3Provider>
       <NavigationContainer>
-        <Stack.Navigator initialRouteName="ConnectStrava" screenOptions={{ headerShown: false }}>
+        <Stack.Navigator initialRouteName="ConnectWallet" screenOptions={{ headerShown: false }}>
           <Stack.Screen name="ConnectWallet" component={ConnectWallet} />
           <Stack.Screen name="Home" component={Home} />
           <Stack.Screen name="CreateChallenge" component={CreateChallenge} />
