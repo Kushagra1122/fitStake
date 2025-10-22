@@ -2,6 +2,7 @@
   "expo": {
     "name": "fitStake",
     "slug": "fit-stake",
+    "owner": "kush1122",
     "version": "1.0.0",
     "scheme": "fitstake",
     "orientation": "portrait",
@@ -14,17 +15,44 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.kush1122.fitstake",
+      "infoPlist": {
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": ["fitstake"]
+          }
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.kush1122.fitstake",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "fitstake",
+              "host": "strava-callback"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "056af5f7-f52f-4e75-aad1-18464e45e9ea"
+      }
     }
   }
 }

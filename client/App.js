@@ -11,10 +11,25 @@ import ConnectStrava from './screens/ConnectStrava';
 
 const Stack = createNativeStackNavigator();
 
+// Deep linking configuration for OAuth callback
+const linking = {
+  prefixes: ['fitstake://', 'exp://'],
+  config: {
+    screens: {
+      ConnectStrava: 'oauth-callback',
+      ConnectWallet: 'connect-wallet',
+      Home: 'home',
+      CreateChallenge: 'create-challenge',
+      JoinChallenge: 'join-challenge',
+      MyChallenges: 'my-challenges',
+    },
+  },
+};
+
 export default function App() {
   return (
     <Web3Provider>
-      <NavigationContainer>
+      <NavigationContainer linking={linking}>
         <Stack.Navigator initialRouteName="ConnectWallet" screenOptions={{ headerShown: false }}>
           <Stack.Screen name="ConnectWallet" component={ConnectWallet} />
           <Stack.Screen name="Home" component={Home} />

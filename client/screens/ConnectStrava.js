@@ -1,200 +1,139 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
-  ScrollView,
-  Alert,
-  Animated,
   ActivityIndicator,
-  Image,
+  Alert,
+  ScrollView,
+  Animated,
+  Dimensions,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
-import { useWeb3 } from '../context/Web3Context';
-import * as WebBrowser from 'expo-web-browser';
-import * as AuthSession from 'expo-auth-session';
-import * as SecureStore from 'expo-secure-store';
+import { LinearGradient } from 'expo-linear-gradient';
+import stravaService from '../services/stravaService';
 
-WebBrowser.maybeCompleteAuthSession();
+const { width } = Dimensions.get('window');
 
-const STRAVA_CLIENT_ID = process.env.STRAVA_CLIENT_ID;
-const STRAVA_CLIENT_SECRET = process.env.STRAVA_CLIENT_SECRET;
-const STRAVA_TOKEN_KEY = 'strava_token';
-
-const discovery = {
-  authorizationEndpoint: 'https://www.strava.com/oauth/authorize',
-  tokenEndpoint: 'https://www.strava.com/api/v3/oauth/token',
-};
-
-export default function ConnectStrava() {
+const ConnectStrava = () => {
   const navigation = useNavigation();
-  const { account } = useWeb3();
+  const [loading, setLoading] = useState(false);
+  const [connected, setConnected] = useState(false);
+  const [athlete, setAthlete] = useState(null);
+  const [checkingConnection, setCheckingConnection] = useState(true);
+  
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
 
-  const [isConnected, setIsConnected] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [stravaData, setStravaData] = useState(null);
-
-  // --- Debug Environment Variables ---
-  console.log('🔹 STRAVA_CLIENT_ID:', STRAVA_CLIENT_ID);
-  console.log('🔹 STRAVA_CLIENT_SECRET:', STRAVA_CLIENT_SECRET);
-
-  // --- AuthSession Configuration ---
-const redirectUri = 'https://auth.expo.io/kush1122/fit-stake';
-
-
-  const [request, response, promptAsync] = AuthSession.useAuthRequest(
-    {
-      clientId: STRAVA_CLIENT_ID,
-      // Strava expects scopes as a comma-separated string in the `scope` query param.
-      // expo-auth-session by default joins `scopes` with spaces which Strava rejects.
-      // Provide an empty `scopes` array and pass a comma-separated `scope` via extraParams.
-      scopes: [],
-      redirectUri,
-      responseType: 'code',
-      extraParams: {
-        scope: 'read,activity:read_all',
-      },
-    },
-    discovery
-  );
-
-  // --- Fade animation + initial check ---
   useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 600,
-      useNativeDriver: true,
-    }).start();
-
-    checkStravaConnection();
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        tension: 30,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
   }, []);
 
-  // --- OAuth response handling ---
+  // Check if already connected on mount
   useEffect(() => {
-    console.log('🔹 OAuth Response Changed:', response);
+    checkConnection();
+  }, []);
 
-    if (response?.type === 'success') {
-      const { code } = response.params;
-      console.log('✅ Authorization Code received:', code);
-      exchangeCodeForToken(code);
-    } else if (response?.type === 'error') {
-      setIsConnecting(false);
-      console.error('❌ Auth error:', response.error);
-      Alert.alert('Authentication Error', `${response.error?.message || 'Unknown error'}`);
-    } else if (response?.type === 'dismiss') {
-      setIsConnecting(false);
-      console.log('ℹ️ User dismissed authentication');
-    }
-  }, [response]);
+  // Handle OAuth callback from deep link
+  useEffect(() => {
+    const handleDeepLinkCallback = async (url) => {
+      if (!url) return;
+      
+      const urlObj = new URL(url.replace('fitstake://', 'http://'));
+      const success = urlObj.searchParams.get('success');
+      const error = urlObj.searchParams.get('error');
+      
+      if (error) {
+        Alert.alert('Connection Failed', decodeURIComponent(error));
+        setLoading(false);
+        return;
+      }
+      
+      if (success === 'true') {
+        // The stravaService is already polling the server
+      }
+    };
 
-  // --- Check existing Strava connection ---
-  const checkStravaConnection = async () => {
+    const handleUrl = ({ url }) => {
+      handleDeepLinkCallback(url);
+    };
+
+    const { Linking } = require('react-native');
+    
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        handleDeepLinkCallback(url);
+      }
+    });
+
+    const subscription = Linking.addEventListener('url', handleUrl);
+
+    return () => {
+      subscription?.remove();
+    };
+  }, []);
+
+  const checkConnection = async () => {
     try {
-      const tokenString = await SecureStore.getItemAsync(STRAVA_TOKEN_KEY);
-      console.log('🔹 Stored Strava Token:', tokenString);
-
-      if (tokenString) {
-        const token = JSON.parse(tokenString);
-        const profile = await getStravaProfile(token.access_token);
-        console.log('🔹 Existing Strava Profile:', profile);
-        setStravaData(profile);
-        setIsConnected(true);
+      const isConnected = await stravaService.isConnected();
+      
+      if (isConnected) {
+        const storedAthlete = await stravaService.getStoredAthlete();
+        setAthlete(storedAthlete);
+        setConnected(true);
       }
     } catch (error) {
-      console.error('❌ Error checking Strava connection:', error);
+      console.error('Error checking connection:', error);
+    } finally {
+      setCheckingConnection(false);
     }
   };
 
-  // --- Exchange code for token ---
-  const exchangeCodeForToken = async (code) => {
-    console.log('🔹 Exchanging code for token...');
-    setIsConnecting(true);
-
+  const handleConnect = async () => {
     try {
-      const body = new URLSearchParams({
-        client_id: STRAVA_CLIENT_ID,
-        client_secret: STRAVA_CLIENT_SECRET,
-        code: code,
-        grant_type: 'authorization_code',
-      });
+      setLoading(true);
+      const result = await stravaService.connectStrava();
 
-      console.log('🔹 Token Request Body:', body.toString());
-
-      const tokenResponse = await fetch(discovery.tokenEndpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body,
-      });
-
-      const tokenData = await tokenResponse.json();
-      console.log('🔹 Token Response:', tokenData);
-
-      if (tokenData.access_token) {
-        await SecureStore.setItemAsync(STRAVA_TOKEN_KEY, JSON.stringify(tokenData));
-        const profile = await getStravaProfile(tokenData.access_token);
-        console.log('🔹 Fetched Strava Profile:', profile);
-        setStravaData(profile);
-        setIsConnected(true);
-
+      if (result.success) {
+        setConnected(true);
+        setAthlete(result.athlete);
+        
         Alert.alert(
-          'Connected! 🎉',
-          'Your Strava account has been linked successfully.',
-          [{ text: 'Continue', onPress: () => navigation.navigate('Home') }]
+          'Success! 🎉',
+          `Connected as ${result.athlete.firstname} ${result.athlete.lastname}`,
+          [
+            {
+              text: 'Continue',
+              onPress: () => navigation.navigate('Home')
+            }
+          ]
         );
       } else {
-        throw new Error(tokenData.message || 'Failed to retrieve access token');
+        Alert.alert('Connection Failed', result.error || 'Failed to connect to Strava');
       }
     } catch (error) {
-      console.error('❌ Token Exchange Error:', error);
-      Alert.alert('Connection Failed', error.message);
+      console.error('Error connecting to Strava:', error);
+      Alert.alert('Error', error.message || 'Failed to connect to Strava. Please try again.');
     } finally {
-      setIsConnecting(false);
+      setLoading(false);
     }
   };
 
-  const getStravaProfile = async (accessToken) => {
-    try {
-      console.log('🔹 Fetching Strava profile...');
-      const profileResponse = await fetch('https://www.strava.com/api/v3/athlete', {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-
-      if (!profileResponse.ok) {
-        throw new Error(`Failed to fetch Strava profile: ${profileResponse.status}`);
-      }
-
-      const profileData = await profileResponse.json();
-      return {
-        name: `${profileData.firstname} ${profileData.lastname}`,
-        username: profileData.username,
-        profile_image: profileData.profile_medium,
-        id: profileData.id,
-      };
-    } catch (error) {
-      console.error('❌ Get Profile Error:', error);
-      throw error;
-    }
-  };
-
-  const handleConnectStrava = async () => {
-    console.log('🔹 Initiating Strava OAuth...');
-    console.log('🔹 Auth Request URL:', request?.url);
-    setIsConnecting(true);
-
-    try {
-      await promptAsync();
-    } catch (error) {
-      console.error('❌ OAuth Prompt Error:', error);
-      setIsConnecting(false);
-      Alert.alert('Error', 'Failed to open Strava authorization. Please try again.');
-    }
-  };
-
-  const handleDisconnectStrava = async () => {
+  const handleDisconnect = async () => {
     Alert.alert(
-      'Disconnect Strava?',
+      'Disconnect Strava',
       'Are you sure you want to disconnect your Strava account?',
       [
         { text: 'Cancel', style: 'cancel' },
@@ -203,34 +142,49 @@ const redirectUri = 'https://auth.expo.io/kush1122/fit-stake';
           style: 'destructive',
           onPress: async () => {
             try {
-              await SecureStore.deleteItemAsync(STRAVA_TOKEN_KEY);
-              setIsConnected(false);
-              setStravaData(null);
-              console.log('🔹 Strava disconnected successfully');
-              Alert.alert('Disconnected', 'Strava account disconnected successfully.');
+              await stravaService.disconnect();
+              setConnected(false);
+              setAthlete(null);
+              Alert.alert('Disconnected', 'Your Strava account has been disconnected');
             } catch (error) {
-              console.error('❌ Disconnect Error:', error);
-              Alert.alert('Error', 'Failed to disconnect Strava.');
+              Alert.alert('Error', 'Failed to disconnect');
             }
-          },
-        },
+          }
+        }
       ]
     );
   };
 
-  const handleSyncActivities = async () => {
+  const handleRefreshProfile = async () => {
     try {
-      const tokenString = await SecureStore.getItemAsync(STRAVA_TOKEN_KEY);
-      console.log('🔹 Sync token:', tokenString);
-
-      if (tokenString) {
-        Alert.alert('Coming Soon', 'Manual activity sync will be available soon!');
-      }
+      setLoading(true);
+      const profile = await stravaService.getAthleteProfile();
+      setAthlete(profile);
+      Alert.alert('Success', 'Profile updated!');
     } catch (error) {
-      console.error('❌ Sync Error:', error);
-      Alert.alert('Error', 'Failed to sync activities.');
+      Alert.alert('Error', 'Failed to refresh profile');
+    } finally {
+      setLoading(false);
     }
   };
+
+  const handleContinue = () => {
+    navigation.navigate('Home');
+  };
+
+  if (checkingConnection) {
+    return (
+      <LinearGradient
+        colors={['#667eea', '#764ba2']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        className="flex-1 items-center justify-center"
+      >
+        <ActivityIndicator size="large" color="#fff" />
+        <Text className="text-white text-base mt-3">Checking connection...</Text>
+      </LinearGradient>
+    );
+  }
 
   return (
     <LinearGradient
@@ -240,178 +194,167 @@ const redirectUri = 'https://auth.expo.io/kush1122/fit-stake';
       className="flex-1"
     >
       <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
-        <Animated.View style={{ opacity: fadeAnim }} className="px-6 pt-16">
-          {/* Header */}
-          <View className="flex-row items-center mb-8">
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              className="bg-white/20 p-3 rounded-xl mr-4"
-            >
-              <Text className="text-white text-xl">←</Text>
-            </TouchableOpacity>
-            <View className="flex-1">
-              <Text className="text-white text-3xl font-black">Connect Strava</Text>
-              <Text className="text-white/70 text-sm mt-1">Track your fitness activities</Text>
+        <View className="px-6 pt-16">
+          <Animated.View
+            style={{
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }}
+          >
+            {/* Header Section */}
+            <View className="mb-8 items-center">
+              <View className="bg-white/20 backdrop-blur-xl rounded-full p-6 mb-6 shadow-lg">
+                <Text className="text-6xl">🏃</Text>
+              </View>
+              <Text className="text-4xl font-black text-white mb-3 text-center">
+                Connect to Strava
+              </Text>
+              <Text className="text-white/90 text-center text-base px-4">
+                {connected
+                  ? 'Your Strava account is connected!'
+                  : 'Link your fitness tracking to unlock challenges'}
+              </Text>
             </View>
-          </View>
 
-          {/* Strava Logo Card */}
-          <View className="bg-white/95 backdrop-blur-xl rounded-3xl p-8 mb-4 items-center shadow-2xl">
-            <View className="bg-orange-500 rounded-2xl p-4 mb-4">
-              <Text className="text-6xl">🏃</Text>
-            </View>
-            <Text className="text-gray-900 font-black text-2xl mb-2">Strava Integration</Text>
-            <Text className="text-gray-600 text-center text-sm">
-              Connect your Strava account to automatically track and verify your fitness activities
-            </Text>
-          </View>
-
-          {isConnected && stravaData ? (
-            <View>
-              {/* Profile Card */}
-              <View className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 mb-4 shadow-2xl">
-                <View className="flex-row items-center justify-between mb-4">
-                  <Text className="text-gray-500 text-sm font-semibold uppercase tracking-wide">
+            {/* Connection Status */}
+            {connected && athlete && (
+              <View className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 shadow-2xl mb-4">
+                <View className="flex-row items-center justify-between mb-5">
+                  <Text className="text-gray-500 text-xs font-bold uppercase tracking-wider">
                     Connected Account
                   </Text>
-                  <View className="bg-green-100 px-3 py-1 rounded-full">
+                  <View className="bg-green-500/20 px-3 py-1.5 rounded-full border border-green-500/30">
                     <Text className="text-green-700 text-xs font-bold">● Active</Text>
                   </View>
                 </View>
 
-                <View className="bg-gradient-to-r from-orange-50 to-red-50 p-4 rounded-2xl mb-4">
-                  <View className="flex-row items-center mb-2">
-                    <Image
-                      source={{ uri: stravaData.profile_image }}
-                      className="w-12 h-12 rounded-full mr-3 bg-orange-200"
-                    />
-                    <View className="flex-1">
-                      <Text className="text-gray-900 font-bold text-lg">
-                        {stravaData.name || 'Strava Athlete'}
-                      </Text>
-                      <Text className="text-gray-600 text-sm">
-                        @{stravaData.username || 'athlete'}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-
-                {/* Stats */}
-                <View className="flex-row justify-between bg-gray-50 p-4 rounded-xl">
-                  <StatBox label="Activities" value="0" icon="🏃" />
-                  <View className="w-px bg-gray-200" />
-                  <StatBox label="This Week" value="0 km" icon="📊" />
-                  <View className="w-px bg-gray-200" />
-                  <StatBox label="Verified" value="0" icon="✅" />
+                <View className="bg-gradient-to-r from-orange-50 to-red-50 p-5 rounded-2xl mb-4">
+                  <Text className="text-gray-900 font-black text-2xl mb-2">
+                    {athlete.firstname} {athlete.lastname}
+                  </Text>
+                  {athlete.username && (
+                    <Text className="text-orange-600 font-bold text-base mb-2">
+                      @{athlete.username}
+                    </Text>
+                  )}
+                  {athlete.city && athlete.country && (
+                    <Text className="text-gray-500 text-sm">
+                      📍 {athlete.city}, {athlete.country}
+                    </Text>
+                  )}
                 </View>
               </View>
+            )}
 
-              {/* Action Buttons */}
-              <TouchableOpacity
-                className="bg-gradient-to-r from-orange-500 to-red-500 px-8 py-5 rounded-2xl shadow-xl mb-3"
-                onPress={handleSyncActivities}
-                activeOpacity={0.8}
-              >
-                <Text className="text-white font-bold text-lg text-center tracking-wide">
-                  Sync Activities 🔄
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                className="bg-white/20 backdrop-blur-xl px-8 py-4 rounded-2xl border border-white/30"
-                onPress={handleDisconnectStrava}
-                activeOpacity={0.7}
-              >
-                <Text className="text-white font-semibold text-base text-center">
-                  Disconnect Strava
-                </Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View>
-              {/* Features List */}
-              <View className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 mb-4 shadow-xl">
-                <Text className="text-gray-900 font-bold text-lg mb-4">Why Connect Strava?</Text>
-                <FeatureItem
-                  icon="📊"
-                  title="Automatic Tracking"
-                  description="Your activities are automatically verified"
-                />
-                <FeatureItem
-                  icon="✅"
-                  title="Proof of Completion"
-                  description="Smart contracts verify your progress"
-                />
-                <FeatureItem
-                  icon="🔒"
-                  title="Secure & Private"
-                  description="We only access activity data you choose"
-                />
-                <FeatureItem
-                  icon="⚡"
-                  title="Real-time Updates"
-                  description="Progress updates as you complete activities"
-                />
+            {/* Features - Only show if not connected */}
+            {!connected && (
+              <View className="bg-white/10 backdrop-blur-xl rounded-3xl p-6 mb-6 border border-white/20">
+                <FeatureItem icon="🏃" text="Track your fitness activities" />
+                <FeatureItem icon="📊" text="Sync workout data automatically" />
+                <FeatureItem icon="✅" text="Verify challenge completion" />
+                <FeatureItem icon="🏆" text="Earn rewards for your efforts" />
               </View>
+            )}
 
-              {/* Connect Button */}
+            {/* Action Buttons */}
+            {!connected ? (
               <TouchableOpacity
-                className="bg-gradient-to-r from-orange-500 to-red-500 px-8 py-5 rounded-2xl shadow-2xl mb-4"
-                onPress={handleConnectStrava}
-                disabled={isConnecting || !request}
+                className="bg-white px-8 py-5 rounded-2xl shadow-2xl mb-3"
+                onPress={handleConnect}
+                disabled={loading}
                 activeOpacity={0.9}
               >
-                {isConnecting ? (
+                {loading ? (
                   <View className="flex-row items-center justify-center">
-                    <ActivityIndicator color="white" size="small" />
-                    <Text className="text-white font-bold text-lg ml-3">Connecting...</Text>
+                    <ActivityIndicator color="#667eea" size="small" />
+                    <Text className="text-purple-600 font-black text-lg ml-3">
+                      Connecting...
+                    </Text>
                   </View>
                 ) : (
-                  <View className="flex-row items-center justify-center">
-                    <Text className="text-white font-bold text-lg tracking-wide mr-2">
-                      Connect with Strava
-                    </Text>
-                    <Text className="text-white text-xl">→</Text>
-                  </View>
+                  <Text className="text-purple-600 font-black text-lg text-center tracking-wide">
+                    Connect with Strava
+                  </Text>
                 )}
               </TouchableOpacity>
+            ) : (
+              <>
+                <TouchableOpacity
+                  className="bg-white px-8 py-5 rounded-2xl shadow-2xl mb-3"
+                  onPress={handleContinue}
+                  disabled={loading}
+                  activeOpacity={0.8}
+                >
+                  <Text className="text-purple-600 font-black text-lg text-center tracking-wide">
+                    Continue to App →
+                  </Text>
+                </TouchableOpacity>
 
-              <View className="bg-white/10 backdrop-blur-xl rounded-2xl p-4 border border-white/20">
-                <Text className="text-white font-bold text-sm mb-2">💡 How it works</Text>
-                <Text className="text-white/80 text-xs leading-5">
-                  1. Authorize FitStake to access your Strava data{'\n'}
-                  2. Complete activities and they'll sync automatically{'\n'}
-                  3. Smart contracts verify your activities{'\n'}
-                  4. Earn rewards when you complete challenges
-                </Text>
-              </View>
+                <TouchableOpacity
+                  className="bg-white/20 backdrop-blur-xl px-8 py-4 rounded-2xl border border-white/30 mb-3"
+                  onPress={handleRefreshProfile}
+                  disabled={loading}
+                  activeOpacity={0.7}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text className="text-white font-bold text-base text-center">
+                      Refresh Profile
+                    </Text>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  className="bg-white/10 backdrop-blur-xl px-8 py-4 rounded-2xl border border-white/20"
+                  onPress={handleDisconnect}
+                  disabled={loading}
+                  activeOpacity={0.7}
+                >
+                  <Text className="text-white/80 font-bold text-base text-center">
+                    Disconnect
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {/* Info Section */}
+            <View className="bg-white/10 backdrop-blur-xl rounded-3xl p-6 mt-6 border border-white/20">
+              <Text className="text-white font-bold text-lg mb-4">
+                🔒 What we access:
+              </Text>
+              <InfoItem text="Your profile information" />
+              <InfoItem text="Activity data (runs, rides, etc.)" />
+              <InfoItem text="Activity details (distance, duration, pace)" />
+              <Text className="text-white/60 text-xs mt-4 italic">
+                We will never post to Strava without your permission
+              </Text>
             </View>
-          )}
-        </Animated.View>
+          </Animated.View>
+        </View>
       </ScrollView>
     </LinearGradient>
   );
-}
+};
 
-function FeatureItem({ icon, title, description }) {
+function FeatureItem({ icon, text }) {
   return (
-    <View className="flex-row items-start mb-4 last:mb-0">
-      <View className="bg-orange-100 w-10 h-10 rounded-xl items-center justify-center mr-3">
-        <Text className="text-xl">{icon}</Text>
+    <View className="flex-row items-center mb-4 last:mb-0">
+      <View className="bg-white/10 w-10 h-10 rounded-xl items-center justify-center mr-3">
+        <Text className="text-2xl">{icon}</Text>
       </View>
-      <View className="flex-1">
-        <Text className="text-gray-900 font-bold text-base mb-1">{title}</Text>
-        <Text className="text-gray-600 text-sm">{description}</Text>
-      </View>
+      <Text className="text-white font-semibold text-base flex-1">{text}</Text>
     </View>
   );
 }
 
-function StatBox({ label, value, icon }) {
+function InfoItem({ text }) {
   return (
-    <View className="flex-1 items-center">
-      <Text className="text-2xl mb-1">{icon}</Text>
-      <Text className="text-gray-900 font-bold text-lg mb-1">{value}</Text>
-      <Text className="text-gray-500 text-xs">{label}</Text>
+    <View className="flex-row items-center mb-3">
+      <Text className="text-white/80 text-sm mr-2">•</Text>
+      <Text className="text-white/80 text-sm flex-1">{text}</Text>
     </View>
   );
 }
+
+export default ConnectStrava;
