@@ -15,11 +15,12 @@ import { useWeb3 } from '../context/Web3Context';
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
 import * as SecureStore from 'expo-secure-store';
+import * as Linking from 'expo-linking';
 
 WebBrowser.maybeCompleteAuthSession();
 
-const STRAVA_CLIENT_ID = process.env.STRAVA_CLIENT_ID;
-const STRAVA_CLIENT_SECRET = process.env.STRAVA_CLIENT_SECRET;
+const STRAVA_CLIENT_ID = process.env.EXPO_PUBLIC_STRAVA_CLIENT_ID;
+const STRAVA_CLIENT_SECRET = process.env.EXPO_PUBLIC_STRAVA_CLIENT_SECRET;
 const STRAVA_TOKEN_KEY = 'strava_token';
 
 const discovery = {
@@ -37,19 +38,29 @@ export default function ConnectStrava() {
   const [stravaData, setStravaData] = useState(null);
 
   // --- Debug Environment Variables ---
+  console.log('═══════════════════════════════════════════════════');
+  console.log('🔧 ENVIRONMENT SETUP');
+  console.log('═══════════════════════════════════════════════════');
   console.log('🔹 STRAVA_CLIENT_ID:', STRAVA_CLIENT_ID);
-  console.log('🔹 STRAVA_CLIENT_SECRET:', STRAVA_CLIENT_SECRET);
+  console.log('🔹 STRAVA_CLIENT_SECRET:', STRAVA_CLIENT_SECRET ? '***SET***' : 'MISSING');
+  console.log('🔹 CLIENT_ID Length:', STRAVA_CLIENT_ID?.length || 0);
 
   // --- AuthSession Configuration ---
-const redirectUri = 'https://auth.expo.io/kush1122/fit-stake';
+  const redirectUri = AuthSession.makeRedirectUri({
+    scheme: 'fit-stake',
+    path: 'auth'
+  });
 
+  console.log('═══════════════════════════════════════════════════');
+  console.log('🔧 AUTH SESSION CONFIGURATION');
+  console.log('═══════════════════════════════════════════════════');
+  console.log('🔹 Redirect URI:', redirectUri);
+  console.log('🔹 Authorization Endpoint:', discovery.authorizationEndpoint);
+  console.log('🔹 Token Endpoint:', discovery.tokenEndpoint);
 
   const [request, response, promptAsync] = AuthSession.useAuthRequest(
     {
       clientId: STRAVA_CLIENT_ID,
-      // Strava expects scopes as a comma-separated string in the `scope` query param.
-      // expo-auth-session by default joins `scopes` with spaces which Strava rejects.
-      // Provide an empty `scopes` array and pass a comma-separated `scope` via extraParams.
       scopes: [],
       redirectUri,
       responseType: 'code',
@@ -60,56 +71,208 @@ const redirectUri = 'https://auth.expo.io/kush1122/fit-stake';
     discovery
   );
 
+  // Log request details when ready
+  useEffect(() => {
+    if (request) {
+      console.log('═══════════════════════════════════════════════════');
+      console.log('✅ AUTH REQUEST CREATED');
+      console.log('═══════════════════════════════════════════════════');
+      console.log('🔹 Request URL:', request.url);
+      console.log('🔹 Request Code Verifier:', request.codeVerifier ? 'Present' : 'Missing');
+      console.log('🔹 Request State:', request.state);
+      console.log('🔹 Full Request Object:', JSON.stringify(request, null, 2));
+    } else {
+      console.log('⏳ Auth request not ready yet...');
+    }
+  }, [request]);
+
+  // --- Handle Deep Links (for extracting code from URL) ---
+  useEffect(() => {
+    console.log('═══════════════════════════════════════════════════');
+    console.log('🔗 SETTING UP DEEP LINK LISTENER');
+    console.log('═══════════════════════════════════════════════════');
+
+    // Handle initial URL if app was opened via deep link
+    Linking.getInitialURL().then((url) => {
+      console.log('🔹 Initial URL:', url);
+      if (url) {
+        handleDeepLink(url);
+      }
+    });
+
+    // Listen for deep link events
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      console.log('═══════════════════════════════════════════════════');
+      console.log('🔗 DEEP LINK RECEIVED');
+      console.log('═══════════════════════════════════════════════════');
+      console.log('🔹 URL:', url);
+      handleDeepLink(url);
+    });
+
+    return () => {
+      console.log('🔹 Removing deep link listener');
+      subscription.remove();
+    };
+  }, []);
+
+  // --- Handle Deep Link URL ---
+  const handleDeepLink = (url) => {
+    console.log('═══════════════════════════════════════════════════');
+    console.log('🔍 PARSING DEEP LINK');
+    console.log('═══════════════════════════════════════════════════');
+    console.log('🔹 Full URL:', url);
+
+    try {
+      // Parse the URL
+      const parsed = Linking.parse(url);
+      console.log('🔹 Parsed URL:', JSON.stringify(parsed, null, 2));
+      
+      // Extract query parameters
+      const params = parsed.queryParams;
+      console.log('🔹 Query Params:', JSON.stringify(params, null, 2));
+
+      // Check if we have a code
+      if (params?.code) {
+        console.log('═══════════════════════════════════════════════════');
+        console.log('✅ AUTHORIZATION CODE FOUND IN URL');
+        console.log('═══════════════════════════════════════════════════');
+        console.log('🔹 Code:', params.code);
+        console.log('🔹 State:', params.state);
+        console.log('🔹 Scope:', params.scope);
+        
+        // Exchange the code for token
+        exchangeCodeForToken(params.code);
+      } else if (params?.error) {
+        console.log('═══════════════════════════════════════════════════');
+        console.error('❌ ERROR IN URL PARAMS');
+        console.log('═══════════════════════════════════════════════════');
+        console.error('🔹 Error:', params.error);
+        console.error('🔹 Error Description:', params.error_description);
+        Alert.alert('Authorization Error', params.error_description || params.error);
+      } else {
+        console.log('ℹ️  No code or error in URL params');
+      }
+    } catch (error) {
+      console.log('═══════════════════════════════════════════════════');
+      console.error('❌ ERROR PARSING DEEP LINK');
+      console.log('═══════════════════════════════════════════════════');
+      console.error('🔹 Error:', error.message);
+      console.error('🔹 Stack:', error.stack);
+    }
+  };
+
   // --- Fade animation + initial check ---
   useEffect(() => {
+    console.log('═══════════════════════════════════════════════════');
+    console.log('🎬 COMPONENT MOUNTED');
+    console.log('═══════════════════════════════════════════════════');
+    
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 600,
       useNativeDriver: true,
     }).start();
 
+    console.log('🔹 Starting initial Strava connection check...');
     checkStravaConnection();
   }, []);
 
-  // --- OAuth response handling ---
+  // --- OAuth response handling (backup method) ---
   useEffect(() => {
-    console.log('🔹 OAuth Response Changed:', response);
+    console.log('═══════════════════════════════════════════════════');
+    console.log('🔄 OAUTH RESPONSE CHANGED');
+    console.log('═══════════════════════════════════════════════════');
+    console.log('🔹 Response Type:', response?.type);
+    console.log('🔹 Full Response:', JSON.stringify(response, null, 2));
 
     if (response?.type === 'success') {
+      console.log('═══════════════════════════════════════════════════');
+      console.log('✅ OAUTH SUCCESS (via AuthSession)');
+      console.log('═══════════════════════════════════════════════════');
       const { code } = response.params;
-      console.log('✅ Authorization Code received:', code);
+      console.log('🔹 Authorization Code:', code);
+      console.log('🔹 Code Length:', code?.length);
+      console.log('🔹 Response Params:', JSON.stringify(response.params, null, 2));
+      console.log('🔹 Initiating token exchange...');
       exchangeCodeForToken(code);
     } else if (response?.type === 'error') {
+      console.log('═══════════════════════════════════════════════════');
+      console.log('❌ OAUTH ERROR');
+      console.log('═══════════════════════════════════════════════════');
+      console.error('🔹 Error Type:', response.error);
+      console.error('🔹 Error Message:', response.error?.message);
+      console.error('🔹 Error Description:', response.params?.error_description);
+      console.error('🔹 Full Error Object:', JSON.stringify(response, null, 2));
       setIsConnecting(false);
-      console.error('❌ Auth error:', response.error);
       Alert.alert('Authentication Error', `${response.error?.message || 'Unknown error'}`);
     } else if (response?.type === 'dismiss') {
+      console.log('═══════════════════════════════════════════════════');
+      console.log('ℹ️  USER DISMISSED AUTH');
+      console.log('═══════════════════════════════════════════════════');
+      console.log('🔹 User closed the authentication window');
       setIsConnecting(false);
-      console.log('ℹ️ User dismissed authentication');
+    } else if (response?.type === 'cancel') {
+      console.log('═══════════════════════════════════════════════════');
+      console.log('🚫 USER CANCELLED AUTH');
+      console.log('═══════════════════════════════════════════════════');
+      setIsConnecting(false);
+    } else if (response) {
+      console.log('═══════════════════════════════════════════════════');
+      console.log('⚠️  UNKNOWN RESPONSE TYPE');
+      console.log('═══════════════════════════════════════════════════');
+      console.log('🔹 Response:', JSON.stringify(response, null, 2));
     }
   }, [response]);
 
   // --- Check existing Strava connection ---
   const checkStravaConnection = async () => {
+    console.log('═══════════════════════════════════════════════════');
+    console.log('🔍 CHECKING EXISTING CONNECTION');
+    console.log('═══════════════════════════════════════════════════');
+    
     try {
+      console.log('🔹 Reading from SecureStore...');
       const tokenString = await SecureStore.getItemAsync(STRAVA_TOKEN_KEY);
-      console.log('🔹 Stored Strava Token:', tokenString);
-
+      console.log('🔹 Stored Token Exists:', !!tokenString);
+      
       if (tokenString) {
+        console.log('🔹 Token String Length:', tokenString.length);
+        console.log('🔹 Parsing token...');
         const token = JSON.parse(tokenString);
+        console.log('🔹 Token Object Keys:', Object.keys(token));
+        console.log('🔹 Access Token Present:', !!token.access_token);
+        console.log('🔹 Refresh Token Present:', !!token.refresh_token);
+        console.log('🔹 Token Expires At:', token.expires_at);
+        
+        console.log('🔹 Fetching Strava profile...');
         const profile = await getStravaProfile(token.access_token);
-        console.log('🔹 Existing Strava Profile:', profile);
+        console.log('✅ Existing connection verified');
+        console.log('🔹 Profile:', JSON.stringify(profile, null, 2));
+        
         setStravaData(profile);
         setIsConnected(true);
+      } else {
+        console.log('ℹ️  No existing token found');
       }
     } catch (error) {
-      console.error('❌ Error checking Strava connection:', error);
+      console.log('═══════════════════════════════════════════════════');
+      console.error('❌ ERROR CHECKING CONNECTION');
+      console.log('═══════════════════════════════════════════════════');
+      console.error('🔹 Error Name:', error.name);
+      console.error('🔹 Error Message:', error.message);
+      console.error('🔹 Error Stack:', error.stack);
     }
+    
+    console.log('═══════════════════════════════════════════════════');
   };
 
   // --- Exchange code for token ---
   const exchangeCodeForToken = async (code) => {
-    console.log('🔹 Exchanging code for token...');
+    console.log('═══════════════════════════════════════════════════');
+    console.log('🔄 TOKEN EXCHANGE STARTED');
+    console.log('═══════════════════════════════════════════════════');
+    console.log('🔹 Authorization Code:', code);
+    
     setIsConnecting(true);
 
     try {
@@ -120,96 +283,200 @@ const redirectUri = 'https://auth.expo.io/kush1122/fit-stake';
         grant_type: 'authorization_code',
       });
 
-      console.log('🔹 Token Request Body:', body.toString());
+      console.log('🔹 Request Body (URL Encoded):');
+      console.log('   - client_id:', STRAVA_CLIENT_ID);
+      console.log('   - client_secret:', STRAVA_CLIENT_SECRET ? '***SET***' : 'MISSING');
+      console.log('   - code:', code);
+      console.log('   - grant_type: authorization_code');
+      console.log('🔹 Full Body String:', body.toString());
 
+      console.log('🔹 Making POST request to:', discovery.tokenEndpoint);
       const tokenResponse = await fetch(discovery.tokenEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body,
       });
 
+      console.log('🔹 Token Response Status:', tokenResponse.status);
+      console.log('🔹 Token Response Status Text:', tokenResponse.statusText);
+      console.log('🔹 Token Response Headers:', JSON.stringify([...tokenResponse.headers], null, 2));
+
       const tokenData = await tokenResponse.json();
-      console.log('🔹 Token Response:', tokenData);
+      console.log('🔹 Token Response Data:', JSON.stringify(tokenData, null, 2));
 
       if (tokenData.access_token) {
+        console.log('═══════════════════════════════════════════════════');
+        console.log('✅ TOKEN EXCHANGE SUCCESS');
+        console.log('═══════════════════════════════════════════════════');
+        console.log('🔹 Access Token Present:', !!tokenData.access_token);
+        console.log('🔹 Refresh Token Present:', !!tokenData.refresh_token);
+        console.log('🔹 Token Type:', tokenData.token_type);
+        console.log('🔹 Expires At:', tokenData.expires_at);
+        console.log('🔹 Expires In:', tokenData.expires_in);
+        console.log('🔹 Athlete ID:', tokenData.athlete?.id);
+        
+        console.log('🔹 Saving token to SecureStore...');
         await SecureStore.setItemAsync(STRAVA_TOKEN_KEY, JSON.stringify(tokenData));
+        console.log('✅ Token saved successfully');
+        
+        console.log('🔹 Fetching athlete profile...');
         const profile = await getStravaProfile(tokenData.access_token);
-        console.log('🔹 Fetched Strava Profile:', profile);
+        console.log('✅ Profile fetched successfully');
+        
         setStravaData(profile);
         setIsConnected(true);
 
+        console.log('🔹 Showing success alert...');
         Alert.alert(
           'Connected! 🎉',
           'Your Strava account has been linked successfully.',
           [{ text: 'Continue', onPress: () => navigation.navigate('Home') }]
         );
       } else {
+        console.log('═══════════════════════════════════════════════════');
+        console.error('❌ TOKEN EXCHANGE FAILED - NO ACCESS TOKEN');
+        console.log('═══════════════════════════════════════════════════');
+        console.error('🔹 Error Message:', tokenData.message);
+        console.error('🔹 Error Details:', tokenData.errors);
         throw new Error(tokenData.message || 'Failed to retrieve access token');
       }
     } catch (error) {
-      console.error('❌ Token Exchange Error:', error);
+      console.log('═══════════════════════════════════════════════════');
+      console.error('❌ TOKEN EXCHANGE ERROR');
+      console.log('═══════════════════════════════════════════════════');
+      console.error('🔹 Error Name:', error.name);
+      console.error('🔹 Error Message:', error.message);
+      console.error('🔹 Error Stack:', error.stack);
       Alert.alert('Connection Failed', error.message);
     } finally {
+      console.log('🔹 Token exchange process complete');
       setIsConnecting(false);
+      console.log('═══════════════════════════════════════════════════');
     }
   };
 
   const getStravaProfile = async (accessToken) => {
+    console.log('═══════════════════════════════════════════════════');
+    console.log('👤 FETCHING STRAVA PROFILE');
+    console.log('═══════════════════════════════════════════════════');
+    console.log('🔹 Access Token Present:', !!accessToken);
+    console.log('🔹 Access Token Length:', accessToken?.length);
+    
     try {
-      console.log('🔹 Fetching Strava profile...');
+      console.log('🔹 Making GET request to: https://www.strava.com/api/v3/athlete');
       const profileResponse = await fetch('https://www.strava.com/api/v3/athlete', {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
 
+      console.log('🔹 Profile Response Status:', profileResponse.status);
+      console.log('🔹 Profile Response Status Text:', profileResponse.statusText);
+
       if (!profileResponse.ok) {
+        console.error('❌ Profile fetch failed');
+        console.error('🔹 Response Status:', profileResponse.status);
+        const errorText = await profileResponse.text();
+        console.error('🔹 Error Response Body:', errorText);
         throw new Error(`Failed to fetch Strava profile: ${profileResponse.status}`);
       }
 
       const profileData = await profileResponse.json();
-      return {
+      console.log('🔹 Raw Profile Data:', JSON.stringify(profileData, null, 2));
+      
+      const profile = {
         name: `${profileData.firstname} ${profileData.lastname}`,
         username: profileData.username,
         profile_image: profileData.profile_medium,
         id: profileData.id,
       };
+      
+      console.log('✅ Profile processed successfully');
+      console.log('🔹 Processed Profile:', JSON.stringify(profile, null, 2));
+      console.log('═══════════════════════════════════════════════════');
+      
+      return profile;
     } catch (error) {
-      console.error('❌ Get Profile Error:', error);
+      console.log('═══════════════════════════════════════════════════');
+      console.error('❌ GET PROFILE ERROR');
+      console.log('═══════════════════════════════════════════════════');
+      console.error('🔹 Error Name:', error.name);
+      console.error('🔹 Error Message:', error.message);
+      console.error('🔹 Error Stack:', error.stack);
+      console.log('═══════════════════════════════════════════════════');
       throw error;
     }
   };
 
   const handleConnectStrava = async () => {
-    console.log('🔹 Initiating Strava OAuth...');
-    console.log('🔹 Auth Request URL:', request?.url);
+    console.log('═══════════════════════════════════════════════════');
+    console.log('🚀 CONNECT BUTTON PRESSED');
+    console.log('═══════════════════════════════════════════════════');
+    console.log('🔹 Request Ready:', !!request);
+    console.log('🔹 Request URL:', request?.url);
+    console.log('🔹 Is Already Connecting:', isConnecting);
+    
+    if (!request) {
+      console.error('❌ Auth request not ready yet');
+      Alert.alert('Error', 'Authentication is still initializing. Please wait a moment.');
+      return;
+    }
+    
     setIsConnecting(true);
+    console.log('🔹 Opening OAuth prompt...');
 
     try {
-      await promptAsync();
+      console.log('🔹 Calling promptAsync()...');
+      const result = await promptAsync();
+      console.log('🔹 PromptAsync Result:', JSON.stringify(result, null, 2));
     } catch (error) {
-      console.error('❌ OAuth Prompt Error:', error);
+      console.log('═══════════════════════════════════════════════════');
+      console.error('❌ OAUTH PROMPT ERROR');
+      console.log('═══════════════════════════════════════════════════');
+      console.error('🔹 Error Name:', error.name);
+      console.error('🔹 Error Message:', error.message);
+      console.error('🔹 Error Stack:', error.stack);
       setIsConnecting(false);
       Alert.alert('Error', 'Failed to open Strava authorization. Please try again.');
     }
+    
+    console.log('═══════════════════════════════════════════════════');
   };
 
   const handleDisconnectStrava = async () => {
+    console.log('═══════════════════════════════════════════════════');
+    console.log('🔌 DISCONNECT INITIATED');
+    console.log('═══════════════════════════════════════════════════');
+    
     Alert.alert(
       'Disconnect Strava?',
       'Are you sure you want to disconnect your Strava account?',
       [
-        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Cancel', 
+          style: 'cancel',
+          onPress: () => console.log('🔹 User cancelled disconnect')
+        },
         {
           text: 'Disconnect',
           style: 'destructive',
           onPress: async () => {
             try {
+              console.log('🔹 Deleting token from SecureStore...');
               await SecureStore.deleteItemAsync(STRAVA_TOKEN_KEY);
+              console.log('✅ Token deleted successfully');
+              
               setIsConnected(false);
               setStravaData(null);
-              console.log('🔹 Strava disconnected successfully');
+              console.log('✅ State updated - disconnected');
+              
               Alert.alert('Disconnected', 'Strava account disconnected successfully.');
+              console.log('═══════════════════════════════════════════════════');
             } catch (error) {
-              console.error('❌ Disconnect Error:', error);
+              console.log('═══════════════════════════════════════════════════');
+              console.error('❌ DISCONNECT ERROR');
+              console.log('═══════════════════════════════════════════════════');
+              console.error('🔹 Error Name:', error.name);
+              console.error('🔹 Error Message:', error.message);
+              console.error('🔹 Error Stack:', error.stack);
               Alert.alert('Error', 'Failed to disconnect Strava.');
             }
           },
@@ -219,19 +486,35 @@ const redirectUri = 'https://auth.expo.io/kush1122/fit-stake';
   };
 
   const handleSyncActivities = async () => {
+    console.log('═══════════════════════════════════════════════════');
+    console.log('🔄 SYNC ACTIVITIES INITIATED');
+    console.log('═══════════════════════════════════════════════════');
+    
     try {
+      console.log('🔹 Reading token from SecureStore...');
       const tokenString = await SecureStore.getItemAsync(STRAVA_TOKEN_KEY);
-      console.log('🔹 Sync token:', tokenString);
+      console.log('🔹 Token Found:', !!tokenString);
 
       if (tokenString) {
+        const token = JSON.parse(tokenString);
+        console.log('🔹 Token parsed successfully');
+        console.log('🔹 Access Token Present:', !!token.access_token);
         Alert.alert('Coming Soon', 'Manual activity sync will be available soon!');
+      } else {
+        console.log('⚠️  No token found - user not connected');
       }
     } catch (error) {
-      console.error('❌ Sync Error:', error);
+      console.log('═══════════════════════════════════════════════════');
+      console.error('❌ SYNC ERROR');
+      console.log('═══════════════════════════════════════════════════');
+      console.error('🔹 Error Name:', error.name);
+      console.error('🔹 Error Message:', error.message);
+      console.error('🔹 Error Stack:', error.stack);
       Alert.alert('Error', 'Failed to sync activities.');
     }
-  };
-
+    
+    console.log('═══════════════════════════════════════════════════');
+  };  
   return (
     <LinearGradient
       colors={['#667eea', '#764ba2']}
