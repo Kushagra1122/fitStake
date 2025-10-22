@@ -9,7 +9,8 @@ import path from 'path';
  * on the already-deployed ChallengeContract on Sepolia
  */
 
-const CONTRACT_ADDRESS = "0x21854089df4aeb1e0ac1770a43f5e892a8fd04d9";
+// Allow override via environment variable for enhanced contract
+const CONTRACT_ADDRESS = process.env.ENHANCED_CONTRACT_ADDRESS || "0xbaf067fe68f032d9fdc906c6dcb32299baa2404f      ";
 
 async function main() {
   console.log('🔧 Setting PKP as Authorized Oracle...\n');

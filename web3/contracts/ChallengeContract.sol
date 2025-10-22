@@ -59,7 +59,11 @@ contract ChallengeContract {
     
     event TaskCompleted(
         uint256 indexed challengeId,
-        address indexed user
+        address indexed user,
+        uint256 completionTimestamp,
+        uint256 distance,
+        uint256 duration,
+        string stravaActivityId
     );
     
     event ChallengeFinalized(
@@ -189,8 +193,19 @@ contract ChallengeContract {
      * @dev Mark a participant as having completed the challenge (oracle only)
      * @param challengeId ID of the challenge
      * @param userAddress Address of the user who completed the challenge
+     * @param completionTimestamp Unix timestamp when the activity was completed
+     * @param distance Distance covered in meters
+     * @param duration Duration of activity in seconds
+     * @param stravaActivityId Strava activity ID for reference
      */
-    function markTaskComplete(uint256 challengeId, address userAddress)
+    function markTaskComplete(
+        uint256 challengeId,
+        address userAddress,
+        uint256 completionTimestamp,
+        uint256 distance,
+        uint256 duration,
+        string memory stravaActivityId
+    )
         external
         onlyAuthorizedOracle
         challengeExists(challengeId)
@@ -200,7 +215,14 @@ contract ChallengeContract {
 
         participants[challengeId][userAddress].hasCompleted = true;
 
-        emit TaskCompleted(challengeId, userAddress);
+        emit TaskCompleted(
+            challengeId,
+            userAddress,
+            completionTimestamp,
+            distance,
+            duration,
+            stravaActivityId
+        );
     }
 
     /**

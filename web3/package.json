@@ -10,6 +10,7 @@
     "node": "hardhat node",
     "deploy-sepolia": "hardhat run scripts/deploy-sepolia-simple.ts --network sepolia",
     "deploy-sepolia-oracle": "hardhat run scripts/deploy-sepolia-with-oracle.ts --network sepolia",
+    "deploy-enhanced": "hardhat run scripts/deploy-enhanced-contract.ts --network sepolia",
     "test-deployed": "hardhat run scripts/test-deployed-contract.ts --network sepolia",
     "mint-pkp": "hardhat run scripts/mint-pkp.ts",
     "setup-oracle-wallet": "tsx scripts/simple-pkp-setup.ts",
@@ -20,7 +21,8 @@
     "test-lit-sepolia": "hardhat run scripts/e2e-sepolia-test.ts --network sepolia",
     "test-lit-e2e": "hardhat run scripts/test-lit-oracle-e2e.ts --network sepolia",
     "demo-oracle": "hardhat run scripts/demo-oracle.ts --network sepolia",
-    "test-low-stake": "hardhat run scripts/test-low-stake.ts --network sepolia"
+    "test-low-stake": "hardhat run scripts/test-low-stake.ts --network sepolia",
+    "test-enhanced": "hardhat run scripts/test-enhanced-contract.ts --network sepolia"
   },
   "devDependencies": {
     "@lit-protocol/auth-helpers": "^4.0.0",

@@ -220,7 +220,7 @@ npm run test-lit-e2e
 
 | Component | Status | Address/Location |
 |-----------|--------|------------------|
-| Smart Contract | ✅ Deployed | `0x21854089df4aeb1e0ac1770a43f5e892a8fd04d9` |
+| Smart Contract | ✅ Deployed | `0xbaf067fe68f032d9fdc906c6dcb32299baa2404f      ` |
 | Network | ✅ Sepolia | Chain ID: 11155111 |
 | PKP | ⏳ Needs minting | Run `npm run mint-pkp` |
 | Oracle Config | ⏳ Needs setup | Run `npm run set-oracle` |

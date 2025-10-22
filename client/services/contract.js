@@ -8,7 +8,7 @@
 import { ethers } from 'ethers';
 
 // TODO: Add your deployed contract address here
-const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || '';
+const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || '0xbaf067fe68f032d9fdc906c6dcb32299baa240';
 
 // TODO: Add your contract ABI here
 // You can get this from the compiled contract artifacts

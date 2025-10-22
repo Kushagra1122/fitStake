@@ -69,13 +69,13 @@ npm run set-oracle
 **Expected output:**
 ```
 ✅ ORACLE SETUP COMPLETE!
-Contract: 0x21854089df4aeb1e0ac1770a43f5e892a8fd04d9
+Contract: 0xbaf067fe68f032d9fdc906c6dcb32299baa2404f      
 Oracle (PKP): 0xABC123...
 ```
 
 **Verify on Etherscan:**
 ```
-https://sepolia.etherscan.io/address/0x21854089df4aeb1e0ac1770a43f5e892a8fd04d9#readContract
+https://sepolia.etherscan.io/address/0xbaf067fe68f032d9fdc906c6dcb32299baa2404f      #readContract
 ```
 
 Click "authorizedOracle" - should show your PKP address.
@@ -215,7 +215,7 @@ https://sepolia.etherscan.io/address/<PKP_ADDRESS>
 
 **Check Contract Events:**
 ```
-https://sepolia.etherscan.io/address/0x21854089df4aeb1e0ac1770a43f5e892a8fd04d9#events
+https://sepolia.etherscan.io/address/0xbaf067fe68f032d9fdc906c6dcb32299baa2404f      #events
 ```
 
 **Backend Health:**

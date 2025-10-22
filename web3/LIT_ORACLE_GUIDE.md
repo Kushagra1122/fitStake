@@ -43,7 +43,7 @@ The Lit Protocol Oracle allows decentralized verification of Strava fitness acti
 
 ## Prerequisites
 
-- [x] Contract deployed to Sepolia (`0x21854089df4aeb1e0ac1770a43f5e892a8fd04d9`)
+- [x] Contract deployed to Sepolia (`0xbaf067fe68f032d9fdc906c6dcb32299baa2404f      `)
 - [ ] PKP minted and funded with Sepolia ETH
 - [ ] Oracle address set on contract
 - [ ] Backend service running
@@ -106,13 +106,13 @@ This will:
 **Expected Output:**
 ```
 ✅ ORACLE SETUP COMPLETE!
-Contract: 0x21854089df4aeb1e0ac1770a43f5e892a8fd04d9
+Contract: 0xbaf067fe68f032d9fdc906c6dcb32299baa2404f      
 Oracle (PKP): 0xABC123...
 ```
 
 **Verify on Etherscan:**
 ```
-https://sepolia.etherscan.io/address/0x21854089df4aeb1e0ac1770a43f5e892a8fd04d9#readContract
+https://sepolia.etherscan.io/address/0xbaf067fe68f032d9fdc906c6dcb32299baa2404f      #readContract
 ```
 - Call `authorizedOracle()` - should return your PKP address
 
@@ -132,7 +132,7 @@ npm run backend
 
 📡 Server: http://localhost:3000
 🌐 Network: datil-test
-📝 Contract: 0x21854089df4aeb1e0ac1770a43f5e892a8fd04d9
+📝 Contract: 0xbaf067fe68f032d9fdc906c6dcb32299baa2404f      
 🔑 PKP: 0xABC123...
 
 ✅ Ready for verification requests!
@@ -240,7 +240,7 @@ curl http://localhost:3000/health
 {
   "status": "healthy",
   "litNetwork": "datil-test",
-  "contractAddress": "0x21854089df4aeb1e0ac1770a43f5e892a8fd04d9",
+  "contractAddress": "0xbaf067fe68f032d9fdc906c6dcb32299baa2404f      ",
   "pkpConfigured": true,
   "litClientReady": true
 }
@@ -284,7 +284,7 @@ Get a free Alchemy API key: https://www.alchemy.com/
 
 View all `TaskCompleted` events on Etherscan:
 ```
-https://sepolia.etherscan.io/address/0x21854089df4aeb1e0ac1770a43f5e892a8fd04d9#events
+https://sepolia.etherscan.io/address/0xbaf067fe68f032d9fdc906c6dcb32299baa2404f      #events
 ```
 
 ### Check PKP Balance

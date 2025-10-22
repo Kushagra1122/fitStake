@@ -75,7 +75,7 @@ const verifyStravaActivity = async () => {
     }
 
     // 5. Encode markTaskComplete transaction
-    const txData = encodeMarkTaskComplete(challengeId, userAddress);
+    const txData = encodeMarkTaskComplete(challengeId, userAddress, activityData);
     console.log('Encoded transaction data:', txData);
 
     // 6. Sign transaction with PKP
@@ -294,12 +294,14 @@ function validateActivity(activity, challenge) {
 /**
  * Encode markTaskComplete transaction
  */
-function encodeMarkTaskComplete(challengeId, userAddress) {
+function encodeMarkTaskComplete(challengeId, userAddress, activityData) {
   try {
     console.log('Encoding markTaskComplete transaction...');
     
-    // Function selector: first 4 bytes of keccak256("markTaskComplete(uint256,address)")
-    const functionSelector = '0xf7aeca30';
+    // Get function selector from params or use fallback
+    // markTaskComplete(uint256,address,uint256,uint256,uint256,string)
+    const params = Lit.Actions.getParams();
+    const functionSelector = params.functionSelector || '0xf7aeca30';
     
     // Encode challengeId (uint256 - 32 bytes)
     const encodedChallengeId = BigInt(challengeId).toString(16).padStart(64, '0');
@@ -308,8 +310,38 @@ function encodeMarkTaskComplete(challengeId, userAddress) {
     const cleanAddress = userAddress.toLowerCase().replace('0x', '');
     const encodedUserAddress = cleanAddress.padStart(64, '0');
     
+    // Encode completionTimestamp (uint256 - 32 bytes)
+    const timestamp = Math.floor(new Date(activityData.start_date).getTime() / 1000);
+    const encodedTimestamp = timestamp.toString(16).padStart(64, '0');
+    
+    // Encode distance (uint256 - 32 bytes)
+    const encodedDistance = Math.floor(activityData.distance).toString(16).padStart(64, '0');
+    
+    // Encode duration (uint256 - 32 bytes)
+    const encodedDuration = Math.floor(activityData.moving_time || activityData.elapsed_time).toString(16).padStart(64, '0');
+    
+    // Encode string (stravaActivityId) - ABI encoding for dynamic types
+    const activityId = activityData.id.toString();
+    const encodedString = encodeStringParam(activityId);
+    
+    // For dynamic types like string, we need offset pointers
+    // Position 0: challengeId
+    // Position 1: userAddress  
+    // Position 2: completionTimestamp
+    // Position 3: distance
+    // Position 4: duration
+    // Position 5: offset to string data (6 * 32 = 192 = 0xc0)
+    const stringOffset = 'c0'.padStart(64, '0'); // 6 * 32 bytes = 192 bytes
+    
     // Combine into full call data
-    const callData = functionSelector + encodedChallengeId + encodedUserAddress;
+    const callData = functionSelector + 
+                     encodedChallengeId + 
+                     encodedUserAddress + 
+                     encodedTimestamp +
+                     encodedDistance +
+                     encodedDuration +
+                     stringOffset +
+                     encodedString;
     
     console.log('Encoded transaction data:', callData);
     
@@ -318,6 +350,25 @@ function encodeMarkTaskComplete(challengeId, userAddress) {
     console.error('Error encoding transaction:', error);
     throw error;
   }
+}
+
+/**
+ * Encode a string parameter for ABI encoding
+ */
+function encodeStringParam(str) {
+  // Length of string
+  const length = str.length.toString(16).padStart(64, '0');
+  
+  // Convert string to hex
+  let hex = '';
+  for (let i = 0; i < str.length; i++) {
+    hex += str.charCodeAt(i).toString(16).padStart(2, '0');
+  }
+  
+  // Pad to 32-byte boundary
+  const paddedHex = hex.padEnd(Math.ceil(hex.length / 64) * 64, '0');
+  
+  return length + paddedHex;
 }
 
 /**
