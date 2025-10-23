@@ -11,7 +11,7 @@ import { ethers } from 'ethers';
 const CONTRACT_ADDRESS = '0xbaf067fe68f032d9fdc906c6dcb32299baa2404f';
 
 // Sepolia RPC URL for reading blockchain data
-const SEPOLIA_RPC_URL = 'https://eth-sepolia.g.alchemy.com/v2/demo'; // Using public endpoint
+const SEPOLIA_RPC_URL = 'https://sepolia.infura.io/v3/fccd5042681c42b598675d08a67dbaa8'; // Using Infura endpoint (matches MetaMask's built-in Sepolia)
 
 // Contract ABI from artifacts
 const CONTRACT_ABI = [

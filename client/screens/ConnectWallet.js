@@ -14,6 +14,7 @@ export default function ConnectWallet() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  const SEPOLIA_CHAIN_ID = 11155111;
 
   useEffect(() => {
     Animated.parallel([
@@ -73,6 +74,7 @@ export default function ConnectWallet() {
   const handleContinue = () => {
     navigation.navigate('Home');
   };
+
 
   const getChainName = (id) => {
     const chains = {
@@ -155,7 +157,7 @@ export default function ConnectWallet() {
                     />
                     <View className="flex-1">
                       <Text className="text-gray-500 text-xs font-semibold mb-1 uppercase tracking-wide">Network</Text>
-                      <Text className="text-gray-900 font-bold text-base">
+                      <Text className="font-bold text-base text-gray-900">
                         {getChainName(chainId)}
                       </Text>
                     </View>

@@ -134,7 +134,7 @@ async function fetchChallengeDetails(contractAddress, challengeId) {
     console.log('Fetching challenge details from contract...');
     
     // RPC URL for Sepolia
-    const rpcUrl = 'https://eth-sepolia.g.alchemy.com/v2/demo';
+    const rpcUrl = 'https://sepolia.infura.io/v3/fccd5042681c42b598675d08a67dbaa8';
     
     // ABI for getChallenge function
     // getChallenge(uint256) returns (Challenge)
@@ -378,7 +378,7 @@ async function submitTransaction(contractAddress, txData, signature) {
   try {
     console.log('Submitting transaction to Sepolia...');
     
-    const rpcUrl = 'https://eth-sepolia.g.alchemy.com/v2/demo';
+    const rpcUrl = 'https://sepolia.infura.io/v3/fccd5042681c42b598675d08a67dbaa8';
     
     // This would need to construct a proper signed transaction
     // For hackathon demo, we'll log the intent and return mock tx hash
