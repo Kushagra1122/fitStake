@@ -5,7 +5,8 @@ import fs from 'fs';
 import path from 'path';
 
 // Import Lit Protocol packages (types may be incomplete)
-const LitContracts = require('@lit-protocol/contracts-sdk').LitContracts;
+import { LitContracts } from '@lit-protocol/contracts-sdk';
+import { LitNodeClient } from '@lit-protocol/lit-node-client';
 
 interface PKPConfig {
   pkpPublicKey: string;

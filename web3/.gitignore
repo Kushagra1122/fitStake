@@ -18,3 +18,13 @@
 
 # Hardhat coverage reports
 /coverage
+
+# Environment variables (CONTAINS PRIVATE KEYS!)
+.env
+.env.*
+!.env.template
+
+# Deployment info
+deployment-*.json
+deployment-enhanced.json
+.pkp-config.json

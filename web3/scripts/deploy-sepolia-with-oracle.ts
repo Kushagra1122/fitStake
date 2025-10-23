@@ -135,7 +135,7 @@ async function main() {
     console.log('1. Verify contract source code on Etherscan');
     console.log('2. Run: npm run test-lit-sepolia');
     console.log('3. Test Lit Action with real Sepolia contract');
-    console.log('4. Update Envio indexer to track Sepolia events');
+    console.log('4. Update nv indexer to track Sepolia events');
 
     return deploymentInfo;
 
