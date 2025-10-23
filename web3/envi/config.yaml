@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=./node_modules/envio/evm.schema.json
+name: envi
+networks:
+- id: 11155111
+  start_block: 0
+  contracts:
+  - name: ChallengerContract
+    address:
+    - 0xBaf067Fe68F032d9fDc906c6DcB32299BaA2404F
+    handler: ./src/EventHandlers.js
+    events:
+    - event: ChallengeCreated(uint256 indexed challengeId, address indexed creator, string description, uint256 targetDistance, uint256 stakeAmount, uint256 duration)
+    - event: ChallengeFinalized(uint256 indexed challengeId, uint256 totalParticipants, uint256 successfulParticipants)
+    - event: TaskCompleted(uint256 indexed challengeId, address indexed user)
+    - event: UserJoined(uint256 indexed challengeId, address indexed user, uint256 stakedAmount)
+    - event: WinningsDistributed(uint256 indexed challengeId, address indexed user, uint256 amount)
+unordered_multichain_mode: true
+preload_handlers: true

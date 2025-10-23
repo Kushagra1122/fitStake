@@ -1,0 +1,37 @@
+type ChallengerContract_ChallengeCreated {
+  id: ID!
+  challengeId: BigInt!
+  creator: String!
+  description: String!
+  targetDistance: BigInt!
+  stakeAmount: BigInt!
+  duration: BigInt!
+}
+
+type ChallengerContract_ChallengeFinalized {
+  id: ID!
+  challengeId: BigInt!
+  totalParticipants: BigInt!
+  successfulParticipants: BigInt!
+}
+
+type ChallengerContract_TaskCompleted {
+  id: ID!
+  challengeId: BigInt!
+  user: String!
+}
+
+type ChallengerContract_UserJoined {
+  id: ID!
+  challengeId: BigInt!
+  user: String!
+  stakedAmount: BigInt!
+}
+
+type ChallengerContract_WinningsDistributed {
+  id: ID!
+  challengeId: BigInt!
+  user: String!
+  amount: BigInt!
+}
+
