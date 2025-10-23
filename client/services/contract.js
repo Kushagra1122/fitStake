@@ -223,57 +223,249 @@ export const getContract = (signerOrProvider) => {
  * Create a new challenge
  * @param {object} signer - Ethers signer from wallet
  * @param {object} challengeData - Challenge details {description, activityType, targetDistance (km), duration (days), stakeAmount (ETH)}
+ * @param {object} walletConnectInfo - WalletConnect session info (optional)
  * @returns {object} Transaction receipt
  */
-export const createChallenge = async (signer, challengeData) => {
+export const createChallenge = async (signer, challengeData, walletConnectInfo = null) => {
   try {
+    console.log('🔧 Contract service: Starting createChallenge');
+    console.log('📊 Input challengeData:', challengeData);
+    
+    // Check if we have WalletConnect session info
+    console.log('🔍 Checking signer type...');
+    if (!signer.address || !signer.provider) {
+      throw new Error('Invalid signer - missing address or provider');
+    }
+    
+    console.log('📋 Getting contract instance...');
     const contract = getContract(signer);
+    console.log('✅ Contract instance obtained:', {
+      address: contract.target,
+      signer: signer.address
+    });
+    
+    // Test contract connectivity
+    console.log('🔍 Testing contract connectivity...');
+    try {
+      const nextChallengeId = await contract.nextChallengeId();
+      console.log('✅ Contract is accessible, nextChallengeId:', nextChallengeId.toString());
+    } catch (connectError) {
+      console.error('❌ Contract connectivity test failed:', connectError);
+      throw new Error(`Contract not accessible: ${connectError.message}`);
+    }
+    
+    // Check user's ETH balance
+    console.log('💰 Checking user ETH balance...');
+    try {
+      const balance = await signer.provider.getBalance(signer.address);
+      console.log('✅ User balance:', {
+        wei: balance.toString(),
+        eth: ethers.formatEther(balance)
+      });
+      
+      if (balance < ethers.parseEther("0.001")) {
+        console.warn('⚠️ Low ETH balance, might not have enough for gas');
+      }
+    } catch (balanceError) {
+      console.warn('⚠️ Could not check balance:', balanceError.message);
+    }
     
     const { description, targetDistance, duration, stakeAmount } = challengeData;
     
     // Convert values to contract format
+    console.log('🔄 Converting values to contract format...');
     const targetDistanceInMeters = Math.floor(parseFloat(targetDistance) * 1000); // km to meters
     const durationInSeconds = parseInt(duration) * 86400; // days to seconds
     const stakeInWei = ethers.parseEther(stakeAmount.toString());
     
-    console.log('Creating challenge:', {
+    console.log('📊 Converted values:', {
+      description,
+      targetDistance: `${targetDistance} km → ${targetDistanceInMeters} meters`,
+      duration: `${duration} days → ${durationInSeconds} seconds`,
+      stakeAmount: `${stakeAmount} ETH → ${stakeInWei.toString()} wei`
+    });
+    
+    console.log('📤 Calling smart contract createChallenge function...');
+    console.log('🔧 Contract method parameters:', {
       description,
       targetDistanceInMeters,
       stakeInWei: stakeInWei.toString(),
       durationInSeconds
     });
     
+    // Check if we have enough gas
+    console.log('⛽ Checking gas estimation...');
+    try {
+      const gasEstimate = await contract.createChallenge.estimateGas(
+        description,
+        targetDistanceInMeters,
+        stakeInWei,
+        durationInSeconds
+      );
+      console.log('✅ Gas estimation successful:', {
+        estimatedGas: gasEstimate.toString(),
+        gasInGwei: (gasEstimate * 20n / 1000000000n).toString() // Rough ETH cost
+      });
+    } catch (gasError) {
+      console.error('❌ Gas estimation failed:', gasError);
+      throw new Error(`Gas estimation failed: ${gasError.message}`);
+    }
+    
     // Call smart contract - stakeAmount is not sent as value, it's just a parameter
-    const tx = await contract.createChallenge(
-      description,
-      targetDistanceInMeters,
-      stakeInWei,
-      durationInSeconds
-    );
+    console.log('📞 Sending transaction to blockchain...');
+    console.log('🔍 Transaction details before sending:', {
+      from: signer.address,
+      to: contract.target,
+      gasLimit: 'auto',
+      value: '0' // No ETH being sent, just a parameter
+    });
     
-    console.log('Transaction sent:', tx.hash);
+    let tx;
+    try {
+      console.log('⏰ Starting transaction with 60-second timeout...');
+      
+      if (walletConnectInfo) {
+        console.log('🔗 Using WalletConnect for transaction...');
+        console.log('📱 This should open MetaMask for approval!');
+        
+        // Use WalletConnect directly for the contract call
+        const txHash = await walletConnectInfo.signClient.request({
+          topic: walletConnectInfo.session.topic,
+          chainId: `eip155:${walletConnectInfo.chainId}`,
+          request: {
+            method: 'eth_sendTransaction',
+            params: [{
+              from: walletConnectInfo.account,
+              to: contract.target,
+              data: contract.interface.encodeFunctionData('createChallenge', [
+                description,
+                targetDistanceInMeters,
+                stakeInWei,
+                durationInSeconds
+              ]),
+              value: '0x0'
+            }],
+          },
+        });
+        
+        console.log('✅ WalletConnect transaction sent:', txHash);
+        
+        // Create a mock transaction object for compatibility
+        tx = {
+          hash: txHash,
+          from: walletConnectInfo.account,
+          to: contract.target,
+          wait: async () => {
+            console.log('⏳ Waiting for transaction confirmation via WalletConnect...');
+            // Wait for confirmation using the provider
+            const provider = getProvider();
+            const receipt = await provider.waitForTransaction(txHash);
+            return receipt;
+          }
+        };
+      } else {
+        console.log('📞 Using standard ethers contract call...');
+        
+        // Add timeout to the transaction call itself
+        const txPromise = contract.createChallenge(
+          description,
+          targetDistanceInMeters,
+          stakeInWei,
+          durationInSeconds
+        );
+        
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Transaction call timed out after 60 seconds - check if MetaMask is open and approve the transaction')), 60000);
+        });
+        
+        tx = await Promise.race([txPromise, timeoutPromise]);
+        console.log('✅ Transaction object created successfully');
+      }
+    } catch (txError) {
+      console.error('❌ Failed to create transaction:', txError);
+      console.error('❌ Transaction error details:', {
+        message: txError.message,
+        reason: txError.reason,
+        code: txError.code,
+        data: txError.data
+      });
+      
+      // Provide helpful error messages
+      if (txError.message.includes('User rejected')) {
+        throw new Error('Transaction was rejected by user. Please try again and approve the transaction in MetaMask.');
+      } else if (txError.message.includes('timed out')) {
+        throw new Error('Transaction timed out. Please check if MetaMask is open and approve the transaction, then try again.');
+      } else if (txError.message.includes('insufficient funds')) {
+        throw new Error('Insufficient funds for gas. Please add more ETH to your wallet.');
+      } else {
+        throw new Error(`Transaction failed: ${txError.message}`);
+      }
+    }
     
-    // Wait for transaction confirmation
-    const receipt = await tx.wait();
+    console.log('✅ Transaction sent successfully!');
+    console.log('📄 Transaction details:', {
+      hash: tx.hash,
+      from: tx.from,
+      to: tx.to,
+      gasLimit: tx.gasLimit?.toString(),
+      gasPrice: tx.gasPrice?.toString()
+    });
     
-    console.log('Transaction confirmed:', receipt);
+    // Wait for transaction confirmation with timeout
+    console.log('⏳ Waiting for transaction confirmation...');
+    console.log('🔗 Transaction hash:', tx.hash);
+    console.log('🌐 View on Sepolia Etherscan:', `https://sepolia.etherscan.io/tx/${tx.hash}`);
+    
+    // Add timeout to prevent hanging
+    const receiptPromise = tx.wait();
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Transaction confirmation timed out after 2 minutes')), 120000);
+    });
+    
+    const receipt = await Promise.race([receiptPromise, timeoutPromise]);
+    
+    console.log('✅ Transaction confirmed!');
+    console.log('📄 Receipt details:', {
+      blockNumber: receipt.blockNumber,
+      blockHash: receipt.blockHash,
+      gasUsed: receipt.gasUsed?.toString(),
+      status: receipt.status,
+      logsCount: receipt.logs?.length || 0
+    });
     
     // Parse challengeId from events
+    console.log('🔍 Parsing events from transaction receipt...');
     let challengeId;
     if (receipt.logs && receipt.logs.length > 0) {
+      console.log(`📋 Found ${receipt.logs.length} logs in transaction`);
       const iface = new ethers.Interface(CONTRACT_ABI);
       for (const log of receipt.logs) {
         try {
           const parsed = iface.parseLog(log);
+          console.log('📄 Parsed log:', {
+            name: parsed?.name,
+            args: parsed?.args
+          });
           if (parsed && parsed.name === 'ChallengeCreated') {
             challengeId = Number(parsed.args.challengeId);
+            console.log('✅ Found ChallengeCreated event with ID:', challengeId);
             break;
           }
         } catch (e) {
+          console.log('⚠️ Could not parse log:', e.message);
           // Skip logs that don't match our interface
         }
       }
+    } else {
+      console.log('⚠️ No logs found in transaction receipt');
     }
+    
+    console.log('🎉 Challenge creation completed successfully!');
+    console.log('📤 Returning result:', {
+      success: true,
+      transactionHash: receipt.hash,
+      challengeId: challengeId || null,
+    });
     
     return {
       success: true,
@@ -281,7 +473,13 @@ export const createChallenge = async (signer, challengeData) => {
       challengeId: challengeId || null,
     };
   } catch (error) {
-    console.error('Error creating challenge:', error);
+    console.error('❌ Error creating challenge:', error);
+    console.error('❌ Error details:', {
+      message: error.message,
+      reason: error.reason,
+      code: error.code,
+      stack: error.stack
+    });
     throw new Error(error.reason || error.message || 'Failed to create challenge');
   }
 };

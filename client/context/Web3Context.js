@@ -383,6 +383,22 @@ export const Web3Provider = ({ children }) => {
     return walletConnectSigner;
   };
 
+  /**
+   * Get WalletConnect session info for direct contract calls
+   */
+  const getWalletConnectInfo = () => {
+    if (!signClientRef.current || !session || !account) {
+      throw new Error('Not connected to wallet');
+    }
+    
+    return {
+      signClient: signClientRef.current,
+      session,
+      account,
+      chainId
+    };
+  };
+
   const value = {
     account,
     chainId,
@@ -395,6 +411,7 @@ export const Web3Provider = ({ children }) => {
     signMessage,
     getProvider,
     getSigner,
+    getWalletConnectInfo,
   };
 
   return <Web3Context.Provider value={value}>{children}</Web3Context.Provider>;
