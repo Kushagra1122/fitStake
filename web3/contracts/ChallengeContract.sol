@@ -351,4 +351,46 @@ contract ChallengeContract {
     function isParticipant(uint256 challengeId, address userAddress) external view returns (bool) {
         return participants[challengeId][userAddress].userAddress != address(0);
     }
+
+    /**
+     * @dev Get all challenges a user has enrolled in
+     * @param userAddress Address of the user
+     * @return Array of challenge IDs the user has joined
+     */
+    function getUserChallenges(address userAddress) external view returns (uint256[] memory) {
+        uint256[] memory userChallengeIds = new uint256[](nextChallengeId - 1);
+        uint256 count = 0;
+        
+        // Iterate through all challenges to find ones the user has joined
+        for (uint256 i = 1; i < nextChallengeId; i++) {
+            if (participants[i][userAddress].userAddress != address(0)) {
+                userChallengeIds[count] = i;
+                count++;
+            }
+        }
+        
+        // Create a properly sized array
+        uint256[] memory result = new uint256[](count);
+        for (uint256 i = 0; i < count; i++) {
+            result[i] = userChallengeIds[i];
+        }
+        
+        return result;
+    }
+
+    /**
+     * @dev Get detailed information about all challenges a user has enrolled in
+     * @param userAddress Address of the user
+     * @return Array of ChallengeDetails for challenges the user has joined
+     */
+    function getUserChallengeDetails(address userAddress) external view returns (ChallengeDetails[] memory) {
+        uint256[] memory challengeIds = this.getUserChallenges(userAddress);
+        ChallengeDetails[] memory userChallenges = new ChallengeDetails[](challengeIds.length);
+        
+        for (uint256 i = 0; i < challengeIds.length; i++) {
+            userChallenges[i] = challenges[challengeIds[i]];
+        }
+        
+        return userChallenges;
+    }
 }

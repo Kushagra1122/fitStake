@@ -16,7 +16,7 @@ import { getActivityIcon, getDaysLeft, formatDistance } from '../utils/helpers';
 
 export default function MyChallenges() {
   const navigation = useNavigation();
-  const { account } = useWeb3();
+  const { account, getSigner, getWalletConnectInfo } = useWeb3();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const [challenges, setChallenges] = useState([]);
@@ -83,7 +83,8 @@ export default function MyChallenges() {
           onPress: async () => {
             try {
               const signer = getSigner();
-              const result = await withdrawWinnings(signer, challenge.id);
+              const walletConnectInfo = getWalletConnectInfo();
+              const result = await withdrawWinnings(signer, challenge.id, walletConnectInfo);
               
               Alert.alert(
                 'Success! 🎉',

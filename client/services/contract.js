@@ -194,6 +194,38 @@ const CONTRACT_ABI = [
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "address", "name": "userAddress", "type": "address"}],
+    "name": "getUserChallenges",
+    "outputs": [{"internalType": "uint256[]", "name": "", "type": "uint256[]"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "address", "name": "userAddress", "type": "address"}],
+    "name": "getUserChallengeDetails",
+    "outputs": [
+      {
+        "components": [
+          {"internalType": "uint256", "name": "challengeId", "type": "uint256"},
+          {"internalType": "address", "name": "creator", "type": "address"},
+          {"internalType": "string", "name": "description", "type": "string"},
+          {"internalType": "uint256", "name": "targetDistance", "type": "uint256"},
+          {"internalType": "uint256", "name": "stakeAmount", "type": "uint256"},
+          {"internalType": "uint256", "name": "startTime", "type": "uint256"},
+          {"internalType": "uint256", "name": "endTime", "type": "uint256"},
+          {"internalType": "uint256", "name": "totalStaked", "type": "uint256"},
+          {"internalType": "uint256", "name": "participantCount", "type": "uint256"},
+          {"internalType": "bool", "name": "finalized", "type": "bool"}
+        ],
+        "internalType": "struct ChallengeContract.ChallengeDetails[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
   }
 ];
 
@@ -558,10 +590,14 @@ export const getActiveChallenges = async (provider) => {
  * @param {object} signer - Ethers signer from wallet
  * @param {number} challengeId - ID of challenge to join
  * @param {string} stakeAmount - Amount to stake in ETH
+ * @param {object} walletConnectInfo - WalletConnect session info (optional)
  * @returns {object} Transaction receipt
  */
-export const joinChallenge = async (signer, challengeId, stakeAmount) => {
+export const joinChallenge = async (signer, challengeId, stakeAmount, walletConnectInfo = null) => {
   try {
+    console.log('🔧 Contract service: Starting joinChallenge');
+    console.log('📊 Input data:', { challengeId, stakeAmount });
+    
     const contract = getContract(signer);
     
     // Convert stake amount to Wei
@@ -569,8 +605,44 @@ export const joinChallenge = async (signer, challengeId, stakeAmount) => {
     
     console.log('Joining challenge:', { challengeId, stakeAmount, stakeInWei: stakeInWei.toString() });
     
-    // Call smart contract with value
-    const tx = await contract.joinChallenge(challengeId, { value: stakeInWei });
+    let tx;
+    if (walletConnectInfo) {
+      console.log('🔗 Using WalletConnect for joinChallenge...');
+      console.log('📱 This should open MetaMask for approval!');
+      
+      // Use WalletConnect directly for the contract call
+      const txHash = await walletConnectInfo.signClient.request({
+        topic: walletConnectInfo.session.topic,
+        chainId: `eip155:${walletConnectInfo.chainId}`,
+        request: {
+          method: 'eth_sendTransaction',
+          params: [{
+            from: walletConnectInfo.account,
+            to: contract.target,
+            data: contract.interface.encodeFunctionData('joinChallenge', [challengeId]),
+            value: `0x${stakeInWei.toString(16)}`
+          }],
+        },
+      });
+      
+      console.log('✅ WalletConnect transaction sent:', txHash);
+      
+      // Create a mock transaction object for compatibility
+      tx = {
+        hash: txHash,
+        from: walletConnectInfo.account,
+        to: contract.target,
+        wait: async () => {
+          console.log('⏳ Waiting for transaction confirmation via WalletConnect...');
+          const provider = getProvider();
+          const receipt = await provider.waitForTransaction(txHash);
+          return receipt;
+        }
+      };
+    } else {
+      // Fallback to standard ethers call
+      tx = await contract.joinChallenge(challengeId, { value: stakeInWei });
+    }
     
     console.log('Transaction sent:', tx.hash);
     
@@ -675,16 +747,56 @@ export const getUserChallenges = async (provider, userAddress) => {
  * Withdraw winnings from a completed challenge
  * @param {object} signer - Ethers signer from wallet
  * @param {number} challengeId - ID of challenge to withdraw from
+ * @param {object} walletConnectInfo - WalletConnect session info (optional)
  * @returns {object} Transaction receipt
  */
-export const withdrawWinnings = async (signer, challengeId) => {
+export const withdrawWinnings = async (signer, challengeId, walletConnectInfo = null) => {
   try {
+    console.log('🔧 Contract service: Starting withdrawWinnings');
+    console.log('📊 Input data:', { challengeId });
+    
     const contract = getContract(signer);
     
     console.log('Withdrawing winnings from challenge:', challengeId);
     
-    // Call smart contract
-    const tx = await contract.withdrawWinnings(challengeId);
+    let tx;
+    if (walletConnectInfo) {
+      console.log('🔗 Using WalletConnect for withdrawWinnings...');
+      console.log('📱 This should open MetaMask for approval!');
+      
+      // Use WalletConnect directly for the contract call
+      const txHash = await walletConnectInfo.signClient.request({
+        topic: walletConnectInfo.session.topic,
+        chainId: `eip155:${walletConnectInfo.chainId}`,
+        request: {
+          method: 'eth_sendTransaction',
+          params: [{
+            from: walletConnectInfo.account,
+            to: contract.target,
+            data: contract.interface.encodeFunctionData('withdrawWinnings', [challengeId]),
+            value: '0x0'
+          }],
+        },
+      });
+      
+      console.log('✅ WalletConnect transaction sent:', txHash);
+      
+      // Create a mock transaction object for compatibility
+      tx = {
+        hash: txHash,
+        from: walletConnectInfo.account,
+        to: contract.target,
+        wait: async () => {
+          console.log('⏳ Waiting for transaction confirmation via WalletConnect...');
+          const provider = getProvider();
+          const receipt = await provider.waitForTransaction(txHash);
+          return receipt;
+        }
+      };
+    } else {
+      // Fallback to standard ethers call
+      tx = await contract.withdrawWinnings(challengeId);
+    }
     
     console.log('Transaction sent:', tx.hash);
     
@@ -712,13 +824,53 @@ export const completeChallenge = withdrawWinnings;
  * @param {number} challengeId - ID of challenge to finalize
  * @returns {object} Transaction receipt
  */
-export const finalizeChallenge = async (signer, challengeId) => {
+export const finalizeChallenge = async (signer, challengeId, walletConnectInfo = null) => {
   try {
+    console.log('🔧 Contract service: Starting finalizeChallenge');
+    console.log('📊 Input data:', { challengeId });
+    
     const contract = getContract(signer);
     
     console.log('Finalizing challenge:', challengeId);
     
-    const tx = await contract.finalizeChallenge(challengeId);
+    let tx;
+    if (walletConnectInfo) {
+      console.log('🔗 Using WalletConnect for finalizeChallenge...');
+      console.log('📱 This should open MetaMask for approval!');
+      
+      // Use WalletConnect directly for the contract call
+      const txHash = await walletConnectInfo.signClient.request({
+        topic: walletConnectInfo.session.topic,
+        chainId: `eip155:${walletConnectInfo.chainId}`,
+        request: {
+          method: 'eth_sendTransaction',
+          params: [{
+            from: walletConnectInfo.account,
+            to: contract.target,
+            data: contract.interface.encodeFunctionData('finalizeChallenge', [challengeId]),
+            value: '0x0'
+          }],
+        },
+      });
+      
+      console.log('✅ WalletConnect transaction sent:', txHash);
+      
+      // Create a mock transaction object for compatibility
+      tx = {
+        hash: txHash,
+        from: walletConnectInfo.account,
+        to: contract.target,
+        wait: async () => {
+          console.log('⏳ Waiting for transaction confirmation via WalletConnect...');
+          const provider = getProvider();
+          const receipt = await provider.waitForTransaction(txHash);
+          return receipt;
+        }
+      };
+    } else {
+      // Fallback to standard ethers call
+      tx = await contract.finalizeChallenge(challengeId);
+    }
     
     console.log('Transaction sent:', tx.hash);
     
@@ -778,6 +930,82 @@ export const getChallengeById = async (provider, challengeId) => {
   }
 };
 
+/**
+ * Get all challenge IDs that a user has enrolled in
+ * @param {object} provider - Ethers provider (optional)
+ * @param {string} userAddress - User's wallet address
+ * @returns {number[]} Array of challenge IDs
+ */
+export const getUserChallengeIds = async (provider, userAddress) => {
+  try {
+    const prov = provider || getProvider();
+    const contract = getContract(prov);
+    const challengeIds = await contract.getUserChallenges(userAddress);
+    
+    return challengeIds.map(id => Number(id));
+  } catch (error) {
+    console.error('Error fetching user challenge IDs:', error);
+    throw new Error(error.reason || error.message || 'Failed to fetch user challenges');
+  }
+};
+
+/**
+ * Get detailed information about all challenges a user has enrolled in
+ * @param {object} provider - Ethers provider (optional)
+ * @param {string} userAddress - User's wallet address
+ * @returns {object[]} Array of challenge details with participant info
+ */
+export const getUserChallengeDetails = async (provider, userAddress) => {
+  try {
+    const prov = provider || getProvider();
+    const contract = getContract(prov);
+    const challenges = await contract.getUserChallengeDetails(userAddress);
+    
+    // Get participant details for each challenge
+    const userChallenges = await Promise.all(
+      challenges.map(async (challenge) => {
+        try {
+          const participant = await contract.getParticipant(challenge.challengeId, userAddress);
+          
+          const targetDistanceKm = Number(challenge.targetDistance) / 1000; // meters to km
+          const durationDays = (Number(challenge.endTime) - Number(challenge.startTime)) / 86400; // seconds to days
+          
+          return {
+            id: Number(challenge.challengeId),
+            name: challenge.description,
+            description: challenge.description,
+            creator: challenge.creator,
+            activityType: 'running', // Not stored in contract
+            targetDistance: targetDistanceKm,
+            unit: 'km',
+            duration: Math.floor(durationDays),
+            stakeAmount: ethers.formatEther(challenge.stakeAmount),
+            startTime: Number(challenge.startTime),
+            endTime: Number(challenge.endTime),
+            totalStaked: ethers.formatEther(challenge.totalStaked),
+            participantCount: Number(challenge.participantCount),
+            finalized: challenge.finalized,
+            participant: {
+              userAddress: participant.userAddress,
+              hasCompleted: participant.hasCompleted,
+              hasWithdrawn: participant.hasWithdrawn,
+              stakedAmount: ethers.formatEther(participant.stakedAmount),
+            }
+          };
+        } catch (err) {
+          console.error(`Error fetching participant details for challenge ${challenge.challengeId}:`, err);
+          return null;
+        }
+      })
+    );
+    
+    return userChallenges.filter(challenge => challenge !== null);
+  } catch (error) {
+    console.error('Error fetching user challenge details:', error);
+    throw new Error(error.reason || error.message || 'Failed to fetch user challenge details');
+  }
+};
+
 export default {
   getProvider,
   getContract,
@@ -789,4 +1017,6 @@ export default {
   completeChallenge,
   finalizeChallenge,
   getChallengeById,
+  getUserChallengeIds,
+  getUserChallengeDetails,
 };
