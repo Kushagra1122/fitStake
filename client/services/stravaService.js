@@ -7,6 +7,7 @@ WebBrowser.maybeCompleteAuthSession();
 
 const STRAVA_CLIENT_ID = process.env.EXPO_PUBLIC_STRAVA_CLIENT_ID ;
 const STRAVA_CLIENT_SECRET = process.env.EXPO_PUBLIC_STRAVA_CLIENT_SECRET ;
+const OAUTH_SERVER_HOST = process.env.EXPO_PUBLIC_OAUTH_SERVER_HOST || '10.85.28.154';
 
 // OAuth endpoints
 const STRAVA_AUTH_URL = 'https://www.strava.com/oauth/mobile/authorize';
@@ -19,12 +20,12 @@ const STRAVA_API_BASE = 'https://www.strava.com/api/v3';
 // 2. STRAVA_REDIRECT_URI - For Strava to redirect
 // Using your machine's IP address so it's accessible from both browser and app
 
-const OAUTH_SERVER_URL = 'http://10.85.28.154:3000'; // Your machine's IP
+const OAUTH_SERVER_URL = `http://${OAUTH_SERVER_HOST}:3000`; // Your machine's IP from .env
 // const OAUTH_SERVER_URL = 'http://10.0.2.2:3000'; // Android emulator (only if using localhost)
 // const OAUTH_SERVER_URL = 'https://your-server.com'; // Production
 
 // Strava redirects here (must be accessible by Strava's servers)
-const STRAVA_REDIRECT_URI = 'http://10.85.28.154:3000/exchange_token';
+const STRAVA_REDIRECT_URI = `http://${OAUTH_SERVER_HOST}:3000/exchange_token`;
 const REDIRECT_URI = STRAVA_REDIRECT_URI; // For backwards compatibility
 
 // Secure storage keys
