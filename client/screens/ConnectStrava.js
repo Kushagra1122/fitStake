@@ -9,15 +9,18 @@ import {
   Animated,
   Dimensions,
   FlatList,
+  Linking,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useStrava } from '../context/StravaContext';
 import stravaService from '../services/stravaService';
 
 const { width } = Dimensions.get('window');
 
 const ConnectStrava = () => {
   const navigation = useNavigation();
+  const { isConnected, connectStrava, disconnectStrava, getAthleteProfile, getRecentActivities, isLoading } = useStrava();
   const [loading, setLoading] = useState(false);
   const [connected, setConnected] = useState(false);
   const [athlete, setAthlete] = useState(null);
@@ -77,8 +80,6 @@ const ConnectStrava = () => {
     const handleUrl = ({ url }) => {
       handleDeepLinkCallback(url);
     };
-
-    const { Linking } = require('react-native');
     
     Linking.getInitialURL().then((url) => {
       if (url) {
@@ -95,12 +96,15 @@ const ConnectStrava = () => {
 
   const checkConnection = async () => {
     try {
-      const isConnected = await stravaService.isConnected();
+      setConnected(isConnected);
       
       if (isConnected) {
-        const storedAthlete = await stravaService.getStoredAthlete();
-        setAthlete(storedAthlete);
-        setConnected(true);
+        try {
+          const athleteData = await getAthleteProfile();
+          setAthlete(athleteData);
+        } catch (error) {
+          console.error('Error fetching athlete profile:', error);
+        }
       }
     } catch (error) {
       console.error('Error checking connection:', error.message);
@@ -115,6 +119,9 @@ const ConnectStrava = () => {
       const result = await stravaService.connectStrava();
 
       if (result.success) {
+        // Connect to context with the tokens
+        await connectStrava(result.accessToken, result.refreshToken, result.expiresAt);
+        
         setConnected(true);
         setAthlete(result.athlete);
         
@@ -153,7 +160,7 @@ const ConnectStrava = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await stravaService.disconnect();
+              await disconnectStrava();
               setConnected(false);
               setAthlete(null);
               setActivities([]);
@@ -175,7 +182,7 @@ const ConnectStrava = () => {
       setLoading(true);
       setTestResults({ ...testResults, profile: 'loading' });
       
-      const profile = await stravaService.getAthleteProfile();
+      const profile = await getAthleteProfile();
       
       setAthlete(profile);
       setTestResults({ ...testResults, profile: 'success' });
@@ -195,7 +202,7 @@ const ConnectStrava = () => {
       setLoading(true);
       setTestResults({ ...testResults, activities: 'loading' });
       
-      const activitiesData = await stravaService.getAthleteActivities();
+      const activitiesData = await getRecentActivities(1, 30);
       
       setActivities(activitiesData || []);
       setShowActivities(true);

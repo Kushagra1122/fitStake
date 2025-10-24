@@ -2,6 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Web3Provider } from './context/Web3Context';
+import { StravaProvider } from './context/StravaContext';
 import ConnectWallet from './screens/ConnectWallet';
 import Home from './screens/Home';
 import CreateChallenge from './screens/CreateChallenge';
@@ -29,16 +30,18 @@ const linking = {
 export default function App() {
   return (
     <Web3Provider>
-      <NavigationContainer linking={linking}>
-        <Stack.Navigator initialRouteName="ConnectWallet" screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="ConnectWallet" component={ConnectWallet} />
-          <Stack.Screen name="Home" component={Home} />
-          <Stack.Screen name="CreateChallenge" component={CreateChallenge} />
-          <Stack.Screen name="JoinChallenge" component={JoinChallenge} />
-          <Stack.Screen name="MyChallenges" component={MyChallenges} />
-          <Stack.Screen name="ConnectStrava" component={ConnectStrava} />
-        </Stack.Navigator>
-      </NavigationContainer>
+      <StravaProvider>
+        <NavigationContainer linking={linking}>
+          <Stack.Navigator initialRouteName="ConnectWallet" screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="ConnectWallet" component={ConnectWallet} />
+            <Stack.Screen name="Home" component={Home} />
+            <Stack.Screen name="CreateChallenge" component={CreateChallenge} />
+            <Stack.Screen name="JoinChallenge" component={JoinChallenge} />
+            <Stack.Screen name="MyChallenges" component={MyChallenges} />
+            <Stack.Screen name="ConnectStrava" component={ConnectStrava} />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </StravaProvider>
     </Web3Provider>
   );
 }
