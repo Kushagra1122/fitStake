@@ -1,10 +1,6 @@
 {
   "cli": {
-<<<<<<< HEAD
-    "version": ">= 16.24.1",
-=======
     "version": ">= 3.0.0",
->>>>>>> 371d86680ff50dbe8ce75da249a1e1186ee18bc1
     "appVersionSource": "remote"
   },
   "build": {
@@ -18,11 +14,5 @@
     "production": {
       "autoIncrement": true
     }
-<<<<<<< HEAD
-  },
-  "submit": {
-    "production": {}
-=======
->>>>>>> 371d86680ff50dbe8ce75da249a1e1186ee18bc1
   }
 }
