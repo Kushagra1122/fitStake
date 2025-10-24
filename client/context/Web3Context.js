@@ -53,8 +53,10 @@ export const Web3Provider = ({ children }) => {
         const accounts = namespaces?.eip155?.accounts || [];
         if (accounts.length > 0) {
           const [, chainIdStr, address] = accounts[0].split(':');
+          const newChainId = parseInt(chainIdStr);
+          
           setAccount(address);
-          setChainId(parseInt(chainIdStr));
+          setChainId(newChainId);
         }
       });
 
@@ -71,8 +73,10 @@ export const Web3Provider = ({ children }) => {
         const accounts = lastSession.namespaces?.eip155?.accounts || [];
         if (accounts.length > 0) {
           const [, chainIdStr, address] = accounts[0].split(':');
+          const existingChainId = parseInt(chainIdStr);
+          
           setAccount(address);
-          setChainId(parseInt(chainIdStr));
+          setChainId(existingChainId);
         }
       }
     } catch (error) {
@@ -121,38 +125,60 @@ export const Web3Provider = ({ children }) => {
               'eth_sign',
               'personal_sign',
               'eth_signTypedData',
+              'wallet_switchEthereumChain',
+              'wallet_addEthereumChain',
             ],
-            chains: ['eip155:1', 'eip155:11155111', 'eip155:137', 'eip155:10'],
+            // Allow both mainnet and Sepolia for initial connection
+            chains: ['eip155:1', 'eip155:11155111'],
             events: ['chainChanged', 'accountsChanged'],
           },
         },
       });
 
       if (uri) {
+        console.log('🔗 WalletConnect URI generated, opening wallet...');
+        
         // Open MetaMask with WalletConnect URI
         const metamaskUrl = `metamask://wc?uri=${encodeURIComponent(uri)}`;
         
         // Try MetaMask deep link first
         const supported = await Linking.canOpenURL(metamaskUrl);
         if (supported) {
+          console.log('✅ Opening MetaMask via deep link');
           await Linking.openURL(metamaskUrl);
         } else {
           // Fallback to universal link
           const universalLink = `https://metamask.app.link/wc?uri=${encodeURIComponent(uri)}`;
+          console.log('✅ Opening MetaMask via universal link');
           await Linking.openURL(universalLink);
         }
+      } else {
+        console.error('❌ No WalletConnect URI generated');
+        throw new Error('Failed to generate connection URI');
       }
 
+      console.log('⏳ Waiting for wallet approval...');
+      
       // Wait for session approval
       const approvedSession = await approval();
+      console.log('✅ Wallet connection approved!');
       setSession(approvedSession);
 
       // Extract account and chain info
       const accounts = approvedSession.namespaces?.eip155?.accounts || [];
+      console.log('📋 Accounts received:', accounts);
+      
       if (accounts.length > 0) {
         const [, chainIdStr, address] = accounts[0].split(':');
         const chain = parseInt(chainIdStr);
+        
+        console.log('🔍 Connection details:', {
+          address,
+          chainId: chain,
+          chainName: chain === 1 ? 'Mainnet' : chain === 11155111 ? 'Sepolia' : `Chain ${chain}`,
+        });
 
+        // Set account and chain (assuming it's always Sepolia)
         setAccount(address);
         setChainId(chain);
         await saveConnection(address, chain);
@@ -171,7 +197,10 @@ export const Web3Provider = ({ children }) => {
 
   const disconnectWallet = async () => {
     try {
+      console.log('🔄 Disconnecting wallet...');
+      
       if (signClientRef.current && session) {
+        console.log('📤 Sending disconnect request to wallet...');
         await signClientRef.current.disconnect({
           topic: session.topic,
           reason: {
@@ -179,17 +208,23 @@ export const Web3Provider = ({ children }) => {
             message: 'User disconnected',
           },
         });
+        console.log('✅ Wallet disconnect request sent');
       }
       
+      console.log('🧹 Clearing local storage...');
       await AsyncStorage.removeItem('walletAccount');
       await AsyncStorage.removeItem('chainId');
       
+      console.log('🔄 Clearing app state...');
       setAccount(null);
       setChainId(null);
       setSession(null);
+      
+      console.log('✅ Wallet disconnected successfully');
     } catch (error) {
-      console.error('Disconnect error:', error);
+      console.error('❌ Disconnect error:', error);
       // Clear state anyway
+      console.log('🧹 Clearing state despite error...');
       setAccount(null);
       setChainId(null);
       setSession(null);
@@ -244,29 +279,80 @@ export const Web3Provider = ({ children }) => {
     }
 
     try {
-      await signClientRef.current.request({
+      console.log(`🔄 Switching to chain ${targetChainId} (Sepolia)...`);
+      
+      // Add timeout to prevent hanging
+      const switchPromise = signClientRef.current.request({
         topic: session.topic,
-        chainId: `eip155:${chainId}`,
+        chainId: `eip155:${chainId}`, // Use current chain for the request
         request: {
           method: 'wallet_switchEthereumChain',
           params: [{ chainId: `0x${targetChainId.toString(16)}` }],
         },
       });
+
+      // Add 30 second timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Switch request timed out after 30 seconds')), 30000);
+      });
+
+      await Promise.race([switchPromise, timeoutPromise]);
+      
+      console.log(`✅ Successfully switched to chain ${targetChainId}`);
       setChainId(targetChainId);
       await AsyncStorage.setItem('chainId', targetChainId.toString());
     } catch (error) {
-      console.error('Switch chain error:', error);
-      throw error;
+      console.error('❌ Switch chain error:', error);
+      
+      // If the chain doesn't exist, try to add it first
+      if (error.message && (error.message.includes('4902') || error.message.includes('Unrecognized chain'))) {
+        console.log('🔄 Chain not found, attempting to add Sepolia network...');
+        try {
+          const addPromise = signClientRef.current.request({
+            topic: session.topic,
+            chainId: `eip155:${chainId}`,
+            request: {
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: `0x${targetChainId.toString(16)}`,
+                chainName: 'Sepolia Test Network',
+                rpcUrls: ['https://sepolia.infura.io/v3/fccd5042681c42b598675d08a67dbaa8'],
+                nativeCurrency: {
+                  name: 'Ether',
+                  symbol: 'ETH',
+                  decimals: 18,
+                },
+                blockExplorerUrls: ['https://sepolia.etherscan.io'],
+              }],
+            },
+          });
+
+          // Add timeout for add network request too
+          const addTimeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Add network request timed out after 30 seconds')), 30000);
+          });
+
+          await Promise.race([addPromise, addTimeoutPromise]);
+          console.log('✅ Sepolia network added successfully');
+          setChainId(targetChainId);
+          await AsyncStorage.setItem('chainId', targetChainId.toString());
+        } catch (addError) {
+          console.error('❌ Failed to add Sepolia network:', addError);
+          throw new Error('Please manually add Sepolia testnet to your wallet and try again');
+        }
+      } else {
+        throw error;
+      }
     }
   };
 
   /**
    * Get a provider for reading blockchain data
-   * Uses public RPC endpoint for Sepolia
+   * Uses Infura RPC endpoint for Sepolia (matches MetaMask's built-in Sepolia)
    */
   const getProvider = () => {
-    // For React Native, we use JsonRpcProvider with public endpoint
-    return new ethers.JsonRpcProvider('https://eth-sepolia.g.alchemy.com/v2/demo');
+    // For React Native, we use JsonRpcProvider with Infura endpoint
+    return new ethers.JsonRpcProvider('https://sepolia.infura.io/v3/fccd5042681c42b598675d08a67dbaa8');
   };
 
   /**
@@ -297,6 +383,22 @@ export const Web3Provider = ({ children }) => {
     return walletConnectSigner;
   };
 
+  /**
+   * Get WalletConnect session info for direct contract calls
+   */
+  const getWalletConnectInfo = () => {
+    if (!signClientRef.current || !session || !account) {
+      throw new Error('Not connected to wallet');
+    }
+    
+    return {
+      signClient: signClientRef.current,
+      session,
+      account,
+      chainId
+    };
+  };
+
   const value = {
     account,
     chainId,
@@ -309,6 +411,7 @@ export const Web3Provider = ({ children }) => {
     signMessage,
     getProvider,
     getSigner,
+    getWalletConnectInfo,
   };
 
   return <Web3Context.Provider value={value}>{children}</Web3Context.Provider>;

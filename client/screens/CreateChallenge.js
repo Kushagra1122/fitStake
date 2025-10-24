@@ -19,7 +19,7 @@ import { getActivityIcon, formatDuration } from '../utils/helpers';
 
 export default function CreateChallenge() {
   const navigation = useNavigation();
-  const { account, isConnected, getSigner } = useWeb3();
+  const { account, isConnected, getSigner, getWalletConnectInfo } = useWeb3();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   // Form state
@@ -53,29 +53,52 @@ export default function CreateChallenge() {
   ];
 
   const handleCreateChallenge = async () => {
+    console.log('🚀 Starting challenge creation process...');
+    
     // Validation
+    console.log('📋 Validating form data...');
     if (!challengeName.trim()) {
+      console.log('❌ Validation failed: Challenge name is empty');
       Alert.alert('Error', 'Please enter a challenge name');
       return;
     }
     if (!targetDistance || parseFloat(targetDistance) <= 0) {
+      console.log('❌ Validation failed: Invalid target distance');
       Alert.alert('Error', 'Please enter a valid target distance');
       return;
     }
     if (!stakeAmount || parseFloat(stakeAmount) <= 0) {
+      console.log('❌ Validation failed: Invalid stake amount');
       Alert.alert('Error', 'Please enter a valid stake amount');
       return;
     }
 
     if (!isConnected) {
+      console.log('❌ Validation failed: Wallet not connected');
       Alert.alert('Error', 'Please connect your wallet first');
       return;
     }
 
+    console.log('✅ Form validation passed');
+    console.log('📊 Challenge data:', {
+      name: challengeName,
+      activityType,
+      targetDistance: parseFloat(targetDistance),
+      duration: parseInt(duration),
+      stakeAmount: parseFloat(stakeAmount),
+    });
+
     setIsCreating(true);
+    console.log('🔄 Setting creating state to true');
 
     try {
+      console.log('🔑 Getting signer from wallet...');
       const signer = getSigner();
+      console.log('✅ Signer obtained:', {
+        address: signer.address,
+        provider: signer.provider ? 'Connected' : 'Not connected'
+      });
+
       const challengeData = {
         description: challengeName,
         activityType,
@@ -84,7 +107,28 @@ export default function CreateChallenge() {
         stakeAmount: parseFloat(stakeAmount),
       };
       
-      const result = await createChallengeContract(signer, challengeData);
+      console.log('📤 Calling smart contract to create challenge...');
+      console.log('📋 Challenge data being sent:', challengeData);
+      console.log('⚠️ IMPORTANT: Check MetaMask - you should see a transaction approval prompt!');
+      console.log('📱 If MetaMask is not open, open it manually and look for the pending transaction');
+      
+      // Get WalletConnect info for direct transaction
+      const walletConnectInfo = getWalletConnectInfo();
+      console.log('🔗 Using WalletConnect for transaction:', {
+        hasSignClient: !!walletConnectInfo.signClient,
+        sessionTopic: walletConnectInfo.session.topic,
+        account: walletConnectInfo.account,
+        chainId: walletConnectInfo.chainId
+      });
+      
+      const result = await createChallengeContract(signer, challengeData, walletConnectInfo);
+      
+      console.log('✅ Challenge creation successful!');
+      console.log('📄 Result:', {
+        success: result.success,
+        transactionHash: result.transactionHash,
+        challengeId: result.challengeId
+      });
       
       Alert.alert(
         'Challenge Created! 🎉',
@@ -92,19 +136,30 @@ export default function CreateChallenge() {
         [
           {
             text: 'OK',
-            onPress: () => navigation.navigate('Home'),
+            onPress: () => {
+              console.log('🏠 Navigating to Home screen');
+              navigation.navigate('Home');
+            },
           },
         ]
       );
 
       // Reset form
+      console.log('🧹 Resetting form fields');
       setChallengeName('');
       setTargetDistance('');
       setStakeAmount('');
     } catch (error) {
-      console.error('Error creating challenge:', error);
+      console.error('❌ Error creating challenge:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        reason: error.reason,
+        code: error.code,
+        stack: error.stack
+      });
       Alert.alert('Error', error.message || 'Failed to create challenge. Please try again.');
     } finally {
+      console.log('🏁 Challenge creation process completed');
       setIsCreating(false);
     }
   };

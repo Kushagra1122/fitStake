@@ -11,12 +11,12 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useWeb3 } from '../context/Web3Context';
 import { useNavigation } from '@react-navigation/native';
-import { getActiveChallenges, joinChallenge as joinChallengeContract } from '../services/contract';
+import { getActiveChallenges, joinChallenge as joinChallengeContract, getContract } from '../services/contract';
 import { getActivityIcon, getDaysLeft, getStatusColor } from '../utils/helpers';
 
 export default function JoinChallenge() {
   const navigation = useNavigation();
-  const { account, isConnected, getSigner, getProvider } = useWeb3();
+  const { account, isConnected, getSigner, getProvider, getWalletConnectInfo } = useWeb3();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const [challenges, setChallenges] = useState([]);
@@ -45,12 +45,50 @@ export default function JoinChallenge() {
         icon: getActivityIcon(challenge.activityType),
       }));
       
-      setChallenges(challengesWithIcons);
+      // Filter out challenges the user has already joined
+      const availableChallenges = await filterUserChallenges(challengesWithIcons, provider);
+      
+      setChallenges(availableChallenges);
     } catch (error) {
       console.error('Error loading challenges:', error);
       Alert.alert('Error', 'Failed to load challenges. Please try again.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const filterUserChallenges = async (challengesList, provider) => {
+    if (!account) {
+      return challengesList; // If no account, show all challenges
+    }
+
+    try {
+      const contract = getContract(provider);
+      const filteredChallenges = [];
+
+      // Loop through each challenge and check if user is already enrolled
+      for (const challenge of challengesList) {
+        try {
+          const isParticipant = await contract.isParticipant(challenge.id, account);
+          console.log(`Challenge ${challenge.id}: User enrolled = ${isParticipant}`);
+          
+          // Only add challenges where user is NOT enrolled
+          if (!isParticipant) {
+            filteredChallenges.push(challenge);
+          }
+        } catch (error) {
+          console.error(`Error checking participation for challenge ${challenge.id}:`, error);
+          // If there's an error checking, include the challenge to be safe
+          filteredChallenges.push(challenge);
+        }
+      }
+
+      console.log(`Filtered challenges: ${filteredChallenges.length} available out of ${challengesList.length} total`);
+      return filteredChallenges;
+    } catch (error) {
+      console.error('Error filtering user challenges:', error);
+      // If filtering fails, return all challenges
+      return challengesList;
     }
   };
 
@@ -71,10 +109,12 @@ export default function JoinChallenge() {
             setJoiningId(challenge.id);
             try {
               const signer = getSigner();
+              const walletConnectInfo = getWalletConnectInfo();
               const result = await joinChallengeContract(
                 signer,
                 challenge.id,
-                challenge.stakeAmount
+                challenge.stakeAmount,
+                walletConnectInfo
               );
               
               Alert.alert(
@@ -122,7 +162,7 @@ export default function JoinChallenge() {
             <View className="flex-1">
               <Text className="text-white text-3xl font-black">Join Challenge</Text>
               <Text className="text-white/70 text-sm mt-1">
-                {challenges.length} active challenges
+                {challenges.length} available challenges
               </Text>
             </View>
             <TouchableOpacity
@@ -143,16 +183,27 @@ export default function JoinChallenge() {
             /* Empty State */
             <View className="bg-white/95 backdrop-blur-xl rounded-3xl p-8 items-center">
               <Text className="text-6xl mb-4">🏃</Text>
-              <Text className="text-gray-900 font-bold text-xl mb-2">No Challenges Yet</Text>
+              <Text className="text-gray-900 font-bold text-xl mb-2">No Available Challenges</Text>
               <Text className="text-gray-600 text-center mb-6">
-                Be the first to create a challenge!
+                {account ? 
+                  "You've joined all available challenges or there are no active challenges yet." :
+                  "Connect your wallet to see available challenges."
+                }
               </Text>
-              <TouchableOpacity
-                className="bg-purple-600 px-6 py-3 rounded-xl"
-                onPress={() => navigation.navigate('CreateChallenge')}
-              >
-                <Text className="text-white font-bold">Create Challenge</Text>
-              </TouchableOpacity>
+              <View className="flex-row space-x-3">
+                <TouchableOpacity
+                  className="bg-purple-600 px-6 py-3 rounded-xl"
+                  onPress={() => navigation.navigate('CreateChallenge')}
+                >
+                  <Text className="text-white font-bold">Create Challenge</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  className="bg-blue-600 px-6 py-3 rounded-xl"
+                  onPress={loadChallenges}
+                >
+                  <Text className="text-white font-bold">Refresh</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           ) : (
             /* Challenges List */

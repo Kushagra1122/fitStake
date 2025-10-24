@@ -16,7 +16,7 @@ import { getActivityIcon, getDaysLeft, formatDistance } from '../utils/helpers';
 
 export default function MyChallenges() {
   const navigation = useNavigation();
-  const { account } = useWeb3();
+  const { account, getSigner, getWalletConnectInfo, getProvider } = useWeb3();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const [challenges, setChallenges] = useState([]);
@@ -34,22 +34,29 @@ export default function MyChallenges() {
   }, [account]);
 
   const loadMyChallenges = async () => {
+    if (!account) {
+      setChallenges([]);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
-      // TODO: Uncomment when smart contract is ready
-      // const provider = await getProvider(); // Get from Web3Context
-      // const userChallenges = await getUserChallenges(provider, account);
-      // 
-      // // Add activity icons to each challenge
-      // const challengesWithIcons = userChallenges.map(challenge => ({
-      //   ...challenge,
-      //   icon: getActivityIcon(challenge.activityType),
-      // }));
-      // 
-      // setChallenges(challengesWithIcons);
+      console.log('🔍 Loading user challenges for account:', account);
+      const provider = getProvider();
       
-      // For now, return empty array until smart contract is integrated
-      setChallenges([]);
+      // Use existing getUserChallenges function
+      const userChallenges = await getUserChallenges(provider, account);
+      
+      console.log('📊 User challenges loaded:', userChallenges.length);
+      
+      // Add activity icons to each challenge
+      const challengesWithIcons = userChallenges.map(challenge => ({
+        ...challenge,
+        icon: getActivityIcon(challenge.activityType),
+      }));
+      
+      setChallenges(challengesWithIcons);
     } catch (error) {
       console.error('Error loading challenges:', error);
       Alert.alert('Error', 'Failed to load your challenges. Please try again.');
@@ -83,7 +90,8 @@ export default function MyChallenges() {
           onPress: async () => {
             try {
               const signer = getSigner();
-              const result = await withdrawWinnings(signer, challenge.id);
+              const walletConnectInfo = getWalletConnectInfo();
+              const result = await withdrawWinnings(signer, challenge.id, walletConnectInfo);
               
               Alert.alert(
                 'Success! 🎉',
@@ -100,8 +108,13 @@ export default function MyChallenges() {
     );
   };
 
-  const activeChallenges = challenges.filter(c => !c.isCompleted);
-  const completedChallenges = challenges.filter(c => c.isCompleted);
+  // Filter challenges based on status (using existing field names)
+  const activeChallenges = challenges.filter(c => 
+    !c.finalized && !c.hasWithdrawn
+  );
+  const completedChallenges = challenges.filter(c => 
+    c.finalized || c.hasWithdrawn
+  );
 
   const displayChallenges = activeTab === 'active' ? activeChallenges : completedChallenges;
 
@@ -125,7 +138,7 @@ export default function MyChallenges() {
             <View className="flex-1">
               <Text className="text-white text-3xl font-black">My Challenges</Text>
               <Text className="text-white/70 text-sm mt-1">
-                {challenges.length} total challenges
+                {activeChallenges.length} active • {completedChallenges.length} completed
               </Text>
             </View>
             <TouchableOpacity
@@ -289,7 +302,9 @@ function ChallengeCard({ challenge, onComplete, isActive, index }) {
                 {challenge.name}
               </Text>
             </View>
-            <Text className="text-gray-500 text-xs">{challenge.activityType}</Text>
+            <Text className="text-gray-500 text-xs">
+              {challenge.activityType} • Staked: {challenge.stakeAmount} ETH
+            </Text>
           </View>
           {isActive ? (
             <View className={`px-3 py-1 rounded-full ${
@@ -307,7 +322,11 @@ function ChallengeCard({ challenge, onComplete, isActive, index }) {
             </View>
           ) : (
             <View className="bg-green-100 px-3 py-1 rounded-full">
-              <Text className="text-green-700 text-xs font-bold">✓ Done</Text>
+              <Text className="text-green-700 text-xs font-bold">
+                {challenge.isCompleted ? '✓ Completed' : 
+                 challenge.hasWithdrawn ? '💰 Withdrawn' : 
+                 challenge.finalized ? '🏁 Finalized' : '✓ Done'}
+              </Text>
             </View>
           )}
         </View>
@@ -339,22 +358,30 @@ function ChallengeCard({ challenge, onComplete, isActive, index }) {
         </View>
 
         {/* Action Button */}
-        {isActive && progressPercentage >= 100 && (
+        {isActive && challenge.finalized && !challenge.hasWithdrawn && (
           <TouchableOpacity
             className="bg-gradient-to-r from-green-500 to-emerald-500 py-4 rounded-2xl"
             onPress={() => onComplete(challenge)}
             activeOpacity={0.8}
           >
             <Text className="text-white font-bold text-base text-center">
-              Claim Rewards 🎉
+              Withdraw Winnings 💰
             </Text>
           </TouchableOpacity>
         )}
 
-        {isActive && progressPercentage < 100 && (
+        {isActive && !challenge.finalized && (
           <View className="bg-blue-50 p-3 rounded-xl">
             <Text className="text-blue-700 text-xs text-center font-medium">
-              Keep going! Connect Strava to track your progress
+              Challenge in progress • Connect Strava to track your progress
+            </Text>
+          </View>
+        )}
+
+        {!isActive && challenge.hasWithdrawn && (
+          <View className="bg-green-50 p-3 rounded-xl">
+            <Text className="text-green-700 text-xs text-center font-medium">
+              ✅ Winnings withdrawn successfully
             </Text>
           </View>
         )}
