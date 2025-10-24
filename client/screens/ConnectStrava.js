@@ -20,7 +20,20 @@ const { width } = Dimensions.get('window');
 
 const ConnectStrava = () => {
   const navigation = useNavigation();
-  const { isConnected, connectStrava, disconnectStrava, getAthleteProfile, getRecentActivities, isLoading } = useStrava();
+  const { 
+    isConnected, 
+    connectStrava, 
+    disconnectStrava, 
+    getAthleteProfile, 
+    getRecentActivities, 
+    fetchAllStravaData,
+    getDataSummary,
+    fetchAthleteSegments,
+    fetchAthleteRoutes,
+    fetchAthleteClubs,
+    fetchAthleteGear,
+    isLoading 
+  } = useStrava();
   const [loading, setLoading] = useState(false);
   const [connected, setConnected] = useState(false);
   const [athlete, setAthlete] = useState(null);
@@ -28,6 +41,8 @@ const ConnectStrava = () => {
   const [activities, setActivities] = useState([]);
   const [showActivities, setShowActivities] = useState(false);
   const [testResults, setTestResults] = useState({});
+  const [comprehensiveData, setComprehensiveData] = useState(null);
+  const [showComprehensiveData, setShowComprehensiveData] = useState(false);
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -165,6 +180,8 @@ const ConnectStrava = () => {
               setAthlete(null);
               setActivities([]);
               setShowActivities(false);
+              setComprehensiveData(null);
+              setShowComprehensiveData(false);
               setTestResults({});
               Alert.alert('Disconnected', 'Your Strava account has been disconnected');
             } catch (error) {
@@ -213,6 +230,119 @@ const ConnectStrava = () => {
       console.error('Get activities error:', error.message);
       setTestResults({ ...testResults, activities: 'error' });
       Alert.alert('Error', 'Failed to fetch activities: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFetchAllData = async () => {
+    try {
+      setLoading(true);
+      setTestResults({ ...testResults, comprehensive: 'loading' });
+      
+      console.log('🚀 Starting comprehensive data fetch...');
+      
+      const allData = await fetchAllStravaData({
+        includeActivities: true,
+        includeDetailedActivities: false, // Set to true for detailed activity data
+        maxActivities: 100,
+        includeSegments: true,
+        includeRoutes: true,
+        includeClubs: true,
+        includeGear: true,
+        includeStats: true,
+        includeZones: true
+      });
+      
+      setComprehensiveData(allData);
+      setShowComprehensiveData(true);
+      setTestResults({ ...testResults, comprehensive: 'success' });
+      
+      const summary = getDataSummary(allData.data);
+      
+      Alert.alert(
+        'Comprehensive Data Fetched! 🎉', 
+        `Fetched:\n• ${summary.activities.total} activities\n• ${summary.segments.total} segments\n• ${summary.routes.total} routes\n• ${summary.clubs.total} clubs\n• ${summary.gear.bikes.length} bikes\n• ${summary.gear.shoes.length} shoes`
+      );
+    } catch (error) {
+      console.error('Comprehensive data fetch error:', error.message);
+      setTestResults({ ...testResults, comprehensive: 'error' });
+      Alert.alert('Error', 'Failed to fetch comprehensive data: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFetchSegments = async () => {
+    try {
+      setLoading(true);
+      setTestResults({ ...testResults, segments: 'loading' });
+      
+      const segments = await fetchAthleteSegments();
+      setTestResults({ ...testResults, segments: 'success' });
+      
+      Alert.alert('Success! 🎉', `Fetched ${segments.length} segments`);
+    } catch (error) {
+      console.error('Segments fetch error:', error.message);
+      setTestResults({ ...testResults, segments: 'error' });
+      Alert.alert('Error', 'Failed to fetch segments: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFetchRoutes = async () => {
+    try {
+      setLoading(true);
+      setTestResults({ ...testResults, routes: 'loading' });
+      
+      const routes = await fetchAthleteRoutes();
+      setTestResults({ ...testResults, routes: 'success' });
+      
+      Alert.alert('Success! 🎉', `Fetched ${routes.length} routes`);
+    } catch (error) {
+      console.error('Routes fetch error:', error.message);
+      setTestResults({ ...testResults, routes: 'error' });
+      Alert.alert('Error', 'Failed to fetch routes: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFetchClubs = async () => {
+    try {
+      setLoading(true);
+      setTestResults({ ...testResults, clubs: 'loading' });
+      
+      const clubs = await fetchAthleteClubs();
+      setTestResults({ ...testResults, clubs: 'success' });
+      
+      Alert.alert('Success! 🎉', `Fetched ${clubs.length} clubs`);
+    } catch (error) {
+      console.error('Clubs fetch error:', error.message);
+      setTestResults({ ...testResults, clubs: 'error' });
+      Alert.alert('Error', 'Failed to fetch clubs: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFetchGear = async () => {
+    try {
+      setLoading(true);
+      setTestResults({ ...testResults, gear: 'loading' });
+      
+      const gear = await fetchAthleteGear();
+      setTestResults({ ...testResults, gear: 'success' });
+      
+      const bikes = gear.filter(item => item.resource_state === 3 && item.frame_type === 1);
+      const shoes = gear.filter(item => item.resource_state === 3 && item.frame_type === 4);
+      
+      Alert.alert('Success! 🎉', `Fetched ${bikes.length} bikes and ${shoes.length} shoes`);
+    } catch (error) {
+      console.error('Gear fetch error:', error.message);
+      setTestResults({ ...testResults, gear: 'error' });
+      Alert.alert('Error', 'Failed to fetch gear: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -300,7 +430,7 @@ const ConnectStrava = () => {
                   
                   <View className="space-y-2">
                     <TestButton
-                      icon=""
+                      icon="👤"
                       label="Refresh Profile"
                       onPress={handleRefreshProfile}
                       status={testResults.profile}
@@ -312,6 +442,46 @@ const ConnectStrava = () => {
                       label="Get Activities"
                       onPress={handleGetActivities}
                       status={testResults.activities}
+                      disabled={loading}
+                    />
+
+                    <TestButton
+                      icon="📊"
+                      label="Fetch ALL Data"
+                      onPress={handleFetchAllData}
+                      status={testResults.comprehensive}
+                      disabled={loading}
+                    />
+
+                    <TestButton
+                      icon="🏁"
+                      label="Get Segments"
+                      onPress={handleFetchSegments}
+                      status={testResults.segments}
+                      disabled={loading}
+                    />
+
+                    <TestButton
+                      icon="🗺️"
+                      label="Get Routes"
+                      onPress={handleFetchRoutes}
+                      status={testResults.routes}
+                      disabled={loading}
+                    />
+
+                    <TestButton
+                      icon="👥"
+                      label="Get Clubs"
+                      onPress={handleFetchClubs}
+                      status={testResults.clubs}
+                      disabled={loading}
+                    />
+
+                    <TestButton
+                      icon="🚴"
+                      label="Get Gear"
+                      onPress={handleFetchGear}
+                      status={testResults.gear}
                       disabled={loading}
                     />
                   </View>
@@ -345,6 +515,25 @@ const ConnectStrava = () => {
                     Showing 5 of {activities.length} activities
                   </Text>
                 )}
+              </View>
+            )}
+
+            {/* Comprehensive Data Display */}
+            {showComprehensiveData && comprehensiveData && (
+              <View className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 shadow-2xl mb-6">
+                <View className="flex-row items-center justify-between mb-4">
+                  <Text className="text-gray-900 font-bold text-lg">
+                    Comprehensive Strava Data 📊
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setShowComprehensiveData(false)}
+                    className="bg-gray-100 px-3 py-1 rounded-full"
+                  >
+                    <Text className="text-gray-600 text-xs font-bold">Hide</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <ComprehensiveDataDisplay data={comprehensiveData} />
               </View>
             )}
 
@@ -474,6 +663,201 @@ function TestButton({ icon, label, onPress, status, disabled }) {
         <Text className="text-base ml-2">{getStatusIcon()}</Text>
       )}
     </TouchableOpacity>
+  );
+}
+
+function ComprehensiveDataDisplay({ data }) {
+  // Safe data access with proper null checks
+  const safeData = data?.data || {};
+  
+  const summary = {
+    athlete: {
+      name: `${safeData.athlete?.firstname || ''} ${safeData.athlete?.lastname || ''}`,
+      username: safeData.athlete?.username,
+      location: safeData.athlete?.city && safeData.athlete?.country 
+        ? `${safeData.athlete.city}, ${safeData.athlete.country}` 
+        : null,
+      memberSince: safeData.athlete?.created_at,
+      premium: safeData.athlete?.premium
+    },
+    activities: {
+      total: Array.isArray(safeData.activities) ? safeData.activities.length : 0,
+      types: Array.isArray(safeData.activities) ? safeData.activities.reduce((acc, activity) => {
+        acc[activity.type] = (acc[activity.type] || 0) + 1;
+        return acc;
+      }, {}) : {},
+      totalDistance: Array.isArray(safeData.activities) ? safeData.activities.reduce((sum, activity) => sum + (activity.distance || 0), 0) : 0,
+      totalTime: Array.isArray(safeData.activities) ? safeData.activities.reduce((sum, activity) => sum + (activity.moving_time || 0), 0) : 0
+    },
+    segments: {
+      total: Array.isArray(safeData.segments) ? safeData.segments.length : 0
+    },
+    routes: {
+      total: Array.isArray(safeData.routes) ? safeData.routes.length : 0
+    },
+    clubs: {
+      total: Array.isArray(safeData.clubs) ? safeData.clubs.length : 0,
+      names: Array.isArray(safeData.clubs) ? safeData.clubs.map(club => club.name) : []
+    },
+    gear: {
+      bikes: Array.isArray(safeData.gear) ? safeData.gear.filter(item => item.resource_state === 3 && item.frame_type === 1) : [],
+      shoes: Array.isArray(safeData.gear) ? safeData.gear.filter(item => item.resource_state === 3 && item.frame_type === 4) : []
+    }
+  };
+
+  const formatDistance = (meters) => {
+    return (meters / 1000).toFixed(2);
+  };
+
+  const formatDuration = (seconds) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
+  };
+
+  return (
+    <ScrollView className="max-h-96">
+      {/* Athlete Info */}
+      <View className="mb-4">
+        <Text className="text-gray-800 font-bold text-base mb-2">👤 Athlete Profile</Text>
+        <View className="bg-blue-50 p-3 rounded-lg">
+          <Text className="text-gray-900 font-semibold">{summary.athlete.name}</Text>
+          {summary.athlete.username && (
+            <Text className="text-blue-600 text-sm">@{summary.athlete.username}</Text>
+          )}
+          {summary.athlete.location && (
+            <Text className="text-gray-600 text-sm">📍 {summary.athlete.location}</Text>
+          )}
+          <Text className="text-gray-500 text-xs">
+            Member since: {new Date(summary.athlete.memberSince).toLocaleDateString()}
+          </Text>
+          {summary.athlete.premium && (
+            <Text className="text-yellow-600 text-xs font-bold">⭐ Premium Member</Text>
+          )}
+        </View>
+      </View>
+
+      {/* Activities Summary */}
+      <View className="mb-4">
+        <Text className="text-gray-800 font-bold text-base mb-2">🏃 Activities Summary</Text>
+        <View className="bg-green-50 p-3 rounded-lg">
+          <Text className="text-gray-900 font-semibold">Total Activities: {summary.activities.total}</Text>
+          <Text className="text-gray-600 text-sm">
+            Total Distance: {formatDistance(summary.activities.totalDistance)} km
+          </Text>
+          <Text className="text-gray-600 text-sm">
+            Total Time: {formatDuration(summary.activities.totalTime)}
+          </Text>
+          
+          {Object.keys(summary.activities.types).length > 0 && (
+            <View className="mt-2">
+              <Text className="text-gray-700 text-sm font-semibold">Activity Types:</Text>
+              {Object.entries(summary.activities.types).map(([type, count]) => (
+                <Text key={type} className="text-gray-600 text-xs ml-2">
+                  • {type}: {count}
+                </Text>
+              ))}
+            </View>
+          )}
+        </View>
+      </View>
+
+      {/* Segments */}
+      <View className="mb-4">
+        <Text className="text-gray-800 font-bold text-base mb-2">🏁 Segments</Text>
+        <View className="bg-purple-50 p-3 rounded-lg">
+          <Text className="text-gray-900 font-semibold">Starred Segments: {summary.segments.total}</Text>
+          {summary.segments.total > 0 && (
+            <Text className="text-gray-600 text-sm">
+              {Array.isArray(safeData.segments) ? safeData.segments.slice(0, 3).map(segment => segment.name).join(', ') : ''}
+              {summary.segments.total > 3 && '...'}
+            </Text>
+          )}
+        </View>
+      </View>
+
+      {/* Routes */}
+      <View className="mb-4">
+        <Text className="text-gray-800 font-bold text-base mb-2">🗺️ Routes</Text>
+        <View className="bg-orange-50 p-3 rounded-lg">
+          <Text className="text-gray-900 font-semibold">Created Routes: {summary.routes.total}</Text>
+          {summary.routes.total > 0 && (
+            <Text className="text-gray-600 text-sm">
+              {Array.isArray(safeData.routes) ? safeData.routes.slice(0, 3).map(route => route.name).join(', ') : ''}
+              {summary.routes.total > 3 && '...'}
+            </Text>
+          )}
+        </View>
+      </View>
+
+      {/* Clubs */}
+      <View className="mb-4">
+        <Text className="text-gray-800 font-bold text-base mb-2">👥 Clubs</Text>
+        <View className="bg-yellow-50 p-3 rounded-lg">
+          <Text className="text-gray-900 font-semibold">Club Memberships: {summary.clubs.total}</Text>
+          {summary.clubs.names.length > 0 && (
+            <Text className="text-gray-600 text-sm">
+              {summary.clubs.names.slice(0, 3).join(', ')}
+              {summary.clubs.names.length > 3 && '...'}
+            </Text>
+          )}
+        </View>
+      </View>
+
+      {/* Gear */}
+      <View className="mb-4">
+        <Text className="text-gray-800 font-bold text-base mb-2">🚴 Gear</Text>
+        <View className="bg-red-50 p-3 rounded-lg">
+          <Text className="text-gray-900 font-semibold">Bikes: {summary.gear.bikes.length}</Text>
+          {summary.gear.bikes.length > 0 && (
+            <Text className="text-gray-600 text-sm">
+              {summary.gear.bikes.slice(0, 2).map(bike => bike.name).join(', ')}
+              {summary.gear.bikes.length > 2 && '...'}
+            </Text>
+          )}
+          
+          <Text className="text-gray-900 font-semibold mt-2">Shoes: {summary.gear.shoes.length}</Text>
+          {summary.gear.shoes.length > 0 && (
+            <Text className="text-gray-600 text-sm">
+              {summary.gear.shoes.slice(0, 2).map(shoe => shoe.name).join(', ')}
+              {summary.gear.shoes.length > 2 && '...'}
+            </Text>
+          )}
+        </View>
+      </View>
+
+      {/* Stats */}
+      {safeData.stats && (
+        <View className="mb-4">
+          <Text className="text-gray-800 font-bold text-base mb-2">📊 Statistics</Text>
+          <View className="bg-indigo-50 p-3 rounded-lg">
+            <Text className="text-gray-900 font-semibold">All Time Stats</Text>
+            {safeData.stats.all_ride_totals && (
+              <Text className="text-gray-600 text-sm">
+                Total Rides: {safeData.stats.all_ride_totals.count} | 
+                Distance: {formatDistance(safeData.stats.all_ride_totals.distance)} km
+              </Text>
+            )}
+            {safeData.stats.all_run_totals && (
+              <Text className="text-gray-600 text-sm">
+                Total Runs: {safeData.stats.all_run_totals.count} | 
+                Distance: {formatDistance(safeData.stats.all_run_totals.distance)} km
+              </Text>
+            )}
+          </View>
+        </View>
+      )}
+
+      {/* Data Timestamp */}
+      <View className="mt-4 pt-3 border-t border-gray-200">
+        <Text className="text-gray-500 text-xs text-center">
+          Data fetched: {new Date(data.timestamp).toLocaleString()}
+        </Text>
+      </View>
+    </ScrollView>
   );
 }
 

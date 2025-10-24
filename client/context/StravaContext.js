@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import stravaService from '../services/stravaService';
 
 const StravaContext = createContext();
 
@@ -268,6 +269,85 @@ export const StravaProvider = ({ children }) => {
     await clearTokens();
   };
 
+  // Fetch comprehensive Strava data
+  const fetchAllStravaData = async (options = {}) => {
+    try {
+      const token = await getValidAccessToken();
+      const athleteProfile = await getAthleteProfile();
+      
+      const comprehensiveData = await stravaService.fetchAllStravaData(
+        token, 
+        athleteProfile.id, 
+        options
+      );
+      
+      return comprehensiveData;
+    } catch (error) {
+      console.error('Error fetching comprehensive Strava data:', error);
+      throw error;
+    }
+  };
+
+  // Get data summary
+  const getDataSummary = (data) => {
+    return stravaService.getDataSummary(data);
+  };
+
+  // Fetch specific data types
+  const fetchAthleteSegments = async () => {
+    try {
+      const token = await getValidAccessToken();
+      const athleteProfile = await getAthleteProfile();
+      return await stravaService.fetchAthleteSegments(token, athleteProfile.id);
+    } catch (error) {
+      console.error('Error fetching athlete segments:', error);
+      throw error;
+    }
+  };
+
+  const fetchAthleteRoutes = async () => {
+    try {
+      const token = await getValidAccessToken();
+      const athleteProfile = await getAthleteProfile();
+      return await stravaService.fetchAthleteRoutes(token, athleteProfile.id);
+    } catch (error) {
+      console.error('Error fetching athlete routes:', error);
+      throw error;
+    }
+  };
+
+  const fetchAthleteClubs = async () => {
+    try {
+      const token = await getValidAccessToken();
+      const athleteProfile = await getAthleteProfile();
+      return await stravaService.fetchAthleteClubs(token, athleteProfile.id);
+    } catch (error) {
+      console.error('Error fetching athlete clubs:', error);
+      throw error;
+    }
+  };
+
+  const fetchAthleteGear = async () => {
+    try {
+      const token = await getValidAccessToken();
+      const athleteProfile = await getAthleteProfile();
+      return await stravaService.fetchAthleteGear(token, athleteProfile.id);
+    } catch (error) {
+      console.error('Error fetching athlete gear:', error);
+      throw error;
+    }
+  };
+
+  const fetchActivityDetails = async (activityId) => {
+    try {
+      const token = await getValidAccessToken();
+      return await stravaService.fetchActivityDetails(token, activityId);
+    } catch (error) {
+      console.error('Error fetching activity details:', error);
+      throw error;
+    }
+  };
+
   const value = {
     // State
     isConnected,
@@ -278,7 +358,7 @@ export const StravaProvider = ({ children }) => {
     disconnectStrava,
     getValidAccessToken,
     
-    // API methods
+    // Basic API methods
     getAthleteProfile,
     getActivities,
     getActivity,
@@ -287,6 +367,15 @@ export const StravaProvider = ({ children }) => {
     getRecentActivities,
     getAllActivities,
     makeApiCall,
+    
+    // Comprehensive data methods
+    fetchAllStravaData,
+    getDataSummary,
+    fetchAthleteSegments,
+    fetchAthleteRoutes,
+    fetchAthleteClubs,
+    fetchAthleteGear,
+    fetchActivityDetails,
   };
 
   return (
