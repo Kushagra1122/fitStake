@@ -8,6 +8,7 @@ import Home from './screens/Home';
 import CreateChallenge from './screens/CreateChallenge';
 import JoinChallenge from './screens/JoinChallenge';
 import MyChallenges from './screens/MyChallenges';
+import Challenge from './screens/Challange';
 import ConnectStrava from './screens/ConnectStrava';
 import Profile from './screens/Profile';
 
@@ -24,6 +25,7 @@ const linking = {
       CreateChallenge: 'create-challenge',
       JoinChallenge: 'join-challenge',
       MyChallenges: 'my-challenges',
+      Challenge: 'challenge',
     },
   },
 };
@@ -39,6 +41,7 @@ export default function App() {
             <Stack.Screen name="CreateChallenge" component={CreateChallenge} />
             <Stack.Screen name="JoinChallenge" component={JoinChallenge} />
             <Stack.Screen name="MyChallenges" component={MyChallenges} />
+            <Stack.Screen name="Challenge" component={Challenge} />
             <Stack.Screen name="ConnectStrava" component={ConnectStrava} />
             <Stack.Screen name="Profile" component={Profile} />
           </Stack.Navigator>

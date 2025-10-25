@@ -133,6 +133,77 @@ export async function getWinningsDistributed({ challengeId = null, user = null, 
   return data || {};
 }
 
+export async function getChallengeById(challengeId) {
+  const query = `
+    query {
+      Challengercc_ChallengeCreated(where: { challengeId: { _eq: "${challengeId}" } }) {
+        id
+        challengeId
+        creator
+        description
+        stakeAmount
+        startTime
+        endTime
+        targetDistance
+        activityType
+        unit
+        duration
+        name
+      }
+    }
+  `;
+  const data = await queryGraphQL(query);
+  return data?.Challengercc_ChallengeCreated?.[0] || null;
+}
+
+export async function getChallengeParticipants(challengeId) {
+  const query = `
+    query {
+      Challengercc_UserJoined(where: { challengeId: { _eq: "${challengeId}" } }) {
+        id
+        challengeId
+        user
+        stakedAmount
+      }
+    }
+  `;
+  const data = await queryGraphQL(query);
+  return data?.Challengercc_UserJoined || [];
+}
+
+export async function getChallengeTaskCompletions(challengeId) {
+  const query = `
+    query {
+      Challengercc_TaskCompleted(where: { challengeId: { _eq: "${challengeId}" } }) {
+        id
+        challengeId
+        user
+        completionTimestamp
+        distance
+        duration
+        stravaActivityId
+      }
+    }
+  `;
+  const data = await queryGraphQL(query);
+  return data?.Challengercc_TaskCompleted || [];
+}
+
+export async function getChallengeFinalization(challengeId) {
+  const query = `
+    query {
+      Challengercc_ChallengeFinalized(where: { challengeId: { _eq: "${challengeId}" } }) {
+        id
+        challengeId
+        totalWinners
+        totalLosers
+      }
+    }
+  `;
+  const data = await queryGraphQL(query);
+  return data?.Challengercc_ChallengeFinalized?.[0] || null;
+}
+
 /**
  * Get comprehensive profile data for a user
  */
@@ -164,5 +235,9 @@ export default {
   getFinalizedChallenges,
   getTaskCompleted,
   getWinningsDistributed,
-  getProfileData
+  getProfileData,
+  getChallengeById,
+  getChallengeParticipants,
+  getChallengeTaskCompletions,
+  getChallengeFinalization
 };

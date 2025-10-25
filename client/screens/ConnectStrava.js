@@ -240,8 +240,6 @@ const ConnectStrava = () => {
       setLoading(true);
       setTestResults({ ...testResults, comprehensive: 'loading' });
       
-      console.log('🚀 Starting comprehensive data fetch...');
-      
       const allData = await fetchAllStravaData({
         includeActivities: true,
         includeDetailedActivities: false, // Set to true for detailed activity data
