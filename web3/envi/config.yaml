@@ -4,15 +4,15 @@ networks:
 - id: 11155111
   start_block: 0
   contracts:
-  - name: ChallengerContract
+  - name: challengercc
     address:
-    - 0xBaf067Fe68F032d9fDc906c6DcB32299BaA2404F
+    - 0xe38D8f585936c60eCB7BfAe7297457f6A35058Bb
     handler: ./src/EventHandlers.js
     events:
-    - event: ChallengeCreated(uint256 indexed challengeId, address indexed creator, string description, uint256 targetDistance, uint256 stakeAmount, uint256 duration)
-    - event: ChallengeFinalized(uint256 indexed challengeId, uint256 totalParticipants, uint256 successfulParticipants)
-    - event: TaskCompleted(uint256 indexed challengeId, address indexed user)
+    - event: ChallengeCreated(uint256 indexed challengeId, address indexed creator, string description, uint256 stakeAmount, uint256 startTime, uint256 endTime, uint256 targetDistance)
+    - event: ChallengeFinalized(uint256 indexed challengeId, uint256 totalWinners, uint256 totalLosers)
+    - event: TaskCompleted(uint256 indexed challengeId, address indexed user, uint256 completionTimestamp, uint256 distance, uint256 duration, string stravaActivityId)
     - event: UserJoined(uint256 indexed challengeId, address indexed user, uint256 stakedAmount)
-    - event: WinningsDistributed(uint256 indexed challengeId, address indexed user, uint256 amount)
+    - event: WinningsDistributed(uint256 indexed challengeId, address indexed winner, uint256 amount)
 unordered_multichain_mode: true
 preload_handlers: true

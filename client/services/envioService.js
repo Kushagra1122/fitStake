@@ -1,60 +1,67 @@
-// src/api/envioService.js
 import axios from "axios";
 
-// Replace with your actual Envio GraphQL endpoint
-const ENVOI_GRAPHQL_URL = "http://localhost:8080/v1/graphql"; 
+const ENVOI_GRAPHQL_URL = "http://localhost:8080/v1/graphql";
 
 /**
- * Generic GraphQL Query Executor
+ * Generic GraphQL Query Executor with better error handling
  */
 async function queryGraphQL(query, variables = {}) {
   try {
     const response = await axios.post(ENVOI_GRAPHQL_URL, {
       query,
       variables,
+    }, {
+      timeout: 10000,
     });
+
+    if (response.data.errors) {
+      console.error("GraphQL Errors:", response.data.errors);
+      throw new Error(response.data.errors[0]?.message || "GraphQL query failed");
+    }
+
     return response.data.data;
   } catch (error) {
+    if (error.code === 'ECONNREFUSED') {
+      console.warn("GraphQL server not available at", ENVOI_GRAPHQL_URL);
+      return {};
+    }
+    
     console.error("GraphQL Query Error:", error.response?.data || error.message);
-    throw error;
+    return {};
   }
 }
 
 /* ----------------------------- EVENT QUERIES ----------------------------- */
 
-/**
- * Get all challenges created
- */
-export async function getAllChallenges() {
+export async function getAllChallenges(limit = null) {
+  const limitClause = limit ? `(limit: ${limit})` : "";
   const query = `
     query {
-      ChallengerContract_ChallengeCreated {
+      Challengercc_ChallengeCreated ${limitClause} {
         id
         challengeId
         creator
         description
-        targetDistance
         stakeAmount
-        duration
+        startTime
+        endTime
+        targetDistance
       }
     }
   `;
-  return queryGraphQL(query);
+  const data = await queryGraphQL(query);
+  return data || {};
 }
 
-/**
- * Get all users who joined (optionally filtered by challengeId or user)
- */
-export async function getUserJoined({ challengeId = null, user = null } = {}) {
+export async function getUserJoined({ challengeId = null, user = null, limit = null } = {}) {
   const filters = [];
   if (challengeId) filters.push(`challengeId: { _eq: "${challengeId}" }`);
   if (user) filters.push(`user: { _eq: "${user}" }`);
-
-  const whereClause = filters.length ? `(where: { ${filters.join(", ")} })` : "";
+  const whereClause = filters.length ? `(where: { ${filters.join(", ")} }${limit ? `, limit: ${limit}` : ""})` : (limit ? `(limit: ${limit})` : "");
 
   const query = `
     query {
-      ChallengerContract_UserJoined ${whereClause} {
+      Challengercc_UserJoined ${whereClause} {
         id
         challengeId
         user
@@ -62,69 +69,92 @@ export async function getUserJoined({ challengeId = null, user = null } = {}) {
       }
     }
   `;
-  return queryGraphQL(query);
+  const data = await queryGraphQL(query);
+  return data || {};
 }
 
-/**
- * Get challenge finalized events
- */
-export async function getFinalizedChallenges() {
+export async function getFinalizedChallenges(limit = null) {
+  const limitClause = limit ? `(limit: ${limit})` : "";
   const query = `
     query {
-      ChallengerContract_ChallengeFinalized {
+      Challengercc_ChallengeFinalized ${limitClause} {
         id
         challengeId
-        totalParticipants
-        successfulParticipants
+        totalWinners
+        totalLosers
       }
     }
   `;
-  return queryGraphQL(query);
+  const data = await queryGraphQL(query);
+  return data || {};
 }
 
-/**
- * Get task completed events for a specific user or challenge
- */
-export async function getTaskCompleted({ challengeId = null, user = null } = {}) {
+export async function getTaskCompleted({ challengeId = null, user = null, limit = null } = {}) {
   const filters = [];
   if (challengeId) filters.push(`challengeId: { _eq: "${challengeId}" }`);
   if (user) filters.push(`user: { _eq: "${user}" }`);
-
-  const whereClause = filters.length ? `(where: { ${filters.join(", ")} })` : "";
+  const whereClause = filters.length ? `(where: { ${filters.join(", ")} }${limit ? `, limit: ${limit}` : ""})` : (limit ? `(limit: ${limit})` : "");
 
   const query = `
     query {
-      ChallengerContract_TaskCompleted ${whereClause} {
+      Challengercc_TaskCompleted ${whereClause} {
         id
         challengeId
         user
+        completionTimestamp
+        distance
+        duration
+        stravaActivityId
       }
     }
   `;
-  return queryGraphQL(query);
+  const data = await queryGraphQL(query);
+  return data || {};
 }
 
-/**
- * Get winnings distributed for a challenge or user
- */
-export async function getWinningsDistributed({ challengeId = null, user = null } = {}) {
+export async function getWinningsDistributed({ challengeId = null, user = null, limit = null } = {}) {
   const filters = [];
   if (challengeId) filters.push(`challengeId: { _eq: "${challengeId}" }`);
-  if (user) filters.push(`user: { _eq: "${user}" }`);
-
-  const whereClause = filters.length ? `(where: { ${filters.join(", ")} })` : "";
+  if (user) filters.push(`winner: { _eq: "${user}" }`);
+  const whereClause = filters.length ? `(where: { ${filters.join(", ")} }${limit ? `, limit: ${limit}` : ""})` : (limit ? `(limit: ${limit})` : "");
 
   const query = `
     query {
-      ChallengerContract_WinningsDistributed ${whereClause} {
+      Challengercc_WinningsDistributed ${whereClause} {
         id
         challengeId
-        user
+        winner
         amount
       }
     }
   `;
-  return queryGraphQL(query);
+  const data = await queryGraphQL(query);
+  return data || {};
+}
+
+/**
+ * Get comprehensive profile data for a user
+ */
+export async function getProfileData(userAddress, limit = 5) {
+  try {
+    const [challenges, joined, tasks, winnings] = await Promise.allSettled([
+      getAllChallenges(limit),
+      getUserJoined({ user: userAddress, limit }),
+      getTaskCompleted({ user: userAddress, limit }),
+      getWinningsDistributed({ user: userAddress, limit })
+    ]);
+
+    return {
+      challenges: challenges.status === 'fulfilled' ? (challenges.value?.Challengercc_ChallengeCreated || []) : [],
+      joined: joined.status === 'fulfilled' ? (joined.value?.Challengercc_UserJoined || []) : [],
+      tasks: tasks.status === 'fulfilled' ? (tasks.value?.Challengercc_TaskCompleted || []) : [],
+      winnings: winnings.status === 'fulfilled' ? (winnings.value?.Challengercc_WinningsDistributed || []) : []
+    };
+    
+  } catch (error) {
+    console.error('Error fetching profile data:', error);
+    return { challenges: [], joined: [], tasks: [], winnings: [] };
+  }
 }
 
 export default {
@@ -133,4 +163,5 @@ export default {
   getFinalizedChallenges,
   getTaskCompleted,
   getWinningsDistributed,
+  getProfileData
 };

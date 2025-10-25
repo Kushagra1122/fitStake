@@ -8,13 +8,14 @@ import {
   Alert,
   Animated,
   RefreshControl,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useWeb3 } from '../context/Web3Context';
 import { useStrava } from '../context/StravaContext';
 import { ethers } from 'ethers';
 import { useNavigation } from '@react-navigation/native';
-import envioService from '../services/envioService';
+import * as envioService from '../services/envioService';
 
 const Profile = () => {
   const navigation = useNavigation();
@@ -49,6 +50,11 @@ const Profile = () => {
     maxSpeed: 0,
     totalActivities: 0,
   });
+  const [dataLoaded, setDataLoaded] = useState({
+    wallet: false,
+    challenges: false,
+    strava: false
+  });
 
   useEffect(() => {
     Animated.parallel([
@@ -71,18 +77,27 @@ const Profile = () => {
   const loadProfileData = async () => {
     setLoading(true);
     try {
+      // Reset data loaded state
+      setDataLoaded({ wallet: false, challenges: false, strava: false });
+      
       // Load wallet data
       if (account && walletConnected) {
         await loadWalletData();
         await loadChallengeStats();
+      } else {
+        setDataLoaded(prev => ({ ...prev, wallet: true, challenges: true }));
       }
       
       // Load Strava data
       if (stravaConnected) {
         await loadStravaData();
+      } else {
+        setDataLoaded(prev => ({ ...prev, strava: true }));
       }
     } catch (error) {
       console.error('Error loading profile data:', error);
+      // Mark all as loaded even on error to prevent infinite loading
+      setDataLoaded({ wallet: true, challenges: true, strava: true });
     } finally {
       setLoading(false);
     }
@@ -95,58 +110,135 @@ const Profile = () => {
       const balanceWei = await provider.getBalance(account);
       const balanceEth = ethers.formatEther(balanceWei);
       setBalance(parseFloat(balanceEth).toFixed(4));
+      setDataLoaded(prev => ({ ...prev, wallet: true }));
     } catch (error) {
       console.error('Error loading wallet data:', error);
+      setDataLoaded(prev => ({ ...prev, wallet: true }));
     }
   };
 
   const loadChallengeStats = async () => {
     try {
-      // Fetch all challenges created by this user
-      const allChallenges = await envioService.getAllChallenges();
-      const createdChallenges = allChallenges.ChallengerContract_ChallengeCreated?.filter(
-        c => c.creator.toLowerCase() === account.toLowerCase()
-      ) || [];
+      console.log('🔍 Loading challenge stats for account:', account);
       
-      // Fetch all challenges user joined
-      const joinedData = await envioService.getUserJoined({ user: account });
-      const joinedChallenges = joinedData.ChallengerContract_UserJoined || [];
+      // Fetch comprehensive profile data with better error handling
+      let profileData;
+      try {
+        profileData = await envioService.getProfileData(account);
+        console.log('📊 Profile data received:', profileData);
+      } catch (graphqlError) {
+        console.warn('❌ GraphQL service unavailable, using fallback data');
+        profileData = {
+          challenges: [],
+          joined: [],
+          tasks: [],
+          winnings: []
+        };
+      }
       
-      // Fetch winnings
-      const winningsData = await envioService.getWinningsDistributed({ user: account });
-      const winnings = winningsData.ChallengerContract_WinningsDistributed || [];
+      // Process challenges created by user
+      const createdChallenges = (profileData.challenges || []).filter(
+        c => c.creator && c.creator.toLowerCase() === account.toLowerCase()
+      );
+      
+      // Process joined challenges
+      const joinedChallenges = (profileData.joined || []);
+      
+      // Process completed tasks
+      const completedTasks = (profileData.tasks || []);
+      
+      // Process winnings
+      const winnings = (profileData.winnings || []);
+      
+      // Get finalized challenges to determine active status
+      let finalizedChallenges = { Challengercc_ChallengeFinalized: [] };
+      try {
+        finalizedChallenges = await envioService.getFinalizedChallenges();
+      } catch (error) {
+        console.warn('Could not fetch finalized challenges, assuming none');
+      }
+      
+      const finalizedChallengeIds = new Set(
+        (finalizedChallenges?.Challengercc_ChallengeFinalized || []).map(f => f.challengeId?.toString())
+      );
       
       // Count active challenges (non-finalized)
       const activeCount = joinedChallenges.filter(j => {
-        const challenge = allChallenges.ChallengerContract_ChallengeCreated?.find(
-          c => c.challengeId === j.challengeId
-        );
-        return challenge && !challenge.finalized;
+        return j.challengeId && !finalizedChallengeIds.has(j.challengeId.toString());
       }).length;
       
-      // Calculate total winnings
+      // Calculate total winnings from winnings array
       const totalWinnings = winnings.reduce((sum, w) => {
-        return sum + parseFloat(ethers.formatEther(w.amount || '0'));
+        try {
+          return sum + parseFloat(ethers.formatEther(w.amount || '0'));
+        } catch (e) {
+          console.warn('Error parsing winning amount:', w.amount);
+          return sum;
+        }
       }, 0);
       
-      setChallengeStats({
+      // NEW: Calculate performance metrics from completed tasks
+      const totalDistanceCompleted = completedTasks.reduce((sum, task) => {
+        return sum + (parseInt(task.distance) || 0);
+      }, 0);
+      
+      const totalDurationCompleted = completedTasks.reduce((sum, task) => {
+        return sum + (parseInt(task.duration) || 0);
+      }, 0);
+      
+      const stats = {
         created: createdChallenges.length,
         participated: joinedChallenges.length,
         active: activeCount,
         won: winnings.length,
         totalWinnings: totalWinnings.toFixed(4),
-      });
+        // NEW: Add performance metrics
+        totalDistanceCompleted: (totalDistanceCompleted / 1000).toFixed(2), // Convert to km
+        totalDurationCompleted: formatDuration(totalDurationCompleted),
+        tasksCompleted: completedTasks.length,
+        averageDistancePerTask: completedTasks.length > 0 
+          ? (totalDistanceCompleted / completedTasks.length / 1000).toFixed(2) 
+          : '0.00',
+      };
+      
+      console.log('✅ Challenge stats calculated:', stats);
+      setChallengeStats(stats);
+      setDataLoaded(prev => ({ ...prev, challenges: true }));
     } catch (error) {
-      console.error('Error loading challenge stats:', error);
+      console.error('❌ Error loading challenge stats:', error);
+      // Set default values on error
+      setChallengeStats({
+        created: 0,
+        participated: 0,
+        active: 0,
+        won: 0,
+        totalWinnings: '0.0',
+        totalDistanceCompleted: '0.00',
+        totalDurationCompleted: '0m',
+        tasksCompleted: 0,
+        averageDistancePerTask: '0.00',
+      });
+      setDataLoaded(prev => ({ ...prev, challenges: true }));
     }
   };
 
   const loadStravaData = async () => {
     try {
+      console.log('🏃 Loading Strava data...');
+      
       const [profile, activities] = await Promise.all([
-        getAthleteProfile(),
-        getRecentActivities(1, 10),
+        getAthleteProfile().catch(error => {
+          console.warn('Error fetching Strava profile:', error);
+          return null;
+        }),
+        getRecentActivities(1, 10).catch(error => {
+          console.warn('Error fetching Strava activities:', error);
+          return [];
+        }),
       ]);
+      
+      console.log('👤 Strava profile loaded:', profile);
+      console.log('🏃 Strava activities loaded:', activities?.length || 0);
       
       setAthlete(profile);
       
@@ -160,16 +252,37 @@ const Profile = () => {
           : 0;
         const maxSpeed = Math.max(...activities.map(a => a.max_speed || 0));
         
-        setStravaStats({
+        const stats = {
           recentActivities: activities.slice(0, 5),
           totalDistance,
           avgSpeed,
           maxSpeed,
           totalActivities: activities.length,
+        };
+        
+        console.log('✅ Strava stats calculated:', stats);
+        setStravaStats(stats);
+      } else {
+        console.log('⚠️ No Strava activities found');
+        setStravaStats({
+          recentActivities: [],
+          totalDistance: 0,
+          avgSpeed: 0,
+          maxSpeed: 0,
+          totalActivities: 0,
         });
       }
+      setDataLoaded(prev => ({ ...prev, strava: true }));
     } catch (error) {
-      console.error('Error loading Strava data:', error);
+      console.error('❌ Error loading Strava data:', error);
+      setStravaStats({
+        recentActivities: [],
+        totalDistance: 0,
+        avgSpeed: 0,
+        maxSpeed: 0,
+        totalActivities: 0,
+      });
+      setDataLoaded(prev => ({ ...prev, strava: true }));
     }
   };
 
@@ -192,7 +305,20 @@ const Profile = () => {
     return (mps * 3.6).toFixed(1);
   };
 
-  if (loading) {
+  // Helper function to format duration
+  const formatDuration = (seconds) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
+  };
+
+  // Show loading only if we're still loading essential data
+  const isLoading = loading && !(dataLoaded.wallet && dataLoaded.challenges && dataLoaded.strava);
+
+  if (isLoading) {
     return (
       <LinearGradient
         colors={['#667eea', '#764ba2']}
@@ -259,7 +385,7 @@ const Profile = () => {
               </View>
             )}
 
-            {/* Challenge Statistics */}
+            {/* Challenge Statistics - Enhanced with Envio Data */}
             {walletConnected && (
               <View className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 shadow-2xl mb-6">
                 <View className="flex-row items-center justify-between mb-5">
@@ -273,16 +399,47 @@ const Profile = () => {
                 <StatCard icon="🏃" label="Participated" value={challengeStats.participated} />
                 <StatCard icon="⚡" label="Active" value={challengeStats.active} />
                 <StatCard icon="💰" label="Won" value={challengeStats.won} />
+                <StatCard icon="📊" label="Tasks Completed" value={challengeStats.tasksCompleted} />
+                
                 <InfoRow 
                   label="Total Winnings" 
                   value={`${challengeStats.totalWinnings} ETH`} 
                   highlight 
                 />
+                
+                {/* NEW: Performance Metrics */}
+                <View className="border-t border-gray-200 mt-4 pt-4">
+                  <Text className="text-gray-700 font-bold text-sm mb-3">📈 Performance Metrics:</Text>
+                  
+                  <InfoRow 
+                    label="Total Distance Completed" 
+                    value={`${challengeStats.totalDistanceCompleted} km`} 
+                    icon="📏"
+                  />
+                  <InfoRow 
+                    label="Total Time Invested" 
+                    value={challengeStats.totalDurationCompleted} 
+                    icon="⏱️"
+                  />
+                  <InfoRow 
+                    label="Avg Distance per Task" 
+                    value={`${challengeStats.averageDistancePerTask} km`} 
+                    icon="📊"
+                  />
+                </View>
+                
+                {challengeStats.created === 0 && challengeStats.participated === 0 && (
+                  <View className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <Text className="text-gray-500 text-sm text-center">
+                      No challenge data found. Join or create your first challenge!
+                    </Text>
+                  </View>
+                )}
               </View>
             )}
 
             {/* Strava Section */}
-            {stravaConnected && athlete && (
+            {stravaConnected && (
               <View className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 shadow-2xl mb-6">
                 <View className="flex-row items-center justify-between mb-5">
                   <Text className="text-gray-500 text-xs font-bold uppercase tracking-wider">
@@ -293,43 +450,119 @@ const Profile = () => {
                   </View>
                 </View>
 
-                <View className="bg-gradient-to-r from-orange-50 to-red-50 p-5 rounded-2xl mb-4">
-                  <Text className="text-gray-900 font-black text-2xl mb-2">
-                    {athlete.firstname} {athlete.lastname}
-                  </Text>
-                  {athlete.username && (
-                    <Text className="text-orange-600 font-bold text-base mb-2">
-                      @{athlete.username}
-                    </Text>
-                  )}
-                  {athlete.city && athlete.country && (
-                    <Text className="text-gray-500 text-sm">
-                      📍 {athlete.city}, {athlete.country}
-                    </Text>
-                  )}
-                </View>
+                {athlete ? (
+                  <>
+                    {/* Athlete Profile Card */}
+                    <View className="bg-gradient-to-r from-orange-50 to-red-50 p-5 rounded-2xl mb-4">
+                      <View className="flex-row items-center mb-3">
+                        {athlete.profile && (
+                          <View className="w-16 h-16 rounded-full overflow-hidden mr-4 border-2 border-orange-200">
+                            <Image 
+                              source={{ uri: athlete.profile }} 
+                              className="w-full h-full"
+                              resizeMode="cover"
+                            />
+                          </View>
+                        )}
+                        <View className="flex-1">
+                          <Text className="text-gray-900 font-black text-2xl mb-1">
+                            {athlete.firstname} {athlete.lastname}
+                          </Text>
+                          {athlete.username && (
+                            <Text className="text-orange-600 font-bold text-base mb-1">
+                              @{athlete.username}
+                            </Text>
+                          )}
+                          <Text className="text-gray-500 text-sm">
+                            {athlete.athlete_type === 1 ? '🏃 Runner' : '🚴 Cyclist'}
+                          </Text>
+                        </View>
+                      </View>
+                      
+                      {athlete.city && athlete.country && (
+                        <Text className="text-gray-500 text-sm mb-2">
+                          📍 {athlete.city}, {athlete.country}
+                        </Text>
+                      )}
+                      
+                      <View className="flex-row items-center justify-between mt-3">
+                        <View className="flex-row items-center">
+                          <Text className="text-gray-600 text-sm mr-4">
+                            👥 {athlete.follower_count || 0} followers
+                          </Text>
+                          <Text className="text-gray-600 text-sm">
+                            🤝 {athlete.friend_count || 0} friends
+                          </Text>
+                        </View>
+                        {athlete.premium && (
+                          <View className="bg-orange-500 px-2 py-1 rounded-full">
+                            <Text className="text-white text-xs font-bold">PREMIUM</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
 
-                {/* Strava Stats */}
-                {stravaStats.totalActivities > 0 && (
-                  <View className="border-t border-gray-200 pt-4 mt-2">
-                    <Text className="text-gray-700 font-bold text-sm mb-3">📊 Recent Activity Stats:</Text>
-                    
-                    <InfoRow 
-                      label="Total Distance (Last 10)" 
-                      value={`${formatDistance(stravaStats.totalDistance)} km`} 
-                    />
-                    <InfoRow 
-                      label="Average Speed" 
-                      value={`${formatSpeed(stravaStats.avgSpeed)} km/h`} 
-                    />
-                    <InfoRow 
-                      label="Max Speed" 
-                      value={`${formatSpeed(stravaStats.maxSpeed)} km/h`} 
-                    />
-                    <InfoRow 
-                      label="Activities Tracked" 
-                      value={stravaStats.totalActivities} 
-                    />
+                    {/* Strava Stats */}
+                    {stravaStats.totalActivities > 0 ? (
+                      <View className="border-t border-gray-200 pt-4 mt-2">
+                        <Text className="text-gray-700 font-bold text-sm mb-3">📊 Activity Statistics:</Text>
+                        
+                        <InfoRow 
+                          label="Total Distance (Last 10)" 
+                          value={`${formatDistance(stravaStats.totalDistance)} km`} 
+                          icon="📏"
+                        />
+                        <InfoRow 
+                          label="Average Speed" 
+                          value={`${formatSpeed(stravaStats.avgSpeed)} km/h`} 
+                          icon="⚡"
+                        />
+                        <InfoRow 
+                          label="Max Speed" 
+                          value={`${formatSpeed(stravaStats.maxSpeed)} km/h`} 
+                          icon="🚀"
+                        />
+                        <InfoRow 
+                          label="Activities Tracked" 
+                          value={stravaStats.totalActivities} 
+                          icon="🏃"
+                        />
+                      </View>
+                    ) : (
+                      <View className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <Text className="text-gray-500 text-sm text-center">
+                          No Strava activities found. Start tracking your workouts!
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* Clubs Section */}
+                    {athlete.clubs && athlete.clubs.length > 0 && (
+                      <View className="border-t border-gray-200 pt-4 mt-2">
+                        <Text className="text-gray-700 font-bold text-sm mb-3">🏃‍♂️ Clubs:</Text>
+                        {athlete.clubs.slice(0, 2).map((club, index) => (
+                          <View key={club.id} className="bg-gray-50 p-3 rounded-lg mb-2">
+                            <Text className="text-gray-900 font-semibold text-sm mb-1">
+                              {club.name}
+                            </Text>
+                            <Text className="text-gray-500 text-xs">
+                              {club.city}, {club.country} • {club.member_count} members
+                            </Text>
+                            {club.admin && (
+                              <View className="bg-orange-100 px-2 py-1 rounded-full self-start mt-1">
+                                <Text className="text-orange-700 text-xs font-bold">Admin</Text>
+                              </View>
+                            )}
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </>
+                ) : (
+                  <View className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <Text className="text-gray-500 text-sm text-center">
+                      Could not load Strava profile data
+                    </Text>
                   </View>
                 )}
               </View>
@@ -360,10 +593,16 @@ const Profile = () => {
                   Connect your wallet and Strava account to see your full profile
                 </Text>
                 <TouchableOpacity
-                  className="bg-purple-600 px-6 py-3 rounded-xl"
+                  className="bg-purple-600 px-6 py-3 rounded-xl mb-3"
                   onPress={() => navigation.navigate('ConnectWallet')}
                 >
                   <Text className="text-white font-bold text-center">Connect Wallet</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  className="bg-orange-500 px-6 py-3 rounded-xl"
+                  onPress={() => navigation.navigate('ConnectStrava')}
+                >
+                  <Text className="text-white font-bold text-center">Connect Strava</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -383,6 +622,8 @@ const Profile = () => {
     </LinearGradient>
   );
 };
+
+// ... (Keep the existing InfoRow, StatCard, and ActivityCard components the same)
 
 function InfoRow({ label, value, icon, highlight }) {
   return (
@@ -411,6 +652,8 @@ function StatCard({ icon, label, value }) {
     </View>
   );
 }
+
+
 
 function ActivityCard({ activity, index }) {
   const formatDistance = (distance) => {
