@@ -91,6 +91,16 @@ const Profile = () => {
     loadProfileData();
   }, [account]);
 
+  // Load challenge stats whenever envioData changes
+  useEffect(() => {
+    if (envioData.allChallenges.length > 0 || 
+        envioData.userJoined.length > 0 || 
+        envioData.completedTasks.length > 0) {
+      console.log('🔄 Envio data updated, recalculating stats...');
+      calculateChallengeStats(envioData);
+    }
+  }, [envioData]);
+
   const loadProfileData = async () => {
     setLoading(true);
     try {
@@ -100,7 +110,7 @@ const Profile = () => {
       // Load wallet data
       if (account && walletConnected) {
         await loadWalletData();
-        await loadChallengeDataAndStats(); // Load all Envio data and calculate stats in one function
+        await loadAllEnvioData();
       } else {
         setDataLoaded(prev => ({ ...prev, wallet: true, challenges: true }));
       }
@@ -113,17 +123,16 @@ const Profile = () => {
       }
     } catch (error) {
       console.error('Error loading profile data:', error);
-      // Mark all as loaded even on error to prevent infinite loading
       setDataLoaded({ wallet: true, challenges: true, strava: true });
     } finally {
       setLoading(false);
     }
   };
 
-  // Load all Envio data and calculate challenge stats in one function
-  const loadChallengeDataAndStats = async () => {
+  // Load all Envio data individually
+  const loadAllEnvioData = async () => {
     try {
-      console.log('🔍 Loading all Envio data and calculating stats for account:', account);
+      console.log('🔍 Loading all Envio data for account:', account);
       
       // Load all data in parallel for better performance
       const [
@@ -134,82 +143,120 @@ const Profile = () => {
         winningsDistributed,
         profileData
       ] = await Promise.all([
-        envioService.getAllChallenges(10).catch(error => {
+        envioService.getAllChallenges(50).catch(error => {
           console.warn('Error loading all challenges:', error);
           return { Challengercc_ChallengeCreated: [] };
         }),
-        envioService.getUserJoined({ limit: 10 }).catch(error => {
+        envioService.getUserJoined({ limit: 50 }).catch(error => {
           console.warn('Error loading user joined:', error);
           return { Challengercc_UserJoined: [] };
         }),
-        envioService.getFinalizedChallenges(10).catch(error => {
+        envioService.getFinalizedChallenges(50).catch(error => {
           console.warn('Error loading finalized challenges:', error);
           return { Challengercc_ChallengeFinalized: [] };
         }),
-        envioService.getTaskCompleted({ limit: 10 }).catch(error => {
+        envioService.getTaskCompleted({ limit: 50 }).catch(error => {
           console.warn('Error loading completed tasks:', error);
           return { Challengercc_TaskCompleted: [] };
         }),
-        envioService.getWinningsDistributed({ limit: 10 }).catch(error => {
+        envioService.getWinningsDistributed({ limit: 50 }).catch(error => {
           console.warn('Error loading winnings:', error);
           return { Challengercc_WinningsDistributed: [] };
         }),
-        envioService.getProfileData(account, 10).catch(error => {
+        envioService.getProfileData(account, 50).catch(error => {
           console.warn('Error loading profile data:', error);
           return { challenges: [], joined: [], tasks: [], winnings: [] };
         })
       ]);
 
-      // Extract data arrays
-      const allChallengesArray = allChallenges.Challengercc_ChallengeCreated || [];
-      const userJoinedArray = userJoined.Challengercc_UserJoined || [];
-      const finalizedChallengesArray = finalizedChallenges.Challengercc_ChallengeFinalized || [];
-      const completedTasksArray = completedTasks.Challengercc_TaskCompleted || [];
-      const winningsDistributedArray = winningsDistributed.Challengercc_WinningsDistributed || [];
-
       console.log('📊 All Envio data loaded:', {
-        allChallenges: allChallengesArray.length,
-        userJoined: userJoinedArray.length,
-        finalizedChallenges: finalizedChallengesArray.length,
-        completedTasks: completedTasksArray.length,
-        winningsDistributed: winningsDistributedArray.length,
+        allChallenges: allChallenges.Challengercc_ChallengeCreated?.length || 0,
+        userJoined: userJoined.Challengercc_UserJoined?.length || 0,
+        finalizedChallenges: finalizedChallenges.Challengercc_ChallengeFinalized?.length || 0,
+        completedTasks: completedTasks.Challengercc_TaskCompleted?.length || 0,
+        winningsDistributed: winningsDistributed.Challengercc_WinningsDistributed?.length || 0,
         profileData: profileData ? 'loaded' : 'failed'
       });
 
-      // Update envioData state
-      setEnvioData({
-        allChallenges: allChallengesArray,
-        userJoined: userJoinedArray,
-        finalizedChallenges: finalizedChallengesArray,
-        completedTasks: completedTasksArray,
-        winningsDistributed: winningsDistributedArray,
+      const newEnvioData = {
+        allChallenges: allChallenges.Challengercc_ChallengeCreated || [],
+        userJoined: userJoined.Challengercc_UserJoined || [],
+        finalizedChallenges: finalizedChallenges.Challengercc_ChallengeFinalized || [],
+        completedTasks: completedTasks.Challengercc_TaskCompleted || [],
+        winningsDistributed: winningsDistributed.Challengercc_WinningsDistributed || [],
         profileData
-      });
+      };
 
-      // Calculate challenge stats immediately from loaded data (not from state)
-      console.log('🔍 Calculating challenge stats for account:', account);
+      setEnvioData(newEnvioData);
+
+    } catch (error) {
+      console.error('❌ Error loading all Envio data:', error);
+      // Set empty data on error
+      const emptyData = {
+        allChallenges: [],
+        userJoined: [],
+        finalizedChallenges: [],
+        completedTasks: [],
+        winningsDistributed: [],
+        profileData: null
+      };
+      setEnvioData(emptyData);
+    }
+  };
+
+  const loadWalletData = async () => {
+    try {
+      setWalletAddress(account);
+      const provider = getProvider();
+      const balanceWei = await provider.getBalance(account);
+      const balanceEth = ethers.formatEther(balanceWei);
+      setBalance(parseFloat(balanceEth).toFixed(4));
+      setDataLoaded(prev => ({ ...prev, wallet: true }));
+    } catch (error) {
+      console.error('Error loading wallet data:', error);
+      setDataLoaded(prev => ({ ...prev, wallet: true }));
+    }
+  };
+
+  // Separate function to calculate stats from envioData
+  const calculateChallengeStats = async (data) => {
+    try {
+      console.log('🔍 Calculating challenge stats from data:', {
+        allChallenges: data.allChallenges.length,
+        userJoined: data.userJoined.length,
+        completedTasks: data.completedTasks.length,
+        winningsDistributed: data.winningsDistributed.length
+      });
       
+      const {
+        allChallenges,
+        userJoined,
+        finalizedChallenges,
+        completedTasks,
+        winningsDistributed
+      } = data;
+
       // Process challenges created by user
-      const createdChallenges = allChallengesArray.filter(
+      const createdChallenges = allChallenges.filter(
         c => c.creator && c.creator.toLowerCase() === account.toLowerCase()
       );
       
       // Process joined challenges
-      const joinedChallenges = userJoinedArray;
+      const joinedChallenges = userJoined;
       
       // Process completed tasks
-      const userCompletedTasks = completedTasksArray.filter(
+      const userCompletedTasks = completedTasks.filter(
         task => task.user && task.user.toLowerCase() === account.toLowerCase()
       );
       
       // Process winnings
-      const userWinnings = winningsDistributedArray.filter(
-        win => win.winner && win.winner.toLowerCase() === account.toLowerCase()
+      const userWinnings = winningsDistributed.filter(
+        win => win.user && win.user.toLowerCase() === account.toLowerCase()
       );
       
       // Count active challenges (non-finalized)
       const finalizedChallengeIds = new Set(
-        finalizedChallengesArray.map(f => f.challengeId?.toString())
+        finalizedChallenges.map(f => f.challengeId?.toString())
       );
       
       const activeCount = joinedChallenges.filter(j => {
@@ -249,26 +296,16 @@ const Profile = () => {
           ? (totalDistanceCompleted / userCompletedTasks.length / 1000).toFixed(2) 
           : '0.00',
         // Additional stats from individual queries
-        totalChallengesInSystem: allChallengesArray.length,
-        finalizedChallengesCount: finalizedChallengesArray.length,
+        totalChallengesInSystem: allChallenges.length,
+        finalizedChallengesCount: finalizedChallenges.length,
         recentTasks: userCompletedTasks.slice(0, 3) // Show recent tasks
       };
       
       console.log('✅ Enhanced challenge stats calculated:', stats);
       setChallengeStats(stats);
       setDataLoaded(prev => ({ ...prev, challenges: true }));
-
     } catch (error) {
-      console.error('❌ Error loading challenge data and stats:', error);
-      // Set empty data on error
-      setEnvioData({
-        allChallenges: [],
-        userJoined: [],
-        finalizedChallenges: [],
-        completedTasks: [],
-        winningsDistributed: [],
-        profileData: null
-      });
+      console.error('❌ Error calculating challenge stats:', error);
       // Set default values on error
       setChallengeStats({
         created: 0,
@@ -288,22 +325,7 @@ const Profile = () => {
     }
   };
 
-  const loadWalletData = async () => {
-    try {
-      setWalletAddress(account);
-      const provider = getProvider();
-      const balanceWei = await provider.getBalance(account);
-      const balanceEth = ethers.formatEther(balanceWei);
-      setBalance(parseFloat(balanceEth).toFixed(4));
-      setDataLoaded(prev => ({ ...prev, wallet: true }));
-    } catch (error) {
-      console.error('Error loading wallet data:', error);
-      setDataLoaded(prev => ({ ...prev, wallet: true }));
-    }
-  };
-
-
-  // Function to test all Envio services (similar to your test function)
+  // Function to test all Envio services
   const testEnvioServices = async () => {
     try {
       console.log("=== Testing All Envio Services ===");
@@ -511,9 +533,34 @@ const Profile = () => {
                 <InfoRow label="Address" value={formatAddress(walletAddress)} />
                 <InfoRow label="Balance" value={`${balance} ETH`} icon="💰" />
                 
+                {/* Enhanced Envio Data Display */}
+                <View className="border-t border-gray-200 mt-4 pt-4">
+                  <Text className="text-gray-700 font-bold text-sm mb-3">📡 Envio Data Status:</Text>
+                  <InfoRow 
+                    label="Challenges Fetched" 
+                    value={envioData.allChallenges.length} 
+                    icon="🎯"
+                  />
+                  <InfoRow 
+                    label="Joined Challenges" 
+                    value={envioData.userJoined.length} 
+                    icon="🏃"
+                  />
+                  <InfoRow 
+                    label="Completed Tasks" 
+                    value={envioData.completedTasks.length} 
+                    icon="✅"
+                  />
+                  <InfoRow 
+                    label="Winnings Records" 
+                    value={envioData.winningsDistributed.length} 
+                    icon="💰"
+                  />
+                </View>
+
                 {/* Test Envio Services Button */}
                 <TouchableOpacity
-                  className="bg-blue-500 px-4 py-2 rounded-lg mt-3"
+                  className="bg-blue-500 px-4 py-3 rounded-lg mt-4"
                   onPress={testEnvioServices}
                 >
                   <Text className="text-white font-bold text-center text-sm">
@@ -582,21 +629,20 @@ const Profile = () => {
                   />
                 </View>
                 
-                {/* Recent Tasks */}
-                {challengeStats.recentTasks.length > 0 && (
+                {/* Show recent tasks if available */}
+                {challengeStats.recentTasks && challengeStats.recentTasks.length > 0 && (
                   <View className="border-t border-gray-200 mt-4 pt-4">
-                    <Text className="text-gray-700 font-bold text-sm mb-3">📝 Recent Tasks:</Text>
+                    <Text className="text-gray-700 font-bold text-sm mb-3">🕒 Recent Tasks:</Text>
                     {challengeStats.recentTasks.map((task, index) => (
                       <View key={index} className="bg-gray-50 p-3 rounded-lg mb-2">
                         <Text className="text-gray-900 font-semibold text-sm">
-                          Challenge #{task.challengeId}
+                          Task #{task.taskId || index + 1}
                         </Text>
                         <Text className="text-gray-500 text-xs">
-                          Distance: {formatDistance(parseInt(task.distance))} km • 
-                          Duration: {formatDuration(parseInt(task.duration))}
+                          Distance: {(parseInt(task.distance || 0) / 1000).toFixed(2)} km
                         </Text>
-                        <Text className="text-gray-400 text-xs mt-1">
-                          {new Date(parseInt(task.completionTimestamp) * 1000).toLocaleDateString()}
+                        <Text className="text-gray-500 text-xs">
+                          Duration: {formatDuration(parseInt(task.duration || 0))}
                         </Text>
                       </View>
                     ))}

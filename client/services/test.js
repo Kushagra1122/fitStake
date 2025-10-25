@@ -23,7 +23,7 @@ async function runTests() {
   console.log(winnings);
 
   console.log("\n=== Testing getProfileData ===");
-  const profile = await envioService.getProfileData(0x0238038828a978527dfe10365be3c94337a3c0b8, 5);
+  const profile = await envioService.getProfileData("0xe8cb3F3BA7C674B6fb3C5B3cBe572964a5569D53", 5);
   console.log(profile);
 }
 

@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const ENVOI_GRAPHQL_URL = "http://localhost:8080/v1/graphql";
+const ENVOI_GRAPHQL_URL = "http://10.175.109.154:8080/v1/graphql";
 
 /**
  * Generic GraphQL Query Executor with better error handling
@@ -21,12 +21,13 @@ async function queryGraphQL(query, variables = {}) {
 
     return response.data.data;
   } catch (error) {
-    if (error.code === 'ECONNREFUSED') {
+    if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND' || error.code === 'ECONNABORTED') {
       console.warn("GraphQL server not available at", ENVOI_GRAPHQL_URL);
       return {};
     }
     
-    console.error("GraphQL Query Error:", error.response?.data || error.message);
+    // Only log as warning for network errors, not as error
+    console.warn("GraphQL Query Warning:", error.response?.data || error.message);
     return {};
   }
 }
