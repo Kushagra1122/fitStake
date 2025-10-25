@@ -9,6 +9,7 @@ import CreateChallenge from './screens/CreateChallenge';
 import JoinChallenge from './screens/JoinChallenge';
 import MyChallenges from './screens/MyChallenges';
 import ConnectStrava from './screens/ConnectStrava';
+import Profile from './screens/Profile';
 
 const Stack = createNativeStackNavigator();
 
@@ -39,6 +40,7 @@ export default function App() {
             <Stack.Screen name="JoinChallenge" component={JoinChallenge} />
             <Stack.Screen name="MyChallenges" component={MyChallenges} />
             <Stack.Screen name="ConnectStrava" component={ConnectStrava} />
+            <Stack.Screen name="Profile" component={Profile} />
           </Stack.Navigator>
         </NavigationContainer>
       </StravaProvider>

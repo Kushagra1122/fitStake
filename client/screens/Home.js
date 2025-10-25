@@ -104,6 +104,13 @@ export default function Home({ navigation }) {
               
               <View className="space-y-3">
                 <FeatureCard
+                  icon="👤"
+                  title="Profile"
+                  description="Get your personal dashboard"
+                  color="from-orange-500 to-red-500"
+                  onPress={() => navigation.navigate('Profile')}
+                />
+                <FeatureCard
                   icon="🏃‍♂️"
                   title="Create Challenge"
                   description="Set your fitness goal and stake"
