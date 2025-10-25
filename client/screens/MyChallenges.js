@@ -13,6 +13,7 @@ import { useWeb3 } from '../context/Web3Context';
 import { useNavigation } from '@react-navigation/native';
 import { getUserChallenges } from '../services/contract';
 import { getActivityIcon, getDaysLeft, formatDistance } from '../utils/helpers';
+import { runTests } from '../services/test';
 
 export default function MyChallenges() {
   const navigation = useNavigation();
@@ -29,7 +30,8 @@ export default function MyChallenges() {
       duration: 600,
       useNativeDriver: true,
     }).start();
-
+    
+    runTests().catch(console.error);
     loadMyChallenges();
   }, [account]);
 
@@ -63,6 +65,10 @@ export default function MyChallenges() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleChallengePress = (challenge) => {
+    navigation.navigate('Challenge', { challenge });
   };
 
   const handleCompleteChallenge = async (challenge) => {
@@ -225,6 +231,7 @@ export default function MyChallenges() {
                 <ChallengeCard
                   key={challenge.id}
                   challenge={challenge}
+                  onPress={handleChallengePress}
                   onComplete={handleCompleteChallenge}
                   isActive={activeTab === 'active'}
                   index={index}
@@ -258,7 +265,7 @@ export default function MyChallenges() {
 }
 
 // Challenge Card Component
-function ChallengeCard({ challenge, onComplete, isActive, index }) {
+function ChallengeCard({ challenge, onPress, onComplete, isActive, index }) {
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
 
@@ -292,7 +299,11 @@ function ChallengeCard({ challenge, onComplete, isActive, index }) {
       }}
       className="mb-4"
     >
-      <View className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 shadow-xl">
+      <TouchableOpacity
+        className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 shadow-xl"
+        onPress={() => onPress(challenge)}
+        activeOpacity={0.8}
+      >
         {/* Header */}
         <View className="flex-row items-start justify-between mb-4">
           <View className="flex-1 mr-4">
@@ -385,7 +396,7 @@ function ChallengeCard({ challenge, onComplete, isActive, index }) {
             </Text>
           </View>
         )}
-      </View>
+      </TouchableOpacity>
     </Animated.View>
   );
 }

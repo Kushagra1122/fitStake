@@ -1,7 +1,7 @@
 
 import envioService from "./envioService.js";
   
-async function runTests() {
+export async function runTests() {
   console.log("=== Testing getAllChallenges ===");
   const challenges = await envioService.getAllChallenges(5);
   console.log(challenges);
@@ -27,4 +27,3 @@ async function runTests() {
   console.log(profile);
 }
 
-runTests().catch(console.error);
