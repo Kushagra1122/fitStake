@@ -13,8 +13,8 @@ import { Platform } from 'react-native';
 // For React Native, we'll use direct API calls
 // In production, consider using a web view or native bridge
 
-const VINCENT_APP_ID = 'fitstake-defi-automation';
-const VINCENT_APP_URL = 'http://localhost:3000';
+const VINCENT_APP_ID = '9593630138';
+const VINCENT_BACKEND_URL = 'http://localhost:3001';
 const VINCENT_DASHBOARD_URL = 'https://dashboard.heyvincent.ai';
 
 /**
@@ -253,7 +253,7 @@ export async function distributeChallengeRewards(challengeId) {
  */
 export async function checkVincentAppHealth() {
   try {
-    const response = await fetch(`${VINCENT_APP_URL}/health`);
+    const response = await fetch(`${VINCENT_BACKEND_URL}/api/health`);
     
     if (!response.ok) {
       return { healthy: false, error: `HTTP ${response.status}` };
@@ -267,6 +267,48 @@ export async function checkVincentAppHealth() {
   }
 }
 
+/**
+ * Auto-stake to a challenge using Vincent
+ * 
+ * @param {string} challengeId - Challenge ID to join
+ * @param {string} stakeAmount - Stake amount in ETH (not wei)
+ * @param {string} userAddress - User's wallet address
+ * @returns {Promise<object>} Auto-stake result with transaction hash
+ */
+export async function autoStakeToChallenge(challengeId, stakeAmount, userAddress) {
+  try {
+    console.log('🚀 Requesting Vincent auto-stake...');
+    console.log('Challenge ID:', challengeId);
+    console.log('Stake Amount:', stakeAmount);
+    console.log('User Address:', userAddress);
+    
+    const response = await fetch(`${VINCENT_BACKEND_URL}/api/auto-stake`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        challengeId: parseInt(challengeId),
+        stakeAmount: stakeAmount.toString(),
+        userAddress: userAddress
+      })
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.reason || errorData.error || `HTTP ${response.status}`);
+    }
+    
+    const result = await response.json();
+    console.log('✅ Vincent auto-stake successful:', result);
+    
+    return result;
+  } catch (error) {
+    console.error('❌ Vincent auto-stake failed:', error);
+    throw error;
+  }
+}
+
 // Export all functions
 export default {
   checkVincentAuth,
@@ -276,6 +318,7 @@ export default {
   executeAbility,
   verifyStravaRun,
   distributeChallengeRewards,
-  checkVincentAppHealth
+  checkVincentAppHealth,
+  autoStakeToChallenge
 };
 

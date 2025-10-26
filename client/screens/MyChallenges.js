@@ -17,6 +17,7 @@ import { getUserChallenges, withdrawWinnings } from '../services/contract';
 import { getActivityIcon, getDaysLeft, formatDistance } from '../utils/helpers';
 import { runTests } from '../services/test';
 import { Ionicons, MaterialIcons, FontAwesome5, MaterialCommunityIcons, Feather, FontAwesome } from '@expo/vector-icons';
+import { useStrava } from '../context/StravaContext';
 
 export default function MyChallenges() {
   const navigation = useNavigation();

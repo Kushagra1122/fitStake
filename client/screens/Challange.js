@@ -24,6 +24,7 @@ import {
   getChallengeFinalization 
 } from '../services/envioService';
 import stravaService from '../services/stravaService';
+import { verifyStravaActivity } from '../services/litOracleService';
 import { Ionicons, MaterialIcons, FontAwesome5, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 
 export default function Challenge() {
@@ -243,39 +244,72 @@ export default function Challenge() {
     Alert.alert('Withdraw', 'Withdraw function will be implemented soon');
   };
   const handleVerifyActivity = async (participant) => {
-    try {
-      if (!isConnected) {
-        Alert.alert('Error', 'Please connect your Strava account first.');
-        return;
-      }
-      
-      const accessToken = await getValidAccessToken();
-      const activity = await stravaService.fetchActivity(accessToken);
-      
-      if (!activity) {
-        Alert.alert('No Activity Found', 'No recent activity found. Please make sure you have completed your activity today.');
-        return;
-      }
-
-      // Extract key activity data
-      const distance = (activity.distance / 1000).toFixed(2); // Convert meters to km
-      const startDate = new Date(activity.start_date);
-      const endDate = new Date(startDate.getTime() + activity.elapsed_time * 1000);
-      
-      console.log('Distance (km):', distance);
-      console.log('Start Date:', startDate.toISOString());
-      console.log('End Date:', endDate.toISOString());
-
-      // Check if the activity matches the challenge requirements
-      Alert.alert('Success', `Activity found: ${activity.name || 'Untitled'} (${activity.type})`);
-      
-      // TODO: Submit activity to the contract for verification
-      // This would typically involve sending a transaction to the smart contract
-      
-    } catch (error) {
-      console.error('Error verifying activity:', error);
-      Alert.alert('Error', 'Failed to verify activity. Please try again.');
+    if (!isConnected) {
+      Alert.alert('Error', 'Please connect your wallet first.');
+      return;
     }
+
+    Alert.alert(
+      'Verify Activity',
+      `Verify completion for "${challenge.name}"? This will submit your Strava activity to be verified on-chain.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Verify',
+          onPress: async () => {
+            try {
+              // Get Strava access token
+              const accessToken = await getValidAccessToken();
+              
+              // Fetch user's Strava activities
+              const recentActivities = await stravaService.fetchRecentActivities(accessToken);
+              
+              if (!recentActivities || recentActivities.length === 0) {
+                Alert.alert('No Activities', 'No recent Strava activities found. Please complete a run and try again.');
+                return;
+              }
+
+              // Let user select an activity (simplified - just use most recent)
+              const selectedActivity = recentActivities[0];
+              
+              console.log('🔍 Selected activity:', selectedActivity);
+              
+              // Show loading
+              Alert.alert('Verifying...', 'Submitting your activity for verification via Lit Protocol.');
+
+              // Call Lit Protocol oracle to verify and mark complete
+              const result = await verifyStravaActivity({
+                challengeId: challenge.id,
+                userAddress: account,
+                stravaAccessToken: accessToken,
+                activityData: selectedActivity
+              });
+
+              if (result.success) {
+                // Success - navigate to verification success screen
+                navigation.navigate('VerificationSuccess', {
+                  challenge: challenge,
+                  activity: selectedActivity,
+                  transactionHash: result.result?.transaction?.transactionHash || 'pending',
+                  etherscanUrl: `https://sepolia.etherscan.io/tx/${result.result?.transaction?.transactionHash}`,
+                  blockNumber: result.result?.transaction?.blockNumber || 'pending'
+                });
+
+                Alert.alert(
+                  'Verification Success! 🎉',
+                  `Your activity has been verified on-chain!\n\nTransaction: ${result.result?.transaction?.transactionHash?.substring(0, 10)}...`
+                );
+              } else {
+                Alert.alert('Verification Failed', result.error || 'Failed to verify activity. Please try again.');
+              }
+            } catch (error) {
+              console.error('Error verifying activity:', error);
+              Alert.alert('Error', error.message || 'Failed to verify activity. Please try again.');
+            }
+          }
+        }
+      ]
+    );
   };
   if (isLoading) {
     return (
