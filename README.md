@@ -1,11 +1,11 @@
 <div align="center">
 
-<table>
-<tr>
-<td width="100" align="center">
+<table style="border: none;">
+<tr style="border: none;">
+<td width="100" align="center" style="border: none;">
   <img src="./client/assets/final_icon.png" alt="FitStake Logo" width="80" height="80" />
 </td>
-<td align="center">
+<td align="center" style="border: none;">
   <h1>FitStake</h1>
 </td>
 </tr>
@@ -1299,90 +1299,22 @@ SEPOLIA_RPC_URL=...
 
 ## 🤝 Contributing
 
-We welcome contributions to FitStake! Please follow these guidelines:
-
-### Contribution Workflow
-
-1. **Fork the Repository**
-   ```bash
-   gh repo fork Kushagra1122/fitStake
-   ```
-
-2. **Create Feature Branch**
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-
-3. **Make Changes**
-   - Follow code style guidelines
-   - Add tests for new functionality
-   - Update documentation
-
-4. **Commit Changes**
-   ```bash
-   git commit -m "feat: add new feature"
-   ```
-
-5. **Push to Branch**
-   ```bash
-   git push origin feature/your-feature-name
-   ```
-
-6. **Create Pull Request**
-   - Open PR on GitHub
-   - Link related issues
-   - Request reviews
-
-### Commit Message Format
-
-```
-type(scope): brief description
-
-Detailed explanation if needed
-```
-
-**Types:**
-- `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation changes
-- `style`: Code style changes (formatting)
-- `refactor`: Code refactoring
-- `test`: Test additions or changes
-- `chore`: Maintenance tasks
-
-### Code Style Guidelines
-
-- Use ESLint for JavaScript/TypeScript
-- Follow Prettier formatting
-- Write descriptive variable names
-- Add comments for complex logic
-- Update tests for new features
-- Update README for API changes
-
-### Testing Requirements
-
-- All new features must have tests
-- Maintain test coverage above 80%
-- Run all tests before submitting PR
-- Ensure CI/CD pipeline passes
+We welcome contributions! Fork the repo, create a branch, make changes, and submit a PR.
 
 ---
 
 ## 📝 License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License.
 
 ---
 
 ## 📞 Contact
 
-- **Developer**: Kushagra Tiwari
 - **Email**: devgambo.work@gmail.com
 - **GitHub**: [@Kushagra1122](https://github.com/Kushagra1122)
-- **Repository**: [fitStake](https://github.com/Kushagra1122/fitStake)
 
 ---
-
 <div align="center">
 
 **Built with ❤️ for the Web3 and fitness communities**
