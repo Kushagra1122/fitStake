@@ -12,15 +12,18 @@ import {
   Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 import { useWeb3 } from '../context/Web3Context';
 import { useNavigation } from '@react-navigation/native';
 import { createChallenge as createChallengeContract } from '../services/contract';
 import { getActivityIcon, formatDuration } from '../utils/helpers';
+import { Ionicons, MaterialIcons, FontAwesome5, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 
 export default function CreateChallenge() {
   const navigation = useNavigation();
   const { account, isConnected, getSigner, getWalletConnectInfo } = useWeb3();
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
 
   // Form state
   const [challengeName, setChallengeName] = useState('');
@@ -31,11 +34,19 @@ export default function CreateChallenge() {
   const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 600,
-      useNativeDriver: true,
-    }).start();
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        tension: 30,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
   }, []);
 
   const activityTypes = [
@@ -167,41 +178,74 @@ export default function CreateChallenge() {
   const selectedActivity = activityTypes.find(a => a.id === activityType);
 
   return (
-    <LinearGradient
-      colors={['#667eea', '#764ba2']}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      className="flex-1"
-    >
+    <View className="flex-1 bg-gray-50">
+      <StatusBar style="dark" />
+      
+      {/* Header */}
+      <LinearGradient
+        colors={['#ffffff', '#fdf2f8', '#ffffff']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        className="pt-16 pb-5 px-6 shadow-sm border-b border-pink-100"
+      >
+        <View className="flex-row items-center justify-between">
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            className="w-10 h-10 bg-white rounded-xl border border-pink-200 items-center justify-center shadow-sm"
+            activeOpacity={0.8}
+          >
+            <Ionicons name="arrow-back" size={20} color="#EC4899" />
+          </TouchableOpacity>
+          
+          <View className="flex-1 mx-4">
+            <Text className="text-gray-900 font-bold text-2xl">Create Challenge</Text>
+            <Text className="text-pink-600 text-sm font-medium mt-1">
+              Set your fitness goal and stake
+            </Text>
+          </View>
+          
+          <View className="w-10 h-10" /> {/* Spacer for balance */}
+        </View>
+      </LinearGradient>
+
+      {/* Body */}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
       >
-        <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
-          <Animated.View style={{ opacity: fadeAnim }} className="px-6 pt-16">
-            {/* Header */}
-            <View className="flex-row items-center mb-8">
-              <TouchableOpacity
-                onPress={() => navigation.goBack()}
-                className="bg-white/20 p-3 rounded-xl mr-4"
-              >
-                <Text className="text-white text-xl">←</Text>
-              </TouchableOpacity>
-              <View className="flex-1">
-                <Text className="text-white text-3xl font-black">Create Challenge</Text>
-                <Text className="text-white/70 text-sm mt-1">Set your fitness goal</Text>
-              </View>
-            </View>
-
+        <ScrollView 
+          className="flex-1" 
+          contentContainerStyle={{ paddingBottom: 40 }}
+          showsVerticalScrollIndicator={false}
+        >
+          <Animated.View
+            style={{
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            }}
+            className="px-6 pt-6"
+          >
             {/* Form Container */}
-            <View className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 shadow-2xl">
+            <View 
+              className="bg-white rounded-2xl p-6 border border-gray-100 mb-6"
+              style={Platform.select({
+                ios: {
+                  shadowColor: '#000',
+                  shadowOpacity: 0.08,
+                  shadowRadius: 8,
+                  shadowOffset: { width: 0, height: 2 },
+                },
+                android: { elevation: 3 },
+              })}
+            >
               {/* Challenge Name */}
               <View className="mb-6">
-                <Text className="text-gray-700 font-bold text-sm mb-2 uppercase tracking-wide">
-                  Challenge Name
-                </Text>
+                <View className="flex-row items-center mb-3">
+                  <Ionicons name="create-outline" size={18} color="#EC4899" />
+                  <Text className="text-gray-700 font-bold text-base ml-2">Challenge Name</Text>
+                </View>
                 <TextInput
-                  className="bg-gray-50 px-4 py-4 rounded-xl text-gray-900 text-base font-medium"
+                  className="bg-gray-50 px-4 py-4 rounded-xl text-gray-900 text-base font-medium border border-gray-200"
                   placeholder="e.g., Marathon Month Challenge"
                   placeholderTextColor="#9CA3AF"
                   value={challengeName}
@@ -211,27 +255,28 @@ export default function CreateChallenge() {
 
               {/* Activity Type */}
               <View className="mb-6">
-                <Text className="text-gray-700 font-bold text-sm mb-3 uppercase tracking-wide">
-                  Activity Type
-                </Text>
-                <View className="flex-row flex-wrap -mx-2">
+                <View className="flex-row items-center mb-3">
+                  <MaterialCommunityIcons name="run-fast" size={18} color="#EC4899" />
+                  <Text className="text-gray-700 font-bold text-base ml-2">Activity Type</Text>
+                </View>
+                <View className="flex-row flex-wrap -mx-1">
                   {activityTypes.map((activity) => (
                     <TouchableOpacity
                       key={activity.id}
                       onPress={() => setActivityType(activity.id)}
-                      className="w-1/2 px-2 mb-3"
+                      className="w-1/2 px-1 mb-2"
                     >
                       <View
-                        className={`p-4 rounded-xl items-center ${
+                        className={`p-4 rounded-xl border-2 ${
                           activityType === activity.id
-                            ? 'bg-purple-600'
-                            : 'bg-gray-50'
+                            ? 'bg-pink-50 border-pink-500'
+                            : 'bg-gray-50 border-gray-200'
                         }`}
                       >
-                        <Text className="text-3xl mb-2">{activity.icon}</Text>
+                        <Text className="text-3xl mb-2 text-center">{activity.icon}</Text>
                         <Text
-                          className={`font-bold text-sm ${
-                            activityType === activity.id ? 'text-white' : 'text-gray-700'
+                          className={`font-bold text-sm text-center ${
+                            activityType === activity.id ? 'text-pink-700' : 'text-gray-700'
                           }`}
                         >
                           {activity.name}
@@ -244,10 +289,13 @@ export default function CreateChallenge() {
 
               {/* Target Distance */}
               <View className="mb-6">
-                <Text className="text-gray-700 font-bold text-sm mb-2 uppercase tracking-wide">
-                  Target Distance ({selectedActivity?.unit})
-                </Text>
-                <View className="flex-row items-center bg-gray-50 rounded-xl overflow-hidden">
+                <View className="flex-row items-center mb-3">
+                  <MaterialIcons name="flag" size={18} color="#EC4899" />
+                  <Text className="text-gray-700 font-bold text-base ml-2">
+                    Target Distance ({selectedActivity?.unit})
+                  </Text>
+                </View>
+                <View className="flex-row items-center bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
                   <TextInput
                     className="flex-1 px-4 py-4 text-gray-900 text-base font-medium"
                     placeholder="0"
@@ -256,32 +304,33 @@ export default function CreateChallenge() {
                     value={targetDistance}
                     onChangeText={setTargetDistance}
                   />
-                  <View className="bg-purple-100 px-4 py-4">
-                    <Text className="text-purple-700 font-bold">{selectedActivity?.unit}</Text>
+                  <View className="bg-pink-100 px-4 py-4 border-l border-pink-200">
+                    <Text className="text-pink-700 font-bold">{selectedActivity?.unit}</Text>
                   </View>
                 </View>
               </View>
 
               {/* Duration */}
               <View className="mb-6">
-                <Text className="text-gray-700 font-bold text-sm mb-3 uppercase tracking-wide">
-                  Duration
-                </Text>
+                <View className="flex-row items-center mb-3">
+                  <Feather name="clock" size={18} color="#EC4899" />
+                  <Text className="text-gray-700 font-bold text-base ml-2">Duration</Text>
+                </View>
                 <View className="flex-row flex-wrap -mx-1">
                   {durationOptions.map((option) => (
                     <TouchableOpacity
                       key={option.value}
                       onPress={() => setDuration(option.value)}
-                      className="w-1/4 px-1 mb-2"
+                      className="w-1/2 px-1 mb-2"
                     >
                       <View
-                        className={`py-3 rounded-xl items-center ${
-                          duration === option.value ? 'bg-purple-600' : 'bg-gray-50'
+                        className={`py-4 rounded-xl border-2 ${
+                          duration === option.value ? 'bg-pink-50 border-pink-500' : 'bg-gray-50 border-gray-200'
                         }`}
                       >
                         <Text
-                          className={`font-bold text-sm ${
-                            duration === option.value ? 'text-white' : 'text-gray-700'
+                          className={`font-bold text-sm text-center ${
+                            duration === option.value ? 'text-pink-700' : 'text-gray-700'
                           }`}
                         >
                           {option.label}
@@ -294,10 +343,11 @@ export default function CreateChallenge() {
 
               {/* Stake Amount */}
               <View className="mb-6">
-                <Text className="text-gray-700 font-bold text-sm mb-2 uppercase tracking-wide">
-                  Stake Amount
-                </Text>
-                <View className="flex-row items-center bg-gray-50 rounded-xl overflow-hidden">
+                <View className="flex-row items-center mb-3">
+                  <FontAwesome5 name="coins" size={16} color="#EC4899" />
+                  <Text className="text-gray-700 font-bold text-base ml-2">Stake Amount</Text>
+                </View>
+                <View className="flex-row items-center bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
                   <TextInput
                     className="flex-1 px-4 py-4 text-gray-900 text-base font-medium"
                     placeholder="0.00"
@@ -306,8 +356,8 @@ export default function CreateChallenge() {
                     value={stakeAmount}
                     onChangeText={setStakeAmount}
                   />
-                  <View className="bg-purple-100 px-4 py-4">
-                    <Text className="text-purple-700 font-bold">ETH</Text>
+                  <View className="bg-pink-100 px-4 py-4 border-l border-pink-200">
+                    <Text className="text-pink-700 font-bold">ETH</Text>
                   </View>
                 </View>
                 <Text className="text-gray-500 text-xs mt-2">
@@ -316,8 +366,11 @@ export default function CreateChallenge() {
               </View>
 
               {/* Summary Card */}
-              <View className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-xl mb-6">
-                <Text className="text-gray-700 font-bold text-sm mb-3">Challenge Summary</Text>
+              <View className="bg-gray-50 rounded-xl p-4 mb-6 border border-gray-200">
+                <View className="flex-row items-center mb-3">
+                  <Ionicons name="document-text-outline" size={18} color="#EC4899" />
+                  <Text className="text-gray-700 font-bold text-base ml-2">Challenge Summary</Text>
+                </View>
                 <SummaryRow label="Activity" value={selectedActivity?.name} />
                 <SummaryRow label="Target" value={`${targetDistance || '0'} ${selectedActivity?.unit}`} />
                 <SummaryRow label="Duration" value={`${duration} days`} />
@@ -326,7 +379,7 @@ export default function CreateChallenge() {
 
               {/* Create Button */}
               <TouchableOpacity
-                className="bg-purple-600 py-5 rounded-2xl shadow-xl border border-purple-700"
+                className="bg-pink-600 py-4 rounded-xl shadow-sm border border-pink-700"
                 onPress={handleCreateChallenge}
                 disabled={isCreating}
                 activeOpacity={0.8}
@@ -334,10 +387,10 @@ export default function CreateChallenge() {
                 {isCreating ? (
                   <View className="flex-row items-center justify-center">
                     <ActivityIndicator color="white" size="small" />
-                    <Text className="text-white font-bold text-lg ml-3">Creating...</Text>
+                    <Text className="text-white font-bold text-base ml-2">Creating Challenge...</Text>
                   </View>
                 ) : (
-                  <Text className="text-white font-bold text-lg text-center ">
+                  <Text className="text-white font-bold text-base text-center">
                     Create Challenge
                   </Text>
                 )}
@@ -345,28 +398,66 @@ export default function CreateChallenge() {
             </View>
 
             {/* Info Card */}
-            <View className="bg-white/10 backdrop-blur-xl rounded-2xl p-4 mt-4 border border-white/20">
-              <Text className="text-white font-bold text-sm mb-2">💡 How it works</Text>
-              <Text className="text-white/80 text-xs leading-5">
-                • Your stake is locked in a smart contract{'\n'}
-                • Complete your target within the duration{'\n'}
-                • Connect Strava to verify your activities{'\n'}
-                • Get your stake back + rewards upon completion
-              </Text>
+            <View 
+              className="bg-white rounded-2xl p-5 border border-gray-100"
+              style={Platform.select({
+                ios: {
+                  shadowColor: '#000',
+                  shadowOpacity: 0.08,
+                  shadowRadius: 8,
+                  shadowOffset: { width: 0, height: 2 },
+                },
+                android: { elevation: 3 },
+              })}
+            >
+              <View className="flex-row items-center mb-3">
+                <Ionicons name="bulb-outline" size={20} color="#EC4899" />
+                <Text className="text-gray-900 font-bold text-base ml-2">How It Works</Text>
+              </View>
+              <View className="space-y-2">
+                <InfoItem 
+                  icon={<MaterialIcons name="lock" size={16} color="#EC4899" />}
+                  text="Your stake is locked in a smart contract" 
+                />
+                <InfoItem 
+                  icon={<MaterialIcons name="flag" size={16} color="#EC4899" />}
+                  text="Complete your target within the duration" 
+                />
+                <InfoItem 
+                  icon={<FontAwesome5 name="strava" size={16} color="#EC4899" />}
+                  text="Connect Strava to verify your activities" 
+                />
+                <InfoItem 
+                  icon={<FontAwesome5 name="coins" size={16} color="#EC4899" />}
+                  text="Get your stake back + rewards upon completion" 
+                />
+              </View>
             </View>
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </LinearGradient>
+    </View>
   );
 }
 
 // Summary Row Component
 function SummaryRow({ label, value }) {
   return (
-    <View className="flex-row justify-between items-center mb-2 last:mb-0">
+    <View className="flex-row justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
       <Text className="text-gray-600 text-sm">{label}</Text>
       <Text className="text-gray-900 font-bold text-sm">{value}</Text>
+    </View>
+  );
+}
+
+// Info Item Component
+function InfoItem({ icon, text }) {
+  return (
+    <View className="flex-row items-start">
+      <View className="mr-2 mt-0.5">
+        {icon}
+      </View>
+      <Text className="text-gray-600 text-sm flex-1 leading-5">{text}</Text>
     </View>
   );
 }

@@ -7,8 +7,10 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 import { useWeb3 } from '../context/Web3Context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { getChallengeById, getContract, getProvider } from '../services/contract';
@@ -20,12 +22,14 @@ import {
   getChallengeTaskCompletions,
   getChallengeFinalization 
 } from '../services/envioService';
+import { Ionicons, MaterialIcons, FontAwesome5, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 
 export default function Challenge() {
   const navigation = useNavigation();
   const route = useRoute();
   const { account, getProvider } = useWeb3();
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
   
   const { challenge: initialChallenge } = route.params || {};
   
@@ -36,11 +40,19 @@ export default function Challenge() {
   const [isActive, setIsActive] = useState(true);
 
   useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 600,
-      useNativeDriver: true,
-    }).start();
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        tension: 30,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
 
     if (initialChallenge) {
       loadChallengeDetails();
@@ -230,145 +242,270 @@ export default function Challenge() {
 
   if (isLoading) {
     return (
-      <LinearGradient
-        colors={['#667eea', '#764ba2']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        className="flex-1 items-center justify-center"
-      >
-        <ActivityIndicator size="large" color="#fff" />
-        <Text className="text-white text-base mt-3">Loading challenge...</Text>
-      </LinearGradient>
+      <View className="flex-1 bg-gray-50">
+        <StatusBar style="dark" />
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#EC4899" />
+          <Text className="text-gray-600 mt-4 font-medium">Loading challenge...</Text>
+        </View>
+      </View>
     );
   }
 
   if (!challenge) {
     return (
-      <LinearGradient
-        colors={['#667eea', '#764ba2']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        className="flex-1 items-center justify-center"
-      >
-        <Text className="text-white text-xl mb-4">Challenge not found</Text>
-        <TouchableOpacity
-          className="bg-white px-6 py-3 rounded-xl"
-          onPress={() => navigation.goBack()}
-        >
-          <Text className="text-purple-600 font-bold">Go Back</Text>
-        </TouchableOpacity>
-      </LinearGradient>
+      <View className="flex-1 bg-gray-50">
+        <StatusBar style="dark" />
+        <View className="flex-1 items-center justify-center px-6">
+          <MaterialCommunityIcons name="run-fast" size={64} color="#EC4899" className="mb-4" />
+          <Text className="text-gray-900 font-bold text-xl mb-2">Challenge Not Found</Text>
+          <Text className="text-gray-600 text-center mb-6">
+            The challenge you're looking for doesn't exist or has been removed.
+          </Text>
+          <TouchableOpacity
+            className="bg-pink-600 px-6 py-4 rounded-xl shadow-sm w-full"
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.8}
+          >
+            <Text className="text-white font-bold text-center">Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     );
   }
 
   const daysLeft = getDaysLeft(challenge.deadline || challenge.endTime);
 
   return (
-    <LinearGradient
-      colors={['#667eea', '#764ba2']}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      className="flex-1"
-    >
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
-        <Animated.View style={{ opacity: fadeAnim }} className="px-6 pt-16">
-          {/* Header */}
-          <View className="flex-row items-center mb-8">
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              className="bg-white/20 p-3 rounded-xl mr-4"
-            >
-              <Text className="text-white text-xl">←</Text>
-            </TouchableOpacity>
-            <View className="flex-1">
-              <Text className="text-white text-3xl font-black">
-                {challenge.name || 'Challenge Details'}
-              </Text>
-              <Text className="text-white/70 text-sm mt-1">
-                ID: {challenge.challengeId || challenge.id}
-              </Text>
-            </View>
-            <TouchableOpacity
-              onPress={loadChallengeDetails}
-              className="bg-white/20 p-3 rounded-xl"
-            >
-              <Text className="text-white text-lg">🔄</Text>
-            </TouchableOpacity>
+    <View className="flex-1 bg-gray-50">
+      <StatusBar style="dark" />
+      
+      {/* Header */}
+      <LinearGradient
+        colors={['#ffffff', '#fdf2f8', '#ffffff']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        className="pt-16 pb-5 px-6 shadow-sm border-b border-pink-100"
+      >
+        <View className="flex-row items-center justify-between">
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            className="w-10 h-10 bg-white rounded-xl border border-pink-200 items-center justify-center shadow-sm"
+            activeOpacity={0.8}
+          >
+            <Ionicons name="arrow-back" size={20} color="#EC4899" />
+          </TouchableOpacity>
+          
+          <View className="flex-1 mx-4">
+            <Text className="text-gray-900 font-bold text-2xl">Challenge Details</Text>
+            <Text className="text-pink-600 text-sm font-medium mt-1">
+              {participants.length} participants • {isActive ? `${daysLeft}d left` : 'Completed'}
+            </Text>
           </View>
+          
+          <TouchableOpacity
+            onPress={loadChallengeDetails}
+            className="w-10 h-10 bg-white rounded-xl border border-pink-200 items-center justify-center shadow-sm"
+            activeOpacity={0.8}
+          >
+            <Ionicons name="refresh" size={20} color="#EC4899" />
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
 
-          {/* Total Amount Staked */}
-          <View className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 shadow-xl mb-6 items-center">
-            <Text className="text-gray-500 text-sm mb-2">Total Amount Staked</Text>
-            <Text className="text-purple-600 font-black text-4xl">{totalStaked} ETH</Text>
+      {/* Body */}
+      <ScrollView 
+        className="flex-1" 
+        contentContainerStyle={{ paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <Animated.View
+          style={{
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          }}
+          className="px-6 pt-6"
+        >
+          {/* Challenge Header Card */}
+          <View 
+            className="bg-white rounded-2xl p-6 border border-gray-100 mb-6"
+            style={Platform.select({
+              ios: {
+                shadowColor: '#000',
+                shadowOpacity: 0.08,
+                shadowRadius: 8,
+                shadowOffset: { width: 0, height: 2 },
+              },
+              android: { elevation: 3 },
+            })}
+          >
+            <View className="flex-row items-center mb-4">
+              <View className="mr-3">
+                {getActivityIcon(challenge.activityType)}
+              </View>
+              <View className="flex-1">
+                <Text className="text-gray-900 font-bold text-xl">{challenge.name}</Text>
+                <Text className="text-gray-500 text-sm mt-1">
+                  by {formatAddress(challenge.creator || challenge.owner)}
+                </Text>
+              </View>
+              <View className={`px-3 py-1.5 rounded-full ${
+                isActive 
+                  ? (daysLeft <= 3 ? 'bg-red-100' : daysLeft <= 7 ? 'bg-orange-100' : 'bg-green-100')
+                  : 'bg-gray-100'
+              }`}>
+                <Text className={`text-xs font-bold ${
+                  isActive
+                    ? (daysLeft <= 3 ? 'text-red-700' : daysLeft <= 7 ? 'text-orange-700' : 'text-green-700')
+                    : 'text-gray-700'
+                }`}>
+                  {isActive ? `${daysLeft}d left` : 'Completed'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Total Staked */}
+            <View className="bg-gray-50 rounded-xl p-4 items-center">
+              <Text className="text-gray-500 text-sm mb-1">Total Amount Staked</Text>
+              <Text className="text-pink-600 font-black text-3xl">{totalStaked} ETH</Text>
+            </View>
           </View>
 
           {/* Challenge Details */}
-          <View className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 shadow-xl mb-6">
-            <Text className="text-gray-900 font-black text-xl mb-4 text-center">
-              Challenge Details
-            </Text>
+          <View 
+            className="bg-white rounded-2xl p-6 border border-gray-100 mb-6"
+            style={Platform.select({
+              ios: {
+                shadowColor: '#000',
+                shadowOpacity: 0.08,
+                shadowRadius: 8,
+                shadowOffset: { width: 0, height: 2 },
+              },
+              android: { elevation: 3 },
+            })}
+          >
+            <View className="flex-row items-center mb-4">
+              <MaterialIcons name="info" size={20} color="#EC4899" />
+              <Text className="text-gray-900 font-bold text-lg ml-2">Challenge Details</Text>
+            </View>
             
-            <View className="space-y-3">
-              <DetailRow label="Stake Amount (Each)" value={`${challenge.stakeAmount} ETH`} />
-              <DetailRow label="Start Date" value={formatDate(challenge.startDate || challenge.startTime)} />
-              <DetailRow label="End Date" value={formatDate(challenge.deadline || challenge.endTime)} />
+            <View className="space-y-4">
               <DetailRow 
-                label="Is Active" 
-                value={isActive ? 'Yes' : 'No'} 
-                valueColor={isActive ? 'text-green-600' : 'text-red-600'}
+                icon={<FontAwesome5 name="coins" size={16} color="#EC4899" />}
+                label="Stake Amount" 
+                value={`${challenge.stakeAmount} ETH`} 
               />
-              <DetailRow label="Total Distance" value={`${challenge.targetDistance} ${challenge.unit || 'km'}`} />
-              <DetailRow label="Duration" value={`${challenge.duration || 'N/A'} days`} />
-              <DetailRow label="Activity Type" value={challenge.activityType || 'N/A'} />
-              <DetailRow label="Participants" value={`${challenge.participants || participants.length}`} />
+              <DetailRow 
+                icon={<Feather name="calendar" size={16} color="#EC4899" />}
+                label="Start Date" 
+                value={formatDate(challenge.startDate || challenge.startTime)} 
+              />
+              <DetailRow 
+                icon={<MaterialCommunityIcons name="flag-checkered" size={16} color="#EC4899" />}
+                label="End Date" 
+                value={formatDate(challenge.deadline || challenge.endTime)} 
+              />
+              <DetailRow 
+                icon={<Ionicons name="time" size={16} color="#EC4899" />}
+                label="Status" 
+                value={isActive ? 'Active' : 'Completed'} 
+                valueColor={isActive ? 'text-green-600' : 'text-gray-600'}
+              />
+              <DetailRow 
+                icon={<MaterialIcons name="flag" size={16} color="#EC4899" />}
+                label="Target Distance" 
+                value={`${challenge.targetDistance} ${challenge.unit || 'km'}`} 
+              />
+              <DetailRow 
+                icon={<Feather name="clock" size={16} color="#EC4899" />}
+                label="Duration" 
+                value={`${challenge.duration || 'N/A'} days`} 
+              />
+              <DetailRow 
+                icon={<Ionicons name="bicycle" size={16} color="#EC4899" />}
+                label="Activity Type" 
+                value={challenge.activityType || 'N/A'} 
+              />
+              <DetailRow 
+                icon={<Ionicons name="people" size={16} color="#EC4899" />}
+                label="Participants" 
+                value={`${challenge.participants || participants.length}`} 
+              />
             </View>
           </View>
 
           {/* Participants List */}
-          <View className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 shadow-xl mb-6">
-            <Text className="text-gray-900 font-black text-xl mb-4">
-              Participants ({participants.length})
-            </Text>
+          <View 
+            className="bg-white rounded-2xl p-6 border border-gray-100 mb-6"
+            style={Platform.select({
+              ios: {
+                shadowColor: '#000',
+                shadowOpacity: 0.08,
+                shadowRadius: 8,
+                shadowOffset: { width: 0, height: 2 },
+              },
+              android: { elevation: 3 },
+            })}
+          >
+            <View className="flex-row items-center mb-4">
+              <Ionicons name="people" size={20} color="#EC4899" />
+              <Text className="text-gray-900 font-bold text-lg ml-2">
+                Participants ({participants.length})
+              </Text>
+            </View>
 
             {participants.length === 0 ? (
-              <Text className="text-gray-500 text-center py-8">No participants yet</Text>
+              <View className="items-center py-8">
+                <Ionicons name="people-outline" size={48} color="#9CA3AF" />
+                <Text className="text-gray-500 text-center mt-3">No participants yet</Text>
+              </View>
             ) : (
+              <>
               <View className="space-y-3">
                 {participants.map((participant, index) => (
                   <ParticipantCard
-                    key={participant.address}
-                    participant={participant}
-                    index={index}
-                    isCurrentUser={participant.address.toLowerCase() === account?.toLowerCase()}
+                  key={participant.address}
+                  participant={participant}
+                  index={index}
+                  isCurrentUser={participant.address.toLowerCase() === account?.toLowerCase()}
                   />
                 ))}
               </View>
+              </>
             )}
           </View>
 
           {/* Withdraw Button */}
           {!isActive && (
             <TouchableOpacity
-              className="bg-gradient-to-r from-green-500 to-emerald-500 py-4 rounded-2xl shadow-lg mb-6"
+              className="bg-green-600 py-4 rounded-xl shadow-sm mb-6"
               onPress={handleWithdraw}
               activeOpacity={0.8}
             >
-              <Text className="text-white font-bold text-lg text-center">
-                Withdraw Winnings 💰
-              </Text>
+              <View className="flex-row items-center justify-center">
+                <FontAwesome5 name="money-bill-wave" size={16} color="white" />
+                <Text className="text-white font-bold text-base ml-2">
+                  Withdraw Winnings
+                </Text>
+              </View>
             </TouchableOpacity>
           )}
         </Animated.View>
       </ScrollView>
-    </LinearGradient>
+    </View>
   );
 }
 
 // Detail Row Component
-function DetailRow({ label, value, valueColor = 'text-gray-900' }) {
+function DetailRow({ icon, label, value, valueColor = 'text-gray-900' }) {
   return (
-    <View className="flex-row items-center justify-between py-2 border-b border-gray-200">
-      <Text className="text-gray-600 text-sm font-medium">{label}</Text>
+    <View className="flex-row items-center justify-between py-2">
+      <View className="flex-row items-center flex-1">
+        <View className="w-6">
+          {icon}
+        </View>
+        <Text className="text-gray-600 text-sm font-medium ml-2">{label}</Text>
+      </View>
       <Text className={`${valueColor} font-bold text-sm`}>{value}</Text>
     </View>
   );
@@ -390,18 +527,25 @@ function ParticipantCard({ participant, index, isCurrentUser }) {
   return (
     <Animated.View
       style={{ transform: [{ translateX: slideAnim }] }}
-      className={`bg-gray-50 rounded-xl p-4 mb-2 ${
-        isCurrentUser ? 'border-2 border-purple-200' : ''
+      className={`bg-gray-50 rounded-xl p-4 ${
+        isCurrentUser ? 'border-2 border-pink-200' : ''
       }`}
     >
       {/* User Address */}
-      <View className="flex-row items-center justify-between mb-2">
+      <View className="flex-row items-center justify-between mb-3">
         <View className="flex-1">
           <View className="flex-row items-center">
-            <Text className="text-purple-600 font-bold text-base">
-              {isCurrentUser ? 'You' : `Participant ${index + 1}`}
+            <Text className="text-gray-900 font-bold text-base">
+              {isCurrentUser ? (
+                <View className="flex-row items-center">
+                  <Ionicons name="person" size={16} color="#EC4899" />
+                  <Text className="ml-1">You</Text>
+                </View>
+              ) : (
+                `Participant ${index + 1}`
+              )}
             </Text>
-            {isCurrentUser ? (
+            {isCurrentUser && (
               <TouchableOpacity
                 className="ml-2 bg-blue-500 px-2 py-1 rounded"
                 onPress={() => {
@@ -410,7 +554,7 @@ function ParticipantCard({ participant, index, isCurrentUser }) {
               >
                 <Text className="text-white text-xs font-semibold">Verify</Text>
               </TouchableOpacity>
-            ) : null}
+            )}
           </View>
           <Text className="text-gray-500 text-xs mt-1">
             {formatAddress(participant.address)}
@@ -422,19 +566,21 @@ function ParticipantCard({ participant, index, isCurrentUser }) {
       </View>
 
       {/* Completed Today Status */}
-      <View className={`flex-row items-center justify-between p-2 rounded-lg ${
-        participant.completedToday ? 'bg-green-100' : 'bg-red-100'
+      <View className={`flex-row items-center justify-between p-3 rounded-lg ${
+        participant.completedToday ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
       }`}>
         <Text className="text-gray-700 text-xs font-medium">Today's Goal</Text>
         <View className="flex-row items-center">
           {participant.completedToday ? (
-            <>
-              <Text className="text-green-700 text-xs font-bold mr-1">✓ Completed</Text>
-            </>
+            <View className="flex-row items-center">
+              <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
+              <Text className="text-green-700 text-xs font-bold ml-1">Completed</Text>
+            </View>
           ) : (
-            <>
-              <Text className="text-red-700 text-xs font-bold mr-1">✗ Not Completed</Text>
-            </>
+            <View className="flex-row items-center">
+              <Ionicons name="close-circle" size={14} color="#dc2626" />
+              <Text className="text-red-700 text-xs font-bold ml-1">Not Completed</Text>
+            </View>
           )}
         </View>
       </View>
