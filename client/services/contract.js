@@ -23,13 +23,13 @@ const CONTRACT_ABI = [
   {
     "anonymous": false,
     "inputs": [
-      {"indexed": true, "internalType": "uint256", "name": "challengeId", "type": "uint256"},
-      {"indexed": true, "internalType": "address", "name": "creator", "type": "address"},
-      {"indexed": false, "internalType": "string", "name": "description", "type": "string"},
-      {"indexed": false, "internalType": "uint256", "name": "stakeAmount", "type": "uint256"},
-      {"indexed": false, "internalType": "uint256", "name": "startTime", "type": "uint256"},
-      {"indexed": false, "internalType": "uint256", "name": "endTime", "type": "uint256"},
-      {"indexed": false, "internalType": "uint256", "name": "targetDistance", "type": "uint256"}
+      { "indexed": true, "internalType": "uint256", "name": "challengeId", "type": "uint256" },
+      { "indexed": true, "internalType": "address", "name": "creator", "type": "address" },
+      { "indexed": false, "internalType": "string", "name": "description", "type": "string" },
+      { "indexed": false, "internalType": "uint256", "name": "stakeAmount", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "startTime", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "endTime", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "targetDistance", "type": "uint256" }
     ],
     "name": "ChallengeCreated",
     "type": "event"
@@ -37,32 +37,9 @@ const CONTRACT_ABI = [
   {
     "anonymous": false,
     "inputs": [
-      {"indexed": true, "internalType": "uint256", "name": "challengeId", "type": "uint256"},
-      {"indexed": false, "internalType": "uint256", "name": "totalWinners", "type": "uint256"},
-      {"indexed": false, "internalType": "uint256", "name": "totalLosers", "type": "uint256"}
-    ],
-    "name": "ChallengeFinalized",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {"indexed": true, "internalType": "uint256", "name": "challengeId", "type": "uint256"},
-      {"indexed": true, "internalType": "address", "name": "user", "type": "address"},
-      {"indexed": false, "internalType": "uint256", "name": "completionTimestamp", "type": "uint256"},
-      {"indexed": false, "internalType": "uint256", "name": "distance", "type": "uint256"},
-      {"indexed": false, "internalType": "uint256", "name": "duration", "type": "uint256"},
-      {"indexed": false, "internalType": "string", "name": "stravaActivityId", "type": "string"}
-    ],
-    "name": "TaskCompleted",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {"indexed": true, "internalType": "uint256", "name": "challengeId", "type": "uint256"},
-      {"indexed": true, "internalType": "address", "name": "user", "type": "address"},
-      {"indexed": false, "internalType": "uint256", "name": "stakedAmount", "type": "uint256"}
+      { "indexed": true, "internalType": "uint256", "name": "challengeId", "type": "uint256" },
+      { "indexed": true, "internalType": "address", "name": "user", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "stakedAmount", "type": "uint256" }
     ],
     "name": "UserJoined",
     "type": "event"
@@ -70,26 +47,42 @@ const CONTRACT_ABI = [
   {
     "anonymous": false,
     "inputs": [
-      {"indexed": true, "internalType": "uint256", "name": "challengeId", "type": "uint256"},
-      {"indexed": true, "internalType": "address", "name": "winner", "type": "address"},
-      {"indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256"}
+      { "indexed": true, "internalType": "uint256", "name": "challengeId", "type": "uint256" },
+      { "indexed": true, "internalType": "address", "name": "user", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "completionTimestamp", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "distance", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "duration", "type": "uint256" },
+      { "indexed": false, "internalType": "string", "name": "stravaActivityId", "type": "string" }
+    ],
+    "name": "TaskCompleted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "challengeId", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "totalWinners", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "totalLosers", "type": "uint256" }
+    ],
+    "name": "ChallengeFinalized",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "challengeId", "type": "uint256" },
+      { "indexed": true, "internalType": "address", "name": "winner", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" }
     ],
     "name": "WinningsDistributed",
     "type": "event"
   },
   {
-    "inputs": [],
-    "name": "authorizedOracle",
-    "outputs": [{"internalType": "address", "name": "", "type": "address"}],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
-      {"internalType": "string", "name": "description", "type": "string"},
-      {"internalType": "uint256", "name": "targetDistance", "type": "uint256"},
-      {"internalType": "uint256", "name": "stakeAmount", "type": "uint256"},
-      {"internalType": "uint256", "name": "duration", "type": "uint256"}
+      { "internalType": "string", "name": "description", "type": "string" },
+      { "internalType": "uint256", "name": "targetDistance", "type": "uint256" },
+      { "internalType": "uint256", "name": "stakeAmount", "type": "uint256" },
+      { "internalType": "uint256", "name": "duration", "type": "uint256" }
     ],
     "name": "createChallenge",
     "outputs": [],
@@ -97,28 +90,63 @@ const CONTRACT_ABI = [
     "type": "function"
   },
   {
-    "inputs": [{"internalType": "uint256", "name": "challengeId", "type": "uint256"}],
+    "inputs": [ { "internalType": "uint256", "name": "challengeId", "type": "uint256" } ],
+    "name": "joinChallenge",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "challengeId", "type": "uint256" },
+      { "internalType": "address", "name": "userAddress", "type": "address" },
+      { "internalType": "uint256", "name": "completionTimestamp", "type": "uint256" },
+      { "internalType": "uint256", "name": "distance", "type": "uint256" },
+      { "internalType": "uint256", "name": "duration", "type": "uint256" },
+      { "internalType": "string", "name": "stravaActivityId", "type": "string" }
+    ],
+    "name": "markTaskComplete",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [ { "internalType": "uint256", "name": "challengeId", "type": "uint256" } ],
     "name": "finalizeChallenge",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
-    "inputs": [{"internalType": "uint256", "name": "challengeId", "type": "uint256"}],
+    "inputs": [ { "internalType": "uint256", "name": "challengeId", "type": "uint256" } ],
+    "name": "withdrawWinnings",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [ { "internalType": "address", "name": "oracleAddress", "type": "address" } ],
+    "name": "setOracleAddress",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [ { "internalType": "uint256", "name": "challengeId", "type": "uint256" } ],
     "name": "getChallenge",
     "outputs": [
       {
         "components": [
-          {"internalType": "uint256", "name": "challengeId", "type": "uint256"},
-          {"internalType": "address", "name": "creator", "type": "address"},
-          {"internalType": "string", "name": "description", "type": "string"},
-          {"internalType": "uint256", "name": "targetDistance", "type": "uint256"},
-          {"internalType": "uint256", "name": "stakeAmount", "type": "uint256"},
-          {"internalType": "uint256", "name": "startTime", "type": "uint256"},
-          {"internalType": "uint256", "name": "endTime", "type": "uint256"},
-          {"internalType": "uint256", "name": "totalStaked", "type": "uint256"},
-          {"internalType": "uint256", "name": "participantCount", "type": "uint256"},
-          {"internalType": "bool", "name": "finalized", "type": "bool"}
+          { "internalType": "uint256", "name": "challengeId", "type": "uint256" },
+          { "internalType": "address", "name": "creator", "type": "address" },
+          { "internalType": "string", "name": "description", "type": "string" },
+          { "internalType": "uint256", "name": "targetDistance", "type": "uint256" },
+          { "internalType": "uint256", "name": "stakeAmount", "type": "uint256" },
+          { "internalType": "uint256", "name": "startTime", "type": "uint256" },
+          { "internalType": "uint256", "name": "endTime", "type": "uint256" },
+          { "internalType": "uint256", "name": "totalStaked", "type": "uint256" },
+          { "internalType": "uint256", "name": "participantCount", "type": "uint256" },
+          { "internalType": "bool", "name": "finalized", "type": "bool" }
         ],
         "internalType": "struct ChallengeContract.ChallengeDetails",
         "name": "",
@@ -129,25 +157,18 @@ const CONTRACT_ABI = [
     "type": "function"
   },
   {
-    "inputs": [{"internalType": "uint256", "name": "challengeId", "type": "uint256"}],
-    "name": "getChallengeParticipants",
-    "outputs": [{"internalType": "address[]", "name": "", "type": "address[]"}],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
-      {"internalType": "uint256", "name": "challengeId", "type": "uint256"},
-      {"internalType": "address", "name": "userAddress", "type": "address"}
+      { "internalType": "uint256", "name": "challengeId", "type": "uint256" },
+      { "internalType": "address", "name": "userAddress", "type": "address" }
     ],
     "name": "getParticipant",
     "outputs": [
       {
         "components": [
-          {"internalType": "address", "name": "userAddress", "type": "address"},
-          {"internalType": "bool", "name": "hasCompleted", "type": "bool"},
-          {"internalType": "bool", "name": "hasWithdrawn", "type": "bool"},
-          {"internalType": "uint256", "name": "stakedAmount", "type": "uint256"}
+          { "internalType": "address", "name": "userAddress", "type": "address" },
+          { "internalType": "bool", "name": "hasCompleted", "type": "bool" },
+          { "internalType": "bool", "name": "hasWithdrawn", "type": "bool" },
+          { "internalType": "uint256", "name": "stakedAmount", "type": "uint256" }
         ],
         "internalType": "struct ChallengeContract.Participant",
         "name": "",
@@ -158,66 +179,45 @@ const CONTRACT_ABI = [
     "type": "function"
   },
   {
+    "inputs": [ { "internalType": "uint256", "name": "challengeId", "type": "uint256" } ],
+    "name": "getChallengeParticipants",
+    "outputs": [ { "internalType": "address[]", "name": "", "type": "address[]" } ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
-      {"internalType": "uint256", "name": "challengeId", "type": "uint256"},
-      {"internalType": "address", "name": "userAddress", "type": "address"}
+      { "internalType": "uint256", "name": "challengeId", "type": "uint256" },
+      { "internalType": "address", "name": "userAddress", "type": "address" }
     ],
     "name": "isParticipant",
-    "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
+    "outputs": [ { "internalType": "bool", "name": "", "type": "bool" } ],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [{"internalType": "uint256", "name": "challengeId", "type": "uint256"}],
-    "name": "joinChallenge",
-    "outputs": [],
-    "stateMutability": "payable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "nextChallengeId",
-    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "owner",
-    "outputs": [{"internalType": "address", "name": "", "type": "address"}],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [{"internalType": "uint256", "name": "challengeId", "type": "uint256"}],
-    "name": "withdrawWinnings",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [{"internalType": "address", "name": "userAddress", "type": "address"}],
+    "inputs": [ { "internalType": "address", "name": "userAddress", "type": "address" } ],
     "name": "getUserChallenges",
-    "outputs": [{"internalType": "uint256[]", "name": "", "type": "uint256[]"}],
+    "outputs": [ { "internalType": "uint256[]", "name": "", "type": "uint256[]" } ],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [{"internalType": "address", "name": "userAddress", "type": "address"}],
+    "inputs": [ { "internalType": "address", "name": "userAddress", "type": "address" } ],
     "name": "getUserChallengeDetails",
     "outputs": [
       {
         "components": [
-          {"internalType": "uint256", "name": "challengeId", "type": "uint256"},
-          {"internalType": "address", "name": "creator", "type": "address"},
-          {"internalType": "string", "name": "description", "type": "string"},
-          {"internalType": "uint256", "name": "targetDistance", "type": "uint256"},
-          {"internalType": "uint256", "name": "stakeAmount", "type": "uint256"},
-          {"internalType": "uint256", "name": "startTime", "type": "uint256"},
-          {"internalType": "uint256", "name": "endTime", "type": "uint256"},
-          {"internalType": "uint256", "name": "totalStaked", "type": "uint256"},
-          {"internalType": "uint256", "name": "participantCount", "type": "uint256"},
-          {"internalType": "bool", "name": "finalized", "type": "bool"}
+          { "internalType": "uint256", "name": "challengeId", "type": "uint256" },
+          { "internalType": "address", "name": "creator", "type": "address" },
+          { "internalType": "string", "name": "description", "type": "string" },
+          { "internalType": "uint256", "name": "targetDistance", "type": "uint256" },
+          { "internalType": "uint256", "name": "stakeAmount", "type": "uint256" },
+          { "internalType": "uint256", "name": "startTime", "type": "uint256" },
+          { "internalType": "uint256", "name": "endTime", "type": "uint256" },
+          { "internalType": "uint256", "name": "totalStaked", "type": "uint256" },
+          { "internalType": "uint256", "name": "participantCount", "type": "uint256" },
+          { "internalType": "bool", "name": "finalized", "type": "bool" }
         ],
         "internalType": "struct ChallengeContract.ChallengeDetails[]",
         "name": "",
@@ -226,8 +226,30 @@ const CONTRACT_ABI = [
     ],
     "stateMutability": "view",
     "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "nextChallengeId",
+    "outputs": [ { "internalType": "uint256", "name": "", "type": "uint256" } ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "authorizedOracle",
+    "outputs": [ { "internalType": "address", "name": "", "type": "address" } ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [ { "internalType": "address", "name": "", "type": "address" } ],
+    "stateMutability": "view",
+    "type": "function"
   }
-];
+]
+;
 
 /**
  * Get a provider for reading from the blockchain

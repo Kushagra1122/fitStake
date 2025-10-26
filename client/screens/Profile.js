@@ -9,6 +9,7 @@ import {
   Animated,
   RefreshControl,
   Image,
+  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useWeb3 } from '../context/Web3Context';
@@ -16,6 +17,14 @@ import { useStrava } from '../context/StravaContext';
 import { ethers } from 'ethers';
 import { useNavigation } from '@react-navigation/native';
 import * as envioService from '../services/envioService';
+import {
+  LiveStatsCard,
+  TrendChart,
+  ActivityFeedItem,
+  LeaderboardCard,
+  ComparisonChart,
+  ProtocolHealthIndicator,
+} from '../components/Dashboard';
 
 const Profile = () => {
   const navigation = useNavigation();
@@ -73,6 +82,18 @@ const Profile = () => {
     profileData: null
   });
 
+  // Dashboard state
+  const [activeTab, setActiveTab] = useState('personal');
+  const [dashboardData, setDashboardData] = useState({
+    protocolMetrics: null,
+    activityFeed: [],
+    leaderboard: null,
+    historicalTrends: [],
+    challengeAnalytics: null,
+  });
+  const [lastRefresh, setLastRefresh] = useState(Date.now());
+  const [autoRefreshInterval, setAutoRefreshInterval] = useState(null);
+
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -89,7 +110,54 @@ const Profile = () => {
     ]).start();
 
     loadProfileData();
+    loadDashboardData();
+    
+    // Set up auto-refresh every 30 seconds
+    const interval = setInterval(() => {
+      loadDashboardData(true); // Silent refresh
+    }, 30000);
+    setAutoRefreshInterval(interval);
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [account]);
+
+  const loadDashboardData = async (silent = false) => {
+    try {
+      console.log('🔄 Loading dashboard data...');
+      
+      const [
+        protocolMetrics,
+        activityFeed,
+        leaderboard,
+        historicalTrends,
+        challengeAnalytics
+      ] = await Promise.allSettled([
+        envioService.getProtocolMetrics(),
+        envioService.getActivityFeed(20),
+        envioService.getLeaderboard(),
+        envioService.getHistoricalTrends(30),
+        envioService.getChallengeAnalytics()
+      ]);
+
+      setDashboardData({
+        protocolMetrics: protocolMetrics.status === 'fulfilled' ? protocolMetrics.value : null,
+        activityFeed: activityFeed.status === 'fulfilled' ? activityFeed.value : [],
+        leaderboard: leaderboard.status === 'fulfilled' ? leaderboard.value : null,
+        historicalTrends: historicalTrends.status === 'fulfilled' ? historicalTrends.value : [],
+        challengeAnalytics: challengeAnalytics.status === 'fulfilled' ? challengeAnalytics.value : null,
+      });
+
+      setLastRefresh(Date.now());
+      
+      if (!silent) {
+        console.log('✅ Dashboard data loaded successfully');
+      }
+    } catch (error) {
+      console.error('❌ Error loading dashboard data:', error);
+    }
+  };
 
   const loadProfileData = async () => {
     setLoading(true);
@@ -416,7 +484,10 @@ const Profile = () => {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadProfileData();
+    await Promise.all([
+      loadProfileData(),
+      loadDashboardData()
+    ]);
     setRefreshing(false);
   };
 
@@ -443,6 +514,284 @@ const Profile = () => {
     return `${minutes}m`;
   };
 
+  // Tab render functions
+  const renderPersonalTab = () => (
+    <View className="space-y-4">
+      {/* Hero Stats */}
+      <View className="flex-row space-x-3">
+        <View className="flex-1">
+          <LiveStatsCard
+            title="Total Winnings"
+            value={`${challengeStats.totalWinnings} ETH`}
+            subtitle="All time"
+            icon="💰"
+            color="#10b981"
+            delay={0}
+          />
+        </View>
+        <View className="flex-1">
+          <LiveStatsCard
+            title="Success Rate"
+            value={`${challengeStats.participated > 0 ? ((challengeStats.won / challengeStats.participated) * 100).toFixed(1) : '0.0'}%`}
+            subtitle="Win ratio"
+            icon="🎯"
+            color="#667eea"
+            delay={100}
+          />
+        </View>
+      </View>
+
+      {/* Performance Chart */}
+      <TrendChart
+        data={dashboardData.historicalTrends.map(item => ({
+          date: item.date,
+          value: item.tasksCompleted
+        }))}
+        title="Task Completions Over Time"
+        color="#8b5cf6"
+        delay={200}
+      />
+
+      {/* Personal Stats Grid */}
+      <View className="flex-row space-x-3">
+        <View className="flex-1">
+          <LiveStatsCard
+            title="Challenges"
+            value={challengeStats.participated}
+            subtitle="Participated"
+            icon="🏃"
+            color="#f59e0b"
+            delay={300}
+          />
+              </View>
+        <View className="flex-1">
+          <LiveStatsCard
+            title="Distance"
+            value={`${challengeStats.totalDistanceCompleted} km`}
+            subtitle="Completed"
+            icon="📏"
+            color="#ef4444"
+            delay={400}
+          />
+        </View>
+            </View>
+
+      {/* Strava Integration */}
+      {stravaConnected && (
+        <View className="bg-white/95 backdrop-blur-xl rounded-2xl p-4 shadow-lg">
+          <Text className="text-gray-700 font-bold text-lg mb-3">🏃 Strava Integration</Text>
+          <View className="flex-row justify-between items-center">
+            <View>
+              <Text className="text-gray-600 text-sm">Recent Activities</Text>
+              <Text className="text-gray-900 font-bold text-lg">{stravaStats.totalActivities}</Text>
+                  </View>
+            <View>
+              <Text className="text-gray-600 text-sm">Total Distance</Text>
+              <Text className="text-gray-900 font-bold text-lg">{formatDistance(stravaStats.totalDistance)} km</Text>
+                </View>
+            <View>
+              <Text className="text-gray-600 text-sm">Avg Speed</Text>
+              <Text className="text-gray-900 font-bold text-lg">{formatSpeed(stravaStats.avgSpeed)} km/h</Text>
+            </View>
+          </View>
+              </View>
+            )}
+                </View>
+  );
+
+  const renderSystemTab = () => (
+    <View className="space-y-4">
+      {/* Protocol Health */}
+      <ProtocolHealthIndicator
+        metrics={dashboardData.protocolMetrics}
+        delay={0}
+      />
+
+      {/* System Stats Grid */}
+      <View className="flex-row space-x-3">
+        <View className="flex-1">
+          <LiveStatsCard
+            title="Total Volume"
+            value={`${dashboardData.protocolMetrics?.totalVolumeStaked || '0.0000'} ETH`}
+            subtitle="Staked"
+            icon="💎"
+            color="#10b981"
+            delay={100}
+                  />
+                </View>
+        <View className="flex-1">
+          <LiveStatsCard
+            title="Active Users"
+            value={dashboardData.protocolMetrics?.uniqueUsers || 0}
+            subtitle="Unique"
+            icon="👥"
+            color="#667eea"
+            delay={200}
+                  />
+                </View>
+                      </View>
+
+      {/* Activity Feed */}
+      <View className="bg-white/95 backdrop-blur-xl rounded-2xl p-4 shadow-lg">
+        <Text className="text-gray-700 font-bold text-lg mb-3">📡 Live Activity Feed</Text>
+        <ScrollView style={{ maxHeight: 300 }}>
+          {dashboardData.activityFeed.length > 0 ? (
+            dashboardData.activityFeed.map((activity, index) => (
+              <ActivityFeedItem
+                key={activity.id}
+                activity={activity}
+                index={index}
+                animated={true}
+              />
+            ))
+          ) : (
+            <Text className="text-gray-500 text-sm text-center py-4">
+              No recent activity
+                    </Text>
+                )}
+        </ScrollView>
+              </View>
+
+      {/* System Trends */}
+      <TrendChart
+        data={dashboardData.historicalTrends.map(item => ({
+          date: item.date,
+          value: item.challengesCreated
+        }))}
+        title="Challenge Creation Trends"
+        color="#10b981"
+        delay={300}
+      />
+                  </View>
+  );
+
+  const renderLeaderboardTab = () => (
+    <View className="space-y-4">
+      {/* Top Winners */}
+      <View className="bg-white/95 backdrop-blur-xl rounded-2xl p-4 shadow-lg">
+        <Text className="text-gray-700 font-bold text-lg mb-3">🏆 Top Winners</Text>
+        {dashboardData.leaderboard?.topWinners?.length > 0 ? (
+          dashboardData.leaderboard.topWinners.map((user, index) => (
+            <LeaderboardCard
+              key={user.address}
+              user={user}
+              rank={user.rank}
+              metric="ETH Won"
+              value={user.totalWinnings.toFixed(4)}
+              isCurrentUser={user.address.toLowerCase() === account?.toLowerCase()}
+              delay={index * 100}
+            />
+          ))
+        ) : (
+          <Text className="text-gray-500 text-sm text-center py-4">
+            No winners yet
+                            </Text>
+                          )}
+                      </View>
+                      
+      {/* Most Active */}
+      <View className="bg-white/95 backdrop-blur-xl rounded-2xl p-4 shadow-lg">
+        <Text className="text-gray-700 font-bold text-lg mb-3">⚡ Most Active</Text>
+        {dashboardData.leaderboard?.mostActive?.length > 0 ? (
+          dashboardData.leaderboard.mostActive.map((user, index) => (
+            <LeaderboardCard
+              key={user.address}
+              user={user}
+              rank={user.rank}
+              metric="Tasks"
+              value={user.tasksCompleted}
+              subtitle={`${user.challengesJoined} challenges`}
+              isCurrentUser={user.address.toLowerCase() === account?.toLowerCase()}
+              delay={index * 100}
+            />
+          ))
+        ) : (
+          <Text className="text-gray-500 text-sm text-center py-4">
+            No activity yet
+                        </Text>
+                      )}
+                        </View>
+                          </View>
+  );
+
+  const renderAnalyticsTab = () => (
+    <View className="space-y-4">
+      {/* Challenge Difficulty Distribution */}
+      <ComparisonChart
+        data={dashboardData.challengeAnalytics?.summary?.difficultyDistribution ? 
+          Object.entries(dashboardData.challengeAnalytics.summary.difficultyDistribution).map(([difficulty, count]) => ({
+            name: difficulty,
+            value: count,
+            color: difficulty === 'Easy' ? '#10b981' : difficulty === 'Medium' ? '#f59e0b' : '#ef4444'
+          })) : []
+        }
+        title="Challenge Difficulty Distribution"
+        delay={0}
+      />
+
+      {/* Analytics Stats */}
+      <View className="flex-row space-x-3">
+        <View className="flex-1">
+          <LiveStatsCard
+            title="Avg Completion"
+            value={`${dashboardData.challengeAnalytics?.summary?.avgCompletionRate || '0.0'}%`}
+            subtitle="Success Rate"
+            icon="📊"
+            color="#8b5cf6"
+            delay={100}
+          />
+        </View>
+        <View className="flex-1">
+          <LiveStatsCard
+            title="Avg Stake"
+            value={`${dashboardData.challengeAnalytics?.summary?.avgStakeAmount || '0.0000'} ETH`}
+            subtitle="Per Challenge"
+            icon="💎"
+            color="#f59e0b"
+            delay={200}
+                        />
+                      </View>
+                      </View>
+
+      {/* Challenge Analytics Table */}
+      <View className="bg-white/95 backdrop-blur-xl rounded-2xl p-4 shadow-lg">
+        <Text className="text-gray-700 font-bold text-lg mb-3">📋 Challenge Analytics</Text>
+        <ScrollView style={{ maxHeight: 300 }}>
+          {dashboardData.challengeAnalytics?.challenges?.length > 0 ? (
+            dashboardData.challengeAnalytics.challenges.map((challenge, index) => (
+              <View key={challenge.challengeId} className="bg-gray-50 p-3 rounded-lg mb-2">
+                            <Text className="text-gray-900 font-semibold text-sm mb-1">
+                  Challenge #{challenge.challengeId}
+                            </Text>
+                <Text className="text-gray-600 text-xs mb-2" numberOfLines={2}>
+                  {challenge.description}
+                </Text>
+                <View className="flex-row justify-between">
+                            <Text className="text-gray-500 text-xs">
+                    {challenge.participantCount} participants
+                            </Text>
+                  <Text className="text-gray-500 text-xs">
+                    {challenge.completionRate}% completion
+                  </Text>
+                  <Text className={`text-xs font-bold ${
+                    challenge.difficulty === 'Easy' ? 'text-green-600' :
+                    challenge.difficulty === 'Medium' ? 'text-yellow-600' : 'text-red-600'
+                  }`}>
+                    {challenge.difficulty}
+                  </Text>
+                              </View>
+                          </View>
+            ))
+                ) : (
+            <Text className="text-gray-500 text-sm text-center py-4">
+              No challenge data available
+                    </Text>
+                )}
+        </ScrollView>
+              </View>
+    </View>
+  );
+
   // Show loading only if we're still loading essential data
   const isLoading = loading && !(dataLoaded.wallet && dataLoaded.challenges && dataLoaded.strava);
 
@@ -455,10 +804,41 @@ const Profile = () => {
         className="flex-1 items-center justify-center"
       >
         <ActivityIndicator size="large" color="#fff" />
-        <Text className="text-white text-base mt-3">Loading profile...</Text>
+        <Text className="text-white text-base mt-3">Loading dashboard...</Text>
       </LinearGradient>
     );
   }
+
+  // Tab navigation component
+  const TabButton = ({ tab, label, icon, isActive, onPress }) => (
+                <TouchableOpacity
+      onPress={() => setActiveTab(tab)}
+      className={`flex-1 items-center py-3 px-2 rounded-lg mx-1 ${
+        isActive ? 'bg-white/20' : 'bg-white/5'
+      }`}
+    >
+      <Text className="text-2xl mb-1">{icon}</Text>
+      <Text className={`text-white font-bold text-xs ${isActive ? 'text-white' : 'text-white/70'}`}>
+        {label}
+      </Text>
+                </TouchableOpacity>
+  );
+
+  // Render tab content
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'personal':
+        return renderPersonalTab();
+      case 'system':
+        return renderSystemTab();
+      case 'leaderboard':
+        return renderLeaderboardTab();
+      case 'analytics':
+        return renderAnalyticsTab();
+      default:
+        return renderPersonalTab();
+    }
+  };
 
   return (
     <LinearGradient
@@ -482,305 +862,57 @@ const Profile = () => {
             }}
           >
             {/* Header */}
-            <View className="mb-8 items-center">
-              <View className="bg-white/20 backdrop-blur-xl rounded-full p-6 mb-6 shadow-lg">
-                <Text className="text-6xl">👤</Text>
+            <View className="mb-6 items-center">
+              <View className="bg-white/20 backdrop-blur-xl rounded-full p-6 mb-4 shadow-lg">
+                <Text className="text-6xl">📊</Text>
               </View>
-              <Text className="text-4xl font-black text-white mb-3 text-center">
-                Profile
+              <Text className="text-4xl font-black text-white mb-2 text-center">
+                Web3 Dashboard
               </Text>
               {athlete && (
                 <Text className="text-white/90 text-center text-lg font-bold">
                   {athlete.firstname} {athlete.lastname}
                 </Text>
               )}
+              <Text className="text-white/70 text-center text-sm">
+                Powered by Envio HyperIndex
+              </Text>
             </View>
 
-            {/* Wallet Section */}
-            {walletConnected && (
-              <View className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 shadow-2xl mb-6">
-                <View className="flex-row items-center justify-between mb-5">
-                  <Text className="text-gray-500 text-xs font-bold uppercase tracking-wider">
-                    Wallet Information
-                  </Text>
-                  <View className="bg-green-500/20 px-3 py-1.5 rounded-full border border-green-500/30">
-                    <Text className="text-green-700 text-xs font-bold">● Connected</Text>
-                  </View>
-                </View>
+            {/* Tab Navigation */}
+            <View className="flex-row mb-6 bg-white/10 backdrop-blur-xl rounded-2xl p-2">
+              <TabButton
+                tab="personal"
+                label="Personal"
+                icon="👤"
+                isActive={activeTab === 'personal'}
+                onPress={() => setActiveTab('personal')}
+              />
+              <TabButton
+                tab="system"
+                label="System"
+                icon="🌐"
+                isActive={activeTab === 'system'}
+                onPress={() => setActiveTab('system')}
+              />
+              <TabButton
+                tab="leaderboard"
+                label="Leaders"
+                icon="🏆"
+                isActive={activeTab === 'leaderboard'}
+                onPress={() => setActiveTab('leaderboard')}
+              />
+              <TabButton
+                tab="analytics"
+                label="Analytics"
+                icon="📈"
+                isActive={activeTab === 'analytics'}
+                onPress={() => setActiveTab('analytics')}
+              />
+            </View>
 
-                <InfoRow label="Address" value={formatAddress(walletAddress)} />
-                <InfoRow label="Balance" value={`${balance} ETH`} icon="💰" />
-                
-                {/* Test Envio Services Button */}
-                <TouchableOpacity
-                  className="bg-blue-500 px-4 py-2 rounded-lg mt-3"
-                  onPress={testEnvioServices}
-                >
-                  <Text className="text-white font-bold text-center text-sm">
-                    Test Envio Services
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* Challenge Statistics - Enhanced with Individual Envio Data */}
-            {walletConnected && (
-              <View className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 shadow-2xl mb-6">
-                <View className="flex-row items-center justify-between mb-5">
-                  <Text className="text-gray-500 text-xs font-bold uppercase tracking-wider">
-                    Challenge Statistics
-                  </Text>
-                  <Text className="text-purple-600 text-2xl">🏆</Text>
-                </View>
-
-                <StatCard icon="🎯" label="Created" value={challengeStats.created} />
-                <StatCard icon="🏃" label="Participated" value={challengeStats.participated} />
-                <StatCard icon="⚡" label="Active" value={challengeStats.active} />
-                <StatCard icon="💰" label="Won" value={challengeStats.won} />
-                <StatCard icon="📊" label="Tasks Completed" value={challengeStats.tasksCompleted} />
-                
-                <InfoRow 
-                  label="Total Winnings" 
-                  value={`${challengeStats.totalWinnings} ETH`} 
-                  highlight 
-                />
-                
-                {/* Enhanced Performance Metrics */}
-                <View className="border-t border-gray-200 mt-4 pt-4">
-                  <Text className="text-gray-700 font-bold text-sm mb-3">📈 Performance Metrics:</Text>
-                  
-                  <InfoRow 
-                    label="Total Distance Completed" 
-                    value={`${challengeStats.totalDistanceCompleted} km`} 
-                    icon="📏"
-                  />
-                  <InfoRow 
-                    label="Total Time Invested" 
-                    value={challengeStats.totalDurationCompleted} 
-                    icon="⏱️"
-                  />
-                  <InfoRow 
-                    label="Avg Distance per Task" 
-                    value={`${challengeStats.averageDistancePerTask} km`} 
-                    icon="📊"
-                  />
-                </View>
-
-                {/* System Overview */}
-                <View className="border-t border-gray-200 mt-4 pt-4">
-                  <Text className="text-gray-700 font-bold text-sm mb-3">🌐 System Overview:</Text>
-                  
-                  <InfoRow 
-                    label="Total Challenges" 
-                    value={challengeStats.totalChallengesInSystem} 
-                    icon="🎯"
-                  />
-                  <InfoRow 
-                    label="Finalized Challenges" 
-                    value={challengeStats.finalizedChallengesCount} 
-                    icon="✅"
-                  />
-                </View>
-                
-                {/* Recent Tasks */}
-                {challengeStats.recentTasks.length > 0 && (
-                  <View className="border-t border-gray-200 mt-4 pt-4">
-                    <Text className="text-gray-700 font-bold text-sm mb-3">📝 Recent Tasks:</Text>
-                    {challengeStats.recentTasks.map((task, index) => (
-                      <View key={index} className="bg-gray-50 p-3 rounded-lg mb-2">
-                        <Text className="text-gray-900 font-semibold text-sm">
-                          Challenge #{task.challengeId}
-                        </Text>
-                        <Text className="text-gray-500 text-xs">
-                          Distance: {formatDistance(parseInt(task.distance))} km • 
-                          Duration: {formatDuration(parseInt(task.duration))}
-                        </Text>
-                        <Text className="text-gray-400 text-xs mt-1">
-                          {new Date(parseInt(task.completionTimestamp) * 1000).toLocaleDateString()}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
-                
-                {challengeStats.created === 0 && challengeStats.participated === 0 && (
-                  <View className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <Text className="text-gray-500 text-sm text-center">
-                      No challenge data found. Join or create your first challenge!
-                    </Text>
-                  </View>
-                )}
-              </View>
-            )}
-
-            {/* Strava Section */}
-            {stravaConnected && (
-              <View className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 shadow-2xl mb-6">
-                <View className="flex-row items-center justify-between mb-5">
-                  <Text className="text-gray-500 text-xs font-bold uppercase tracking-wider">
-                    Strava Profile
-                  </Text>
-                  <View className="bg-orange-500/20 px-3 py-1.5 rounded-full border border-orange-500/30">
-                    <Text className="text-orange-700 text-xs font-bold">● Connected</Text>
-                  </View>
-                </View>
-
-                {athlete ? (
-                  <>
-                    {/* Athlete Profile Card */}
-                    <View className="bg-gradient-to-r from-orange-50 to-red-50 p-5 rounded-2xl mb-4">
-                      <View className="flex-row items-center mb-3">
-                        {athlete.profile && (
-                          <View className="w-16 h-16 rounded-full overflow-hidden mr-4 border-2 border-orange-200">
-                            <Image 
-                              source={{ uri: athlete.profile }} 
-                              className="w-full h-full"
-                              resizeMode="cover"
-                            />
-                          </View>
-                        )}
-                        <View className="flex-1">
-                          <Text className="text-gray-900 font-black text-2xl mb-1">
-                            {athlete.firstname} {athlete.lastname}
-                          </Text>
-                          {athlete.username && (
-                            <Text className="text-orange-600 font-bold text-base mb-1">
-                              @{athlete.username}
-                            </Text>
-                          )}
-                          <Text className="text-gray-500 text-sm">
-                            {athlete.athlete_type === 1 ? '🏃 Runner' : '🚴 Cyclist'}
-                          </Text>
-                        </View>
-                      </View>
-                      
-                      {athlete.city && athlete.country && (
-                        <Text className="text-gray-500 text-sm mb-2">
-                          📍 {athlete.city}, {athlete.country}
-                        </Text>
-                      )}
-                      
-                      <View className="flex-row items-center justify-between mt-3">
-                        <View className="flex-row items-center">
-                          <Text className="text-gray-600 text-sm mr-4">
-                            👥 {athlete.follower_count || 0} followers
-                          </Text>
-                          <Text className="text-gray-600 text-sm">
-                            🤝 {athlete.friend_count || 0} friends
-                          </Text>
-                        </View>
-                        {athlete.premium && (
-                          <View className="bg-orange-500 px-2 py-1 rounded-full">
-                            <Text className="text-white text-xs font-bold">PREMIUM</Text>
-                          </View>
-                        )}
-                      </View>
-                    </View>
-
-                    {/* Strava Stats */}
-                    {stravaStats.totalActivities > 0 ? (
-                      <View className="border-t border-gray-200 pt-4 mt-2">
-                        <Text className="text-gray-700 font-bold text-sm mb-3">📊 Activity Statistics:</Text>
-                        
-                        <InfoRow 
-                          label="Total Distance (Last 10)" 
-                          value={`${formatDistance(stravaStats.totalDistance)} km`} 
-                          icon="📏"
-                        />
-                        <InfoRow 
-                          label="Average Speed" 
-                          value={`${formatSpeed(stravaStats.avgSpeed)} km/h`} 
-                          icon="⚡"
-                        />
-                        <InfoRow 
-                          label="Max Speed" 
-                          value={`${formatSpeed(stravaStats.maxSpeed)} km/h`} 
-                          icon="🚀"
-                        />
-                        <InfoRow 
-                          label="Activities Tracked" 
-                          value={stravaStats.totalActivities} 
-                          icon="🏃"
-                        />
-                      </View>
-                    ) : (
-                      <View className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                        <Text className="text-gray-500 text-sm text-center">
-                          No Strava activities found. Start tracking your workouts!
-                        </Text>
-                      </View>
-                    )}
-
-                    {/* Clubs Section */}
-                    {athlete.clubs && athlete.clubs.length > 0 && (
-                      <View className="border-t border-gray-200 pt-4 mt-2">
-                        <Text className="text-gray-700 font-bold text-sm mb-3">🏃‍♂️ Clubs:</Text>
-                        {athlete.clubs.slice(0, 2).map((club, index) => (
-                          <View key={club.id} className="bg-gray-50 p-3 rounded-lg mb-2">
-                            <Text className="text-gray-900 font-semibold text-sm mb-1">
-                              {club.name}
-                            </Text>
-                            <Text className="text-gray-500 text-xs">
-                              {club.city}, {club.country} • {club.member_count} members
-                            </Text>
-                            {club.admin && (
-                              <View className="bg-orange-100 px-2 py-1 rounded-full self-start mt-1">
-                                <Text className="text-orange-700 text-xs font-bold">Admin</Text>
-                              </View>
-                            )}
-                          </View>
-                        ))}
-                      </View>
-                    )}
-                  </>
-                ) : (
-                  <View className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <Text className="text-gray-500 text-sm text-center">
-                      Could not load Strava profile data
-                    </Text>
-                  </View>
-                )}
-              </View>
-            )}
-
-            {/* Recent Activities List */}
-            {stravaConnected && stravaStats.recentActivities.length > 0 && (
-              <View className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 shadow-2xl mb-6">
-                <Text className="text-gray-900 font-bold text-lg mb-4">
-                  Recent Activities 🏃
-                </Text>
-
-                <View className="space-y-3">
-                  {stravaStats.recentActivities.map((activity, index) => (
-                    <ActivityCard key={activity.id} activity={activity} index={index} />
-                  ))}
-                </View>
-              </View>
-            )}
-
-            {/* Not Connected States */}
-            {!walletConnected && !stravaConnected && (
-              <View className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 shadow-2xl mb-6">
-                <Text className="text-gray-700 font-bold text-center mb-4">
-                  Connect Your Accounts
-                </Text>
-                <Text className="text-gray-500 text-sm text-center mb-4">
-                  Connect your wallet and Strava account to see your full profile
-                </Text>
-                <TouchableOpacity
-                  className="bg-purple-600 px-6 py-3 rounded-xl mb-3"
-                  onPress={() => navigation.navigate('ConnectWallet')}
-                >
-                  <Text className="text-white font-bold text-center">Connect Wallet</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  className="bg-orange-500 px-6 py-3 rounded-xl"
-                  onPress={() => navigation.navigate('ConnectStrava')}
-                >
-                  <Text className="text-white font-bold text-center">Connect Strava</Text>
-                </TouchableOpacity>
-              </View>
-            )}
+            {/* Tab Content */}
+            {renderTabContent()}
 
             {/* Back Button */}
             <TouchableOpacity
@@ -797,103 +929,5 @@ const Profile = () => {
     </LinearGradient>
   );
 };
-
-// Helper Components
-function InfoRow({ label, value, icon, highlight }) {
-  return (
-    <View className={`flex-row items-center justify-between py-3 border-b border-gray-200 ${highlight ? 'bg-green-50 px-3 rounded-lg' : ''}`}>
-      <View className="flex-row items-center flex-1">
-        {icon && <Text className="text-lg mr-2">{icon}</Text>}
-        <Text className={`text-gray-700 font-semibold text-sm ${highlight ? 'font-bold' : ''}`}>
-          {label}
-        </Text>
-      </View>
-      <Text className={`text-gray-900 font-bold text-sm ${highlight ? 'text-green-700' : ''}`}>
-        {value}
-      </Text>
-    </View>
-  );
-}
-
-function StatCard({ icon, label, value }) {
-  return (
-    <View className="flex-row items-center justify-between py-3 border-b border-gray-200">
-      <View className="flex-row items-center">
-        <Text className="text-2xl mr-3">{icon}</Text>
-        <Text className="text-gray-700 font-semibold text-sm">{label}</Text>
-      </View>
-      <Text className="text-purple-600 font-black text-lg">{value}</Text>
-    </View>
-  );
-}
-
-function ActivityCard({ activity, index }) {
-  const formatDistance = (distance) => {
-    return (distance / 1000).toFixed(2);
-  };
-
-  const formatDuration = (seconds) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
-    }
-    return `${minutes}m`;
-  };
-
-  const getActivityIcon = (type) => {
-    const icons = {
-      'Run': '🏃',
-      'Ride': '🚴',
-      'Walk': '🚶',
-      'Swim': '🏊',
-      'Hike': '🥾',
-      'Workout': '💪',
-    };
-    return icons[type] || '🏃';
-  };
-
-  return (
-    <View className="bg-gray-50 p-4 rounded-xl mb-2 border border-gray-200">
-      <View className="flex-row items-start justify-between mb-2">
-        <View className="flex-1">
-          <View className="flex-row items-center mb-1">
-            <Text className="text-base mr-2">{getActivityIcon(activity.type)}</Text>
-            <Text className="text-gray-900 font-bold text-base flex-1" numberOfLines={1}>
-              {activity.name}
-            </Text>
-          </View>
-          <Text className="text-gray-500 text-xs">
-            {new Date(activity.start_date).toLocaleDateString('en-US', {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric'
-            })}
-          </Text>
-        </View>
-      </View>
-      
-      <View className="flex-row items-center justify-between pt-2 border-t border-gray-200">
-        <View className="flex-row items-center">
-          <View className="bg-blue-100 px-3 py-1 rounded-full mr-2">
-            <Text className="text-blue-700 text-xs font-bold">
-              {formatDistance(activity.distance)} km
-            </Text>
-          </View>
-          <View className="bg-purple-100 px-3 py-1 rounded-full">
-            <Text className="text-purple-700 text-xs font-bold">
-              {formatDuration(activity.moving_time)}
-            </Text>
-          </View>
-        </View>
-        {activity.average_speed && (
-          <Text className="text-gray-500 text-xs">
-            ⚡ {(activity.average_speed * 3.6).toFixed(1)} km/h
-          </Text>
-        )}
-      </View>
-    </View>
-  );
-}
 
 export default Profile;

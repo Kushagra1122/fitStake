@@ -54,7 +54,7 @@ export default function Challenge() {
     try {
       // Try to fetch from Envio service first
       const envioChallenge = await getChallengeByIdEnvio(initialChallenge.id);
-      
+      console.log('🔍 Envio challenge:', envioChallenge);
       if (envioChallenge) {
         // Use Envio data if available
         setChallenge(envioChallenge);
@@ -71,6 +71,7 @@ export default function Challenge() {
         // Fallback to contract if Envio data not available
         const provider = getProvider();
         const updatedChallenge = await getChallengeById(provider, initialChallenge.id);
+        console.log('🔍 Updated challenge:', updatedChallenge);
         setChallenge(updatedChallenge);
         
         // Fetch participants
@@ -176,17 +177,49 @@ export default function Challenge() {
 
   const checkIfActive = (challengeData) => {
     const now = Math.floor(Date.now() / 1000);
-    const endTime = challengeData.endTime;
-    setIsActive(endTime && endTime > now);
+    const endTime = challengeData.deadline || challengeData.endTime;
+    
+    if (!endTime) {
+      setIsActive(false);
+      return;
+    }
+    
+    // Handle different timestamp formats
+    let endTimestamp;
+    if (typeof endTime === 'string') {
+      endTimestamp = Math.floor(new Date(endTime).getTime() / 1000);
+    } else if (endTime > 1000000000000) {
+      // If timestamp is in milliseconds
+      endTimestamp = Math.floor(endTime / 1000);
+    } else {
+      // If timestamp is in seconds
+      endTimestamp = endTime;
+    }
+    
+    setIsActive(endTimestamp > now);
   };
 
   const formatDate = (timestamp) => {
     if (!timestamp) return 'N/A';
-    const date = new Date(timestamp * 1000);
+    
+    // Handle both timestamp formats (seconds or milliseconds)
+    let date;
+    if (typeof timestamp === 'string') {
+      date = new Date(timestamp);
+    } else if (timestamp > 1000000000000) {
+      // If timestamp is in milliseconds
+      date = new Date(timestamp);
+    } else {
+      // If timestamp is in seconds
+      date = new Date(timestamp * 1000);
+    }
+    
     return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     });
   };
 
@@ -277,16 +310,17 @@ export default function Challenge() {
             
             <View className="space-y-3">
               <DetailRow label="Stake Amount (Each)" value={`${challenge.stakeAmount} ETH`} />
-              <DetailRow label="Start Date" value={formatDate(challenge.startTime)} />
-              <DetailRow label="End Date" value={formatDate(challenge.endTime)} />
+              <DetailRow label="Start Date" value={formatDate(challenge.startDate || challenge.startTime)} />
+              <DetailRow label="End Date" value={formatDate(challenge.deadline || challenge.endTime)} />
               <DetailRow 
                 label="Is Active" 
                 value={isActive ? 'Yes' : 'No'} 
                 valueColor={isActive ? 'text-green-600' : 'text-red-600'}
               />
               <DetailRow label="Total Distance" value={`${challenge.targetDistance} ${challenge.unit || 'km'}`} />
-              <DetailRow label="Days" value={`${challenge.duration || 'N/A'} days`} />
+              <DetailRow label="Duration" value={`${challenge.duration || 'N/A'} days`} />
               <DetailRow label="Activity Type" value={challenge.activityType || 'N/A'} />
+              <DetailRow label="Participants" value={`${challenge.participants || participants.length}`} />
             </View>
           </View>
 
@@ -363,9 +397,21 @@ function ParticipantCard({ participant, index, isCurrentUser }) {
       {/* User Address */}
       <View className="flex-row items-center justify-between mb-2">
         <View className="flex-1">
-          <Text className="text-purple-600 font-bold text-base">
-            {isCurrentUser ? 'You' : `Participant ${index + 1}`}
-          </Text>
+          <View className="flex-row items-center">
+            <Text className="text-purple-600 font-bold text-base">
+              {isCurrentUser ? 'You' : `Participant ${index + 1}`}
+            </Text>
+            {isCurrentUser ? (
+              <TouchableOpacity
+                className="ml-2 bg-blue-500 px-2 py-1 rounded"
+                onPress={() => {
+                  console.log('Verify activity:', participant);
+                }}
+              >
+                <Text className="text-white text-xs font-semibold">Verify</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
           <Text className="text-gray-500 text-xs mt-1">
             {formatAddress(participant.address)}
           </Text>
