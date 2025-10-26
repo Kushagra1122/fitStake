@@ -88,12 +88,14 @@ export default function Home({ navigation }) {
       <StatusBar style="dark" />
       {/* Header */}
       <LinearGradient
-        colors={["#ffffff", "#f8fafc"]}
-        className="pt-16 pb-5 px-6 shadow-sm border-b border-gray-100"
+        colors={["#ffffff", "#fdf2f8", "#ffffff"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        className="pt-16 pb-5 px-6 shadow-sm border-b border-pink-100"
       >
         <View className="flex-row items-center justify-between">
           <View className="flex-1">
-            <Text className="text-gray-600 text-sm font-medium mb-1">
+            <Text className="text-pink-600 text-sm font-medium mb-1">
               Welcome back
             </Text>
             <View className="flex-row items-center justify-between">
@@ -103,21 +105,21 @@ export default function Home({ navigation }) {
                     ? `${account.slice(0, 6)}...${account.slice(-4)}`
                     : "User"}
                 </Text>
-                <View className="bg-green-50 px-3 py-1.5 rounded-full border border-green-200">
+                <View className="bg-white px-3 py-1.5 rounded-full border border-pink-200 shadow-sm">
                   <View className="flex-row items-center">
-                    <View className="w-2 h-2 bg-green-500 rounded-full mr-2" />
-                    <Text className="text-green-700 text-xs font-semibold">
+                    <View className="w-2 h-2 bg-pink-500 rounded-full mr-2" />
+                    <Text className="text-pink-700 text-xs font-semibold">
                       Connected
                     </Text>
                   </View>
                 </View>
               </View>
               <TouchableOpacity
-                className="w-10 h-10 bg-gray-100 rounded-xl border border-gray-200 items-center justify-center"
+                className="w-10 h-10 bg-white rounded-xl border border-pink-200 items-center justify-center shadow-sm"
                 activeOpacity={0.8}
                 onPress={handleDisconnect}
               >
-                <Ionicons name="log-out-outline" size={20} color="#6B7280" />
+                <Ionicons name="log-out-outline" size={20} color="#EC4899" />
               </TouchableOpacity>
             </View>
           </View>
@@ -198,7 +200,7 @@ export default function Home({ navigation }) {
                   your health goals with blockchain-powered accountability.
                 </Text>
 
-                <View className="space-y-4">
+                <View className="space-y-5">
                   <FeatureCard
                     icon={
                       <Ionicons name="person-outline" size={22} color="white" />
@@ -208,6 +210,7 @@ export default function Home({ navigation }) {
                     gradient={["#4B5563", "#374151"]}
                     onPress={() => navigation.navigate("Profile")}
                   />
+                  <View/>
                   <FeatureCard
                     icon={
                       <Ionicons name="trophy-outline" size={22} color="white" />
@@ -217,6 +220,7 @@ export default function Home({ navigation }) {
                     gradient={["#8B5CF6", "#7C3AED"]}
                     onPress={() => navigation.navigate("CreateChallenge")}
                   />
+                  <View/>
                   <FeatureCard
                     icon={
                       <FontAwesome5
@@ -230,6 +234,7 @@ export default function Home({ navigation }) {
                     gradient={["#3B82F6", "#2563EB"]}
                     onPress={() => navigation.navigate("JoinChallenge")}
                   />
+                  <View/>
                   <FeatureCard
                     icon={
                       <Ionicons
@@ -243,14 +248,9 @@ export default function Home({ navigation }) {
                     gradient={["#10B981", "#059669"]}
                     onPress={() => navigation.navigate("MyChallenges")}
                   />
-                  <FeatureCard
-                    icon={
-                      <MaterialIcons
-                        name="sports-football"
-                        size={22}
-                        color="white"
-                      />
-                    }
+                  <View/>
+                  <FeatureCard 
+                    icon={<FontAwesome5 name="strava" size={22} color="white" />} 
                     title="Connect Strava"
                     description="Integrate your fitness tracking application"
                     gradient={["#F59E0B", "#D97706"]}
@@ -321,9 +321,9 @@ function StatCard({ title, value, subtitle, icon }) {
       style={Platform.select({
         ios: {
           shadowColor: "#000",
-          shadowOpacity: 0.1,
+          shadowOpacity: 0.01,
           shadowRadius: 8,
-          shadowOffset: { width: 0, height: 4 },
+          shadowOffset: { width: 0, height: 2 },
         },
         android: { elevation: 4 },
       })}

@@ -216,7 +216,7 @@ export default function ConnectWallet() {
                   activeOpacity={0.9}
                 >
                   <Text className="text-white font-bold text-lg text-center">
-                    Continue to Dashboard
+                    Continue to Home
                   </Text>
                 </TouchableOpacity>
 
