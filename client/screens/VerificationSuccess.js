@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function VerificationSuccess({ route, navigation }) {
-  const { challenge, activity, transactionHash, etherscanUrl, blockNumber } = route.params;
+  const { challenge, activity, transactionHash, etherscanUrl, blockNumber, completionStatus } = route.params;
 
   const handleViewOnEtherscan = () => {
     if (etherscanUrl) {
@@ -50,7 +50,7 @@ export default function VerificationSuccess({ route, navigation }) {
           <View style={styles.successIcon}>
             <Ionicons name="checkmark-circle" size={80} color="#10B981" />
           </View>
-          <Text style={styles.title}>Challenge Completed! 🎉</Text>
+          <Text style={styles.title}>{completionStatus || 'Challenge Completed! 🎉'}</Text>
           <Text style={styles.subtitle}>
             Your run has been verified and the challenge marked as complete on-chain.
           </Text>

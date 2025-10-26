@@ -322,6 +322,38 @@ export default function Challenge() {
               
               console.log('🔍 Selected activity:', selectedActivity);
               
+              // Check if activity meets the distance requirement
+              const activityDistanceMeters = selectedActivity.distance || 0;
+              const targetDistance = parseFloat(challenge.targetDistance) || 0;
+              const challengeUnit = challenge.unit || 'km';
+              
+              // Convert activity distance to the challenge unit
+              let activityDistanceInUnit;
+              if (challengeUnit.toLowerCase() === 'km') {
+                activityDistanceInUnit = activityDistanceMeters / 1000; // meters to km
+              } else if (challengeUnit.toLowerCase() === 'mi') {
+                activityDistanceInUnit = activityDistanceMeters / 1609.34; // meters to miles
+              } else {
+                activityDistanceInUnit = activityDistanceMeters / 1000; // default to km
+              }
+              
+              console.log('📏 Distance check:', {
+                activityDistanceMeters,
+                activityDistanceInUnit,
+                targetDistance,
+                unit: challengeUnit
+              });
+              
+              // Check if activity meets requirements
+              if (activityDistanceInUnit < targetDistance) {
+                Alert.alert(
+                  'Distance Not Met ⚠️',
+                  `Your activity distance (${activityDistanceInUnit.toFixed(2)} ${challengeUnit}) does not meet the required distance of ${targetDistance} ${challengeUnit}.\n\nPlease complete a longer activity and try again.`,
+                  [{ text: 'OK' }]
+                );
+                return;
+              }
+              
               // Show loading
               Alert.alert('Verifying...', 'Submitting your activity for verification via Lit Protocol.');
 
@@ -352,17 +384,23 @@ export default function Challenge() {
                 
                 console.log('✅ Verified status updated:', { account, isVerified: true });
 
+                // Determine status message based on whether challenge is fully completed
+                const completionMessage = activityDistanceInUnit >= targetDistance
+                  ? 'Challenge Completed! 🎉'
+                  : 'Challenge Pending';
+                
                 // Success - navigate to verification success screen
                 navigation.navigate('VerificationSuccess', {
                   challenge: challenge,
                   activity: selectedActivity,
                   transactionHash: transactionHash,
                   etherscanUrl: `https://sepolia.etherscan.io/tx/${transactionHash}`,
-                  blockNumber: result.result?.transaction?.blockNumber || 'pending'
+                  blockNumber: result.result?.transaction?.blockNumber || 'pending',
+                  completionStatus: completionMessage
                 });
 
                 Alert.alert(
-                  'Verification Success! 🎉',
+                  completionMessage,
                   `Your activity has been verified on-chain!\n\nTransaction: ${transactionHash.substring(0, 10)}...`
                 );
               } else {
