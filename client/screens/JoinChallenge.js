@@ -7,28 +7,40 @@ import {
   Alert,
   Animated,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 import { useWeb3 } from '../context/Web3Context';
 import { useNavigation } from '@react-navigation/native';
 import { getActiveChallenges, joinChallenge as joinChallengeContract, getContract } from '../services/contract';
 import { getActivityIcon, getDaysLeft, getStatusColor } from '../utils/helpers';
+import { Ionicons, MaterialIcons, FontAwesome5, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 
 export default function JoinChallenge() {
   const navigation = useNavigation();
   const { account, isConnected, getSigner, getProvider, getWalletConnectInfo } = useWeb3();
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
 
   const [challenges, setChallenges] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [joiningId, setJoiningId] = useState(null);
 
   useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 600,
-      useNativeDriver: true,
-    }).start();
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        tension: 30,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
 
     loadChallenges();
   }, []);
@@ -39,13 +51,11 @@ export default function JoinChallenge() {
       const provider = getProvider();
       const challengesList = await getActiveChallenges(provider);
       
-      // Add activity icons to each challenge
       const challengesWithIcons = challengesList.map(challenge => ({
         ...challenge,
         icon: getActivityIcon(challenge.activityType),
       }));
       
-      // Filter out challenges the user has already joined
       const availableChallenges = await filterUserChallenges(challengesWithIcons, provider);
       
       setChallenges(availableChallenges);
@@ -59,26 +69,23 @@ export default function JoinChallenge() {
 
   const filterUserChallenges = async (challengesList, provider) => {
     if (!account) {
-      return challengesList; // If no account, show all challenges
+      return challengesList;
     }
 
     try {
       const contract = getContract(provider);
       const filteredChallenges = [];
 
-      // Loop through each challenge and check if user is already enrolled
       for (const challenge of challengesList) {
         try {
           const isParticipant = await contract.isParticipant(challenge.id, account);
           console.log(`Challenge ${challenge.id}: User enrolled = ${isParticipant}`);
           
-          // Only add challenges where user is NOT enrolled
           if (!isParticipant) {
             filteredChallenges.push(challenge);
           }
         } catch (error) {
           console.error(`Error checking participation for challenge ${challenge.id}:`, error);
-          // If there's an error checking, include the challenge to be safe
           filteredChallenges.push(challenge);
         }
       }
@@ -87,7 +94,6 @@ export default function JoinChallenge() {
       return filteredChallenges;
     } catch (error) {
       console.error('Error filtering user challenges:', error);
-      // If filtering fails, return all challenges
       return challengesList;
     }
   };
@@ -124,7 +130,7 @@ export default function JoinChallenge() {
                   {
                     text: 'OK',
                     onPress: () => {
-                      loadChallenges(); // Reload to reflect updated participant count
+                      loadChallenges();
                       navigation.navigate('Home');
                     },
                   },
@@ -143,46 +149,87 @@ export default function JoinChallenge() {
   };
 
   return (
-    <LinearGradient
-      colors={['#667eea', '#764ba2']}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      className="flex-1"
-    >
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
-        <Animated.View style={{ opacity: fadeAnim }} className="px-6 pt-16">
-          {/* Header */}
-          <View className="flex-row items-center mb-8">
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              className="bg-white/20 p-3 rounded-xl mr-4"
-            >
-              <Text className="text-white text-xl">←</Text>
-            </TouchableOpacity>
-            <View className="flex-1">
-              <Text className="text-white text-3xl font-black">Join Challenge</Text>
-              <Text className="text-white/70 text-sm mt-1">
-                {challenges.length} available challenges
-              </Text>
-            </View>
-            <TouchableOpacity
-              onPress={loadChallenges}
-              className="bg-white/20 p-3 rounded-xl"
-            >
-              <Text className="text-white text-lg">🔄</Text>
-            </TouchableOpacity>
+    <View className="flex-1 bg-gray-50">
+      <StatusBar style="dark" />
+      
+      {/* Header */}
+      <LinearGradient
+        colors={['#ffffff', '#fdf2f8', '#ffffff']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        className="pt-16 pb-5 px-6 shadow-sm border-b border-pink-100"
+      >
+        <View className="flex-row items-center justify-between">
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            className="w-10 h-10 bg-white rounded-xl border border-pink-200 items-center justify-center shadow-sm"
+            activeOpacity={0.8}
+          >
+            <Ionicons name="arrow-back" size={20} color="#EC4899" />
+          </TouchableOpacity>
+          
+          <View className="flex-1 mx-4">
+            <Text className="text-gray-900 font-bold text-2xl">Join Challenge</Text>
+            <Text className="text-pink-600 text-sm font-medium mt-1">
+              {challenges.length} available challenges
+            </Text>
           </View>
+          
+          <TouchableOpacity
+            onPress={loadChallenges}
+            className="w-10 h-10 bg-white rounded-xl border border-pink-200 items-center justify-center shadow-sm"
+            activeOpacity={0.8}
+          >
+            <Ionicons name="refresh" size={20} color="#EC4899" />
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
 
+      {/* Body */}
+      <ScrollView 
+        className="flex-1" 
+        contentContainerStyle={{ paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <Animated.View
+          style={{
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          }}
+          className="px-6 pt-6"
+        >
           {/* Loading State */}
           {isLoading ? (
-            <View className="bg-white/95 backdrop-blur-xl rounded-3xl p-12 items-center">
-              <ActivityIndicator size="large" color="#667eea" />
+            <View 
+              className="bg-white rounded-2xl p-12 items-center border border-gray-100"
+              style={Platform.select({
+                ios: {
+                  shadowColor: '#000',
+                  shadowOpacity: 0.08,
+                  shadowRadius: 8,
+                  shadowOffset: { width: 0, height: 2 },
+                },
+                android: { elevation: 3 },
+              })}
+            >
+              <ActivityIndicator size="large" color="#EC4899" />
               <Text className="text-gray-600 mt-4 font-medium">Loading challenges...</Text>
             </View>
           ) : challenges.length === 0 ? (
             /* Empty State */
-            <View className="bg-white/95 backdrop-blur-xl rounded-3xl p-8 items-center">
-              <Text className="text-6xl mb-4">🏃</Text>
+            <View 
+              className="bg-white rounded-2xl p-8 items-center border border-gray-100"
+              style={Platform.select({
+                ios: {
+                  shadowColor: '#000',
+                  shadowOpacity: 0.08,
+                  shadowRadius: 8,
+                  shadowOffset: { width: 0, height: 2 },
+                },
+                android: { elevation: 3 },
+              })}
+            >
+              <MaterialCommunityIcons name="run-fast" size={48} color="#EC4899" className="mb-4" />
               <Text className="text-gray-900 font-bold text-xl mb-2">No Available Challenges</Text>
               <Text className="text-gray-600 text-center mb-6">
                 {account ? 
@@ -190,18 +237,20 @@ export default function JoinChallenge() {
                   "Connect your wallet to see available challenges."
                 }
               </Text>
-              <View className="flex-row space-x-3">
+              <View className="w-full flex-row space-x-3">
                 <TouchableOpacity
-                  className="bg-purple-600 px-6 py-3 rounded-xl"
+                  className="flex-1 bg-pink-600 px-6 py-4 rounded-xl shadow-sm"
                   onPress={() => navigation.navigate('CreateChallenge')}
+                  activeOpacity={0.8}
                 >
-                  <Text className="text-white font-bold">Create Challenge</Text>
+                  <Text className="text-white font-bold text-center">Create Challenge</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  className="bg-blue-600 px-6 py-3 rounded-xl"
+                  className="flex-1 bg-blue-600 px-6 py-4 rounded-xl shadow-sm"
                   onPress={loadChallenges}
+                  activeOpacity={0.8}
                 >
-                  <Text className="text-white font-bold">Refresh</Text>
+                  <Text className="text-white font-bold text-center">Refresh</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -222,22 +271,47 @@ export default function JoinChallenge() {
           )}
 
           {/* Info Card */}
-          <View className="bg-white/10 backdrop-blur-xl rounded-2xl p-4 mt-4 border border-white/20">
-            <Text className="text-white font-bold text-sm mb-2">💡 Before you join</Text>
-            <Text className="text-white/80 text-xs leading-5">
-              • Make sure you have enough ETH for the stake{'\n'}
-              • Connect your Strava account to track progress{'\n'}
-              • Complete the target within the time limit{'\n'}
-              • Failed challenges lose the staked amount
-            </Text>
+          <View 
+            className="bg-white rounded-2xl p-5 mt-6 border border-gray-100"
+            style={Platform.select({
+              ios: {
+                shadowColor: '#000',
+                shadowOpacity: 0.08,
+                shadowRadius: 8,
+                shadowOffset: { width: 0, height: 2 },
+              },
+              android: { elevation: 3 },
+            })}
+          >
+            <View className="flex-row items-center mb-3">
+              <Ionicons name="bulb-outline" size={20} color="#EC4899" />
+              <Text className="text-gray-900 font-bold text-base ml-2">Before You Join</Text>
+            </View>
+            <View className="space-y-2">
+              <InfoItem 
+                icon={<MaterialIcons name="attach-money" size={16} color="#EC4899" />} 
+                text="Make sure you have enough ETH for the stake" 
+              />
+              <InfoItem 
+                icon={<FontAwesome5 name="strava" size={16} color="#EC4899" />} 
+                text="Connect your Strava account to track progress" 
+              />
+              <InfoItem 
+                icon={<MaterialCommunityIcons name="clock-outline" size={16} color="#EC4899" />} 
+                text="Complete the target within the time limit" 
+              />
+              <InfoItem 
+                icon={<MaterialIcons name="warning" size={16} color="#EC4899" />} 
+                text="Failed challenges lose the staked amount" 
+              />
+            </View>
           </View>
         </Animated.View>
       </ScrollView>
-    </LinearGradient>
+    </View>
   );
 }
 
-// Challenge Card Component
 function ChallengeCard({ challenge, onJoin, isJoining, daysLeft, index }) {
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -267,34 +341,73 @@ function ChallengeCard({ challenge, onJoin, isJoining, daysLeft, index }) {
       }}
       className="mb-4"
     >
-      <View className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 shadow-xl">
+      <View 
+        className="bg-white rounded-2xl p-6 border border-gray-100"
+        style={Platform.select({
+          ios: {
+            shadowColor: '#000',
+            shadowOpacity: 0.08,
+            shadowRadius: 8,
+            shadowOffset: { width: 0, height: 2 },
+          },
+          android: { elevation: 3 },
+        })}
+      >
         {/* Header */}
         <View className="flex-row items-start justify-between mb-4">
           <View className="flex-1 mr-4">
             <View className="flex-row items-center mb-2">
-              <Text className="text-3xl mr-2">{challenge.icon}</Text>
-              <Text className="text-gray-900 font-black text-lg flex-1">
+              <View className="mr-2">
+                {challenge.icon}
+              </View>
+              <Text className="text-gray-900 font-bold text-lg flex-1">
                 {challenge.name}
               </Text>
             </View>
-            <Text className="text-gray-500 text-xs">
-              by {challenge.creator}
+            <Text className="text-gray-500 text-xs font-medium">
+              by {challenge.creator.slice(0, 6)}...{challenge.creator.slice(-4)}
             </Text>
           </View>
-          <View className={`px-3 py-1 rounded-full ${getStatusColor(daysLeft)}`}>
-            <Text className="text-xs font-bold">{daysLeft}d left</Text>
+          <View className={`px-3 py-1.5 rounded-full ${
+            daysLeft <= 3 ? 'bg-red-100' : 
+            daysLeft <= 7 ? 'bg-orange-100' : 
+            'bg-green-100'
+          }`}>
+            <Text className={`text-xs font-bold ${
+              daysLeft <= 3 ? 'text-red-700' : 
+              daysLeft <= 7 ? 'text-orange-700' : 
+              'text-green-700'
+            }`}>
+              {daysLeft}d left
+            </Text>
           </View>
         </View>
 
         {/* Stats Grid */}
-        <View className="bg-gray-50 rounded-2xl p-4 mb-4">
+        <View className="bg-gray-50 rounded-xl p-4 mb-4">
           <View className="flex-row justify-between mb-3">
-            <StatItem icon="🎯" label="Target" value={`${challenge.targetDistance} ${challenge.unit}`} />
-            <StatItem icon="⏱️" label="Duration" value={`${challenge.duration} days`} />
+            <StatItem 
+              icon={<MaterialIcons name="flag" size={20} color="#EC4899" />} 
+              label="Target" 
+              value={`${challenge.targetDistance} ${challenge.unit}`} 
+            />
+            <StatItem 
+              icon={<Feather name="clock" size={20} color="#EC4899" />} 
+              label="Duration" 
+              value={`${challenge.duration} days`} 
+            />
           </View>
           <View className="flex-row justify-between">
-            <StatItem icon="💰" label="Stake" value={`${challenge.stakeAmount} ETH`} />
-            <StatItem icon="👥" label="Participants" value={challenge.participants} />
+            <StatItem 
+              icon={<FontAwesome5 name="coins" size={20} color="#EC4899" />} 
+              label="Stake" 
+              value={`${challenge.stakeAmount} ETH`} 
+            />
+            <StatItem 
+              icon={<Ionicons name="people" size={20} color="#EC4899" />} 
+              label="Participants" 
+              value={challenge.participants} 
+            />
           </View>
         </View>
 
@@ -307,16 +420,22 @@ function ChallengeCard({ challenge, onJoin, isJoining, daysLeft, index }) {
             </Text>
           </View>
           <View className="bg-gray-200 h-2 rounded-full overflow-hidden">
-            <View
-              className="bg-gradient-to-r from-purple-600 to-pink-600 h-full"
-              style={{ width: `${(challenge.duration - daysLeft) / challenge.duration * 100}%` }}
+            <LinearGradient
+              colors={['#3B82F6', '#8B5CF6']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={{ 
+                width: `${(challenge.duration - daysLeft) / challenge.duration * 100}%`,
+                height: '100%',
+                borderRadius: 9999 
+              }}
             />
           </View>
         </View>
 
         {/* Join Button */}
         <TouchableOpacity
-          className="bg-purple-600 py-5 rounded-2xl shadow-xl border border-purple-700"
+          className="bg-pink-500 py-4 rounded-xl shadow-sm"
           onPress={() => onJoin(challenge)}
           disabled={isJoining}
           activeOpacity={0.8}
@@ -328,7 +447,7 @@ function ChallengeCard({ challenge, onJoin, isJoining, daysLeft, index }) {
             </View>
           ) : (
             <Text className="text-white font-bold text-base text-center">
-              Join Challenge →
+              Join Challenge <Ionicons name="arrow-forward" size={16} color="white" />
             </Text>
           )}
         </TouchableOpacity>
@@ -337,13 +456,25 @@ function ChallengeCard({ challenge, onJoin, isJoining, daysLeft, index }) {
   );
 }
 
-// Stat Item Component
 function StatItem({ icon, label, value }) {
   return (
     <View className="flex-1">
-      <Text className="text-lg mb-1">{icon}</Text>
+      <View className="mb-1">
+        {icon}
+      </View>
       <Text className="text-gray-500 text-xs mb-1">{label}</Text>
       <Text className="text-gray-900 font-bold text-sm">{value}</Text>
+    </View>
+  );
+}
+
+function InfoItem({ icon, text }) {
+  return (
+    <View className="flex-row items-start">
+      <View className="mr-2 mt-0.5">
+        {icon}
+      </View>
+      <Text className="text-gray-600 text-sm flex-1 leading-5">{text}</Text>
     </View>
   );
 }
