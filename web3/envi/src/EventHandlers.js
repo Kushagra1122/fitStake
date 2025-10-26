@@ -2,48 +2,53 @@
  * Please refer to https://docs.envio.dev for a thorough guide on all Envio indexer features
  */
 const {
- ChallengerContract,
+ Challengercc,
 } = require("generated");
 
-ChallengerContract.ChallengeCreated.handler(async ({event, context}) => {
+Challengercc.ChallengeCreated.handler(async ({event, context}) => {
   const entity = {
     id: `${event.chainId}_${event.block.number}_${event.logIndex}`,
     challengeId: event.params.challengeId,
     creator: event.params.creator,
     description: event.params.description,
-    targetDistance: event.params.targetDistance,
     stakeAmount: event.params.stakeAmount,
-    duration: event.params.duration,
+    startTime: event.params.startTime,
+    endTime: event.params.endTime,
+    targetDistance: event.params.targetDistance,
   };
 
-  context.ChallengerContract_ChallengeCreated.set(entity);
+  context.Challengercc_ChallengeCreated.set(entity);
 });
 
 
-ChallengerContract.ChallengeFinalized.handler(async ({event, context}) => {
+Challengercc.ChallengeFinalized.handler(async ({event, context}) => {
   const entity = {
     id: `${event.chainId}_${event.block.number}_${event.logIndex}`,
     challengeId: event.params.challengeId,
-    totalParticipants: event.params.totalParticipants,
-    successfulParticipants: event.params.successfulParticipants,
+    totalWinners: event.params.totalWinners,
+    totalLosers: event.params.totalLosers,
   };
 
-  context.ChallengerContract_ChallengeFinalized.set(entity);
+  context.Challengercc_ChallengeFinalized.set(entity);
 });
 
 
-ChallengerContract.TaskCompleted.handler(async ({event, context}) => {
+Challengercc.TaskCompleted.handler(async ({event, context}) => {
   const entity = {
     id: `${event.chainId}_${event.block.number}_${event.logIndex}`,
     challengeId: event.params.challengeId,
     user: event.params.user,
+    completionTimestamp: event.params.completionTimestamp,
+    distance: event.params.distance,
+    duration: event.params.duration,
+    stravaActivityId: event.params.stravaActivityId,
   };
 
-  context.ChallengerContract_TaskCompleted.set(entity);
+  context.Challengercc_TaskCompleted.set(entity);
 });
 
 
-ChallengerContract.UserJoined.handler(async ({event, context}) => {
+Challengercc.UserJoined.handler(async ({event, context}) => {
   const entity = {
     id: `${event.chainId}_${event.block.number}_${event.logIndex}`,
     challengeId: event.params.challengeId,
@@ -51,18 +56,18 @@ ChallengerContract.UserJoined.handler(async ({event, context}) => {
     stakedAmount: event.params.stakedAmount,
   };
 
-  context.ChallengerContract_UserJoined.set(entity);
+  context.Challengercc_UserJoined.set(entity);
 });
 
 
-ChallengerContract.WinningsDistributed.handler(async ({event, context}) => {
+Challengercc.WinningsDistributed.handler(async ({event, context}) => {
   const entity = {
     id: `${event.chainId}_${event.block.number}_${event.logIndex}`,
     challengeId: event.params.challengeId,
-    user: event.params.user,
+    winner: event.params.winner,
     amount: event.params.amount,
   };
 
-  context.ChallengerContract_WinningsDistributed.set(entity);
+  context.Challengercc_WinningsDistributed.set(entity);
 });
 

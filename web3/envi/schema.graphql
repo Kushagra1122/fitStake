@@ -1,37 +1,42 @@
-type ChallengerContract_ChallengeCreated {
+type Challengercc_ChallengeCreated {
   id: ID!
   challengeId: BigInt!
   creator: String!
   description: String!
-  targetDistance: BigInt!
   stakeAmount: BigInt!
-  duration: BigInt!
+  startTime: BigInt!
+  endTime: BigInt!
+  targetDistance: BigInt!
 }
 
-type ChallengerContract_ChallengeFinalized {
+type Challengercc_ChallengeFinalized {
   id: ID!
   challengeId: BigInt!
-  totalParticipants: BigInt!
-  successfulParticipants: BigInt!
+  totalWinners: BigInt!
+  totalLosers: BigInt!
 }
 
-type ChallengerContract_TaskCompleted {
+type Challengercc_TaskCompleted {
   id: ID!
   challengeId: BigInt!
   user: String!
+  completionTimestamp: BigInt!
+  distance: BigInt!
+  duration: BigInt!
+  stravaActivityId: String!
 }
 
-type ChallengerContract_UserJoined {
+type Challengercc_UserJoined {
   id: ID!
   challengeId: BigInt!
   user: String!
   stakedAmount: BigInt!
 }
 
-type ChallengerContract_WinningsDistributed {
+type Challengercc_WinningsDistributed {
   id: ID!
   challengeId: BigInt!
-  user: String!
+  winner: String!
   amount: BigInt!
 }
 

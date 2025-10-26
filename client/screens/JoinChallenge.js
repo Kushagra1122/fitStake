@@ -316,7 +316,7 @@ function ChallengeCard({ challenge, onJoin, isJoining, daysLeft, index }) {
 
         {/* Join Button */}
         <TouchableOpacity
-          className="bg-gradient-to-r from-purple-600 to-pink-600 py-4 rounded-2xl shadow-lg"
+          className="bg-purple-600 py-5 rounded-2xl shadow-xl border border-purple-700"
           onPress={() => onJoin(challenge)}
           disabled={isJoining}
           activeOpacity={0.8}

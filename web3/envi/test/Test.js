@@ -1,42 +1,43 @@
 
 const assert = require("assert");
 const { TestHelpers } = require("generated");
-const { MockDb, ChallengerContract } = TestHelpers;
+const { MockDb, Challengercc } = TestHelpers;
 
-describe("ChallengerContract contract ChallengeCreated event tests", () => {
+describe("Challengercc contract ChallengeCreated event tests", () => {
   // Create mock db
   const mockDb = MockDb.createMockDb();
 
-  // Creating mock for ChallengerContract contract ChallengeCreated event
-  const event = ChallengerContract.ChallengeCreated.createMockEvent({/* It mocks event fields with default values. You can overwrite them if you need */});
+  // Creating mock for Challengercc contract ChallengeCreated event
+  const event = Challengercc.ChallengeCreated.createMockEvent({/* It mocks event fields with default values. You can overwrite them if you need */});
 
-  it("ChallengerContract_ChallengeCreated is created correctly", async () => {
+  it("Challengercc_ChallengeCreated is created correctly", async () => {
     // Processing the event
-    const mockDbUpdated = await ChallengerContract.ChallengeCreated.processEvent({
+    const mockDbUpdated = await Challengercc.ChallengeCreated.processEvent({
       event,
       mockDb,
     });
 
     // Getting the actual entity from the mock database
-    let actualChallengerContractChallengeCreated = mockDbUpdated.entities.ChallengerContract_ChallengeCreated.get(
+    let actualChallengerccChallengeCreated = mockDbUpdated.entities.Challengercc_ChallengeCreated.get(
       `${event.chainId}_${event.block.number}_${event.logIndex}`
     );
 
     // Creating the expected entity
-    const expectedChallengerContractChallengeCreated = {
+    const expectedChallengerccChallengeCreated = {
       id:`${event.chainId}_${event.block.number}_${event.logIndex}`,
       challengeId: event.params.challengeId,
       creator: event.params.creator,
       description: event.params.description,
-      targetDistance: event.params.targetDistance,
       stakeAmount: event.params.stakeAmount,
-      duration: event.params.duration,
+      startTime: event.params.startTime,
+      endTime: event.params.endTime,
+      targetDistance: event.params.targetDistance,
     };
     // Asserting that the entity in the mock database is the same as the expected entity
     assert.deepEqual(
-      actualChallengerContractChallengeCreated,
-      expectedChallengerContractChallengeCreated,
-      "Actual ChallengerContractChallengeCreated should be the same as the expectedChallengerContractChallengeCreated"
+      actualChallengerccChallengeCreated,
+      expectedChallengerccChallengeCreated,
+      "Actual ChallengerccChallengeCreated should be the same as the expectedChallengerccChallengeCreated"
     );
   });
 });
