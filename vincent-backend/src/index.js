@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const { ethers } = require('ethers');
 const { bundledVincentAbility } = require('ability-verify-strava');
-const { bundledVincentAbility: bundledAutoStakeAbility } = require('ability-auto-stake');
+const { bundledVincentAbility: bundledAutoStakeAbility } = require('@sogalabhi/ability-automatic-stake');
 const { LitNodeClientNodeJs } = require('@lit-protocol/lit-node-client-nodejs');
 // Use dynamic import to handle Node.js compatibility
 let getVincentAbilityClient;

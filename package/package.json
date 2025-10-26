@@ -1,0 +1,52 @@
+{
+  "name": "@sogalabhi/ability-automatic-stake",
+  "version": "1.1.4",
+  "description": "Vincent ability to automatically stake user deposits to fitness challenges on behalf of users",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "vincentMetadata": "./vincent-ability-metadata.json",
+  "keywords": [
+    "vincent",
+    "fitness",
+    "staking",
+    "defi",
+    "blockchain",
+    "lit-protocol",
+    "pkp",
+    "automation",
+    "fitness-challenges",
+    "programmable-key-pair"
+  ],
+  "author": "FitStake Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fitstake/vincent-abilities.git",
+    "directory": "packages/ability-auto-stake"
+  },
+  "scripts": {
+    "build": "tsc && copy vincent-ability-metadata.json dist\\vincent-ability-metadata.json",
+    "deploy": "node scripts/deploy-to-ipfs.js",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@lit-protocol/vincent-ability-sdk": "latest",
+    "ethers": "^5.7.2",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "form-data": "^4.0.0",
+    "node-fetch": "^2.7.0",
+    "typescript": "^5.0.0"
+  },
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "vincent-ability-metadata.json",
+    "package.json"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
