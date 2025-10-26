@@ -11,6 +11,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import { useWeb3 } from "../context/Web3Context";
+import { useVincent } from "../context/VincentContext";
 import { getUserChallenges } from "../services/contract";
 import {
   Ionicons,
@@ -23,6 +24,7 @@ const { width, height } = Dimensions.get("window");
 
 export default function Home({ navigation }) {
   const { account, disconnectWallet, getProvider } = useWeb3();
+  const { isAuthenticated } = useVincent();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -255,6 +257,14 @@ export default function Home({ navigation }) {
                     description="Integrate your fitness tracking application"
                     gradient={["#F59E0B", "#D97706"]}
                     onPress={() => navigation.navigate("ConnectStrava")}
+                  />
+                  <View/>
+                  <FeatureCard 
+                    icon={<Ionicons name="shield-checkmark" size={22} color="white" />} 
+                    title={isAuthenticated ? "Vincent Connected" : "Login with Vincent"}
+                    description={isAuthenticated ? "PKP wallet active" : "Enable gasless transactions with PKP"}
+                    gradient={isAuthenticated ? ["#10B981", "#059669"] : ["#EC4899", "#DB2777"]}
+                    onPress={() => navigation.navigate("VincentLogin")}
                   />
                 </View>
               </View>

@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Web3Provider } from './context/Web3Context';
 import { StravaProvider } from './context/StravaContext';
+import { VincentProvider } from './context/VincentContext';
 import ConnectWallet from './screens/ConnectWallet';
 import Home from './screens/Home';
 import CreateChallenge from './screens/CreateChallenge';
@@ -12,6 +13,7 @@ import Challenge from './screens/Challange';
 import ConnectStrava from './screens/ConnectStrava';
 import Profile from './screens/Profile';
 import VerificationSuccess from './screens/VerificationSuccess';
+import VincentLogin from './screens/VincentLogin';
 
 const Stack = createNativeStackNavigator();
 
@@ -27,6 +29,7 @@ const linking = {
       JoinChallenge: 'join-challenge',
       MyChallenges: 'my-challenges',
       Challenge: 'challenge',
+      VincentLogin: 'vincent-callback',
     },
   },
 };
@@ -35,19 +38,22 @@ export default function App() {
   return (
     <Web3Provider>
       <StravaProvider>
-        <NavigationContainer linking={linking}>
-          <Stack.Navigator initialRouteName="ConnectWallet" screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="ConnectWallet" component={ConnectWallet} />
-            <Stack.Screen name="Home" component={Home} />
-            <Stack.Screen name="CreateChallenge" component={CreateChallenge} />
-            <Stack.Screen name="JoinChallenge" component={JoinChallenge} />
-            <Stack.Screen name="MyChallenges" component={MyChallenges} />
-            <Stack.Screen name="Challenge" component={Challenge} />
-            <Stack.Screen name="ConnectStrava" component={ConnectStrava} />
-            <Stack.Screen name="Profile" component={Profile} />
-            <Stack.Screen name="VerificationSuccess" component={VerificationSuccess} />
-          </Stack.Navigator>
-        </NavigationContainer>
+        <VincentProvider>
+          <NavigationContainer linking={linking}>
+            <Stack.Navigator initialRouteName="ConnectWallet" screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="ConnectWallet" component={ConnectWallet} />
+              <Stack.Screen name="Home" component={Home} />
+              <Stack.Screen name="CreateChallenge" component={CreateChallenge} />
+              <Stack.Screen name="JoinChallenge" component={JoinChallenge} />
+              <Stack.Screen name="MyChallenges" component={MyChallenges} />
+              <Stack.Screen name="Challenge" component={Challenge} />
+              <Stack.Screen name="ConnectStrava" component={ConnectStrava} />
+              <Stack.Screen name="Profile" component={Profile} />
+              <Stack.Screen name="VerificationSuccess" component={VerificationSuccess} />
+              <Stack.Screen name="VincentLogin" component={VincentLogin} />
+            </Stack.Navigator>
+          </NavigationContainer>
+        </VincentProvider>
       </StravaProvider>
     </Web3Provider>
   );

@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const { ethers } = require('ethers');
 const { bundledVincentAbility } = require('ability-verify-strava');
-const { bundledVincentAbility: bundledAutoStakeAbility } = require('@sogalabhi/ability-automatic-stake');
+const { bundledVincentAbility: bundledAutoStakeAbility } = require('@sogalabhi/ability-auto-stake');
 const { LitNodeClientNodeJs } = require('@lit-protocol/lit-node-client-nodejs');
 // Use dynamic import to handle Node.js compatibility
 let getVincentAbilityClient;
@@ -35,6 +35,12 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`📥 ${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
+
 // Configuration
 const VINCENT_APP_ID = process.env.VINCENT_APP_ID || '9593630138';
 const RPC_URL = process.env.RPC_URL || 'https://sepolia.infura.io/v3/fccd5042681c42b598675d08a67dbaa8';
@@ -56,9 +62,14 @@ try {
 // Initialize Vincent Ability Clients with delegatee signer and Lit client
 let vincentAbilityClient;  // For Strava verification
 let autoStakeAbilityClient; // For auto-staking
+let delegateeSigner; // Store for SIWE signature generation
 async function initializeVincentClient() {
   try {
-    const delegateeSigner = new ethers.Wallet(process.env.VINCENT_DELEGATEE_PRIVATE_KEY);
+    const delegateeKey = process.env.VINCENT_DELEGATEE_PRIVATE_KEY;
+    if (!delegateeKey || delegateeKey.includes('<your-delegatee') || delegateeKey === '') {
+      throw new Error('VINCENT_DELEGATEE_PRIVATE_KEY not set or is placeholder in .env');
+    }
+    delegateeSigner = new ethers.Wallet(delegateeKey);
     console.log('🔐 Initializing Vincent Ability Clients with session sig support...');
     console.log('Delegatee Address:', delegateeSigner.address);
     console.log('PKP Address:', process.env.VINCENT_PKP_ADDRESS);
@@ -194,8 +205,8 @@ app.post('/api/deposit-and-stake', async (req, res) => {
     console.log('Stake Amount:', stakeAmount);
     console.log('User Address:', userAddress);
 
-    // Execute auto-stake ability
-    const result = await vincentAbilityClient.execute(
+    // Execute auto-stake ability (FIX: Use correct client)
+    const result = await autoStakeAbilityClient.execute(
       {
         challengeId: parseInt(challengeId),
         userAddress: userAddress,
@@ -243,6 +254,20 @@ app.post('/api/deposit-and-stake', async (req, res) => {
 
 // Auto-stake endpoint using bundled ability
 app.post('/api/auto-stake', async (req, res) => {
+  console.log('📨 Received request at /api/auto-stake');
+  console.log('📦 Request body:', JSON.stringify(req.body, null, 2));
+  
+  // Check for JWT in Authorization header
+  const authHeader = req.headers.authorization;
+  const jwt = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  
+  if (jwt) {
+    console.log('✅ JWT token received from client');
+    console.log('🔑 JWT (first 50 chars):', jwt.substring(0, 50) + '...');
+  } else {
+    console.log('⚠️ No JWT token in request - backend-only execution');
+  }
+  
   try {
     const { challengeId, stakeAmount, userAddress } = req.body;
 
@@ -261,21 +286,14 @@ app.post('/api/auto-stake', async (req, res) => {
       });
     }
 
-    // MOCK MODE: For development/testing without PKP delegation setup
-    if (process.env.VINCENT_MOCK === 'true') {
-      console.log('⚠️  Running in MOCK mode - returning simulated response');
-      return res.json({
-        success: true,
-        message: 'Successfully staked to challenge via Vincent Auto-Stake Ability (MOCK MODE)',
-        transactionHash: '0x' + Math.random().toString(16).substr(2, 64),
-        challengeId: parseInt(challengeId),
-        stakedAmount: stakeAmount,
-        blockNumber: Math.floor(Math.random() * 1000000),
-        userAddress: userAddress,
-        vincentAppId: VINCENT_APP_ID,
-        ipfsCid: bundledAutoStakeAbility.ipfsCid,
-        mode: 'MOCK'
-      });
+    // Note: Removed MOCK mode - this will execute real Vincent ability
+
+    // Validate and normalize stake amount (ETH to Wei conversion)
+    let stakeAmountWei = stakeAmount;
+    if (stakeAmount.includes('.') || parseFloat(stakeAmount) < 1000) {
+      // Likely ETH, convert to Wei
+      stakeAmountWei = ethers.utils.parseEther(stakeAmount.toString()).toString();
+      console.log(`💰 Converted ${stakeAmount} ETH to ${stakeAmountWei} Wei`);
     }
 
     // Prepare ability parameters
@@ -283,7 +301,7 @@ app.post('/api/auto-stake', async (req, res) => {
       challengeId: parseInt(challengeId),
       userAddress: userAddress,
       contractAddress: CONTRACT_ADDRESS,
-      stakeAmount: stakeAmount.toString()
+      stakeAmount: stakeAmountWei
     };
     
     console.log('📦 Ability parameters:', JSON.stringify(abilityParams, null, 2));
@@ -291,13 +309,17 @@ app.post('/api/auto-stake', async (req, res) => {
     console.log('🔐 Delegatee Address:', process.env.VINCENT_DELEGATEE_PRIVATE_KEY ? '0x' + new ethers.Wallet(process.env.VINCENT_DELEGATEE_PRIVATE_KEY).address : 'Not set');
 
     // Execute auto-stake ability with dedicated auto-stake client
-    // Note: For backend-only execution without user JWT, Vincent may still require authSig
-    // If you get capability errors, you may need to authenticate users via Vincent Connect
+    console.log('🔐 Executing with PKP delegation...');
+    
+    // For backend-only execution without user SIWE session, we need to specify the exact resources
+    // that the capability should cover. The wildcard capabilities won't work.
+    console.log('⚠️  Backend-only execution requires Vincent Dashboard policies to be configured');
+    console.log('⚠️  Without proper user SIWE session, capability validation will fail');
+    
     const result = await autoStakeAbilityClient.execute(
       abilityParams,
       {
         delegatorPkpEthAddress: process.env.VINCENT_PKP_ADDRESS,
-        authSig: null, // Backend execution without user auth - may not work depending on PKP setup
         debug: true
       }
     );
@@ -331,9 +353,21 @@ app.post('/api/auto-stake', async (req, res) => {
 
   } catch (error) {
     console.error('❌ Error executing auto-stake:', error);
+    
+    // Check if it's a capability/policy issue
+    if (error.message && error.message.includes('capabilities') || error.message.includes('NodeSIWECapabilityInvalid')) {
+      console.error('⚠️  Capability/Policy Error: PKP may not have proper policies configured in Vincent Dashboard');
+      console.error('💡 Solution: Configure Vincent policies at https://dashboard.heyvincent.ai');
+      console.error('    App ID: 9593630138');
+      console.error('    PKP Address:', process.env.VINCENT_PKP_ADDRESS);
+    }
+    
     res.status(500).json({
       success: false,
       error: error.message,
+      reason: error.message.includes('capabilities') 
+        ? 'PKP policy/authorization issue. Check Vincent Dashboard configuration.' 
+        : error.message,
       stack: error.stack
     });
   }
@@ -393,6 +427,16 @@ app.get('/api/contract-info', async (req, res) => {
       error: error.message
     });
   }
+});
+
+// Test endpoint
+app.get('/test', (req, res) => {
+  console.log('🧪 TEST ENDPOINT HIT!');
+  res.json({ 
+    message: 'Backend is reachable!',
+    timestamp: new Date().toISOString(),
+    vincentAppId: VINCENT_APP_ID
+  });
 });
 
 // Health check

@@ -43,6 +43,17 @@
             }
           ],
           "category": ["BROWSABLE", "DEFAULT"]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "fitstake",
+              "host": "vincent-callback"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
         }
       ]
     },

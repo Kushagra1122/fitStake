@@ -12,6 +12,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useWeb3 } from '../context/Web3Context';
+import { useVincent } from '../context/VincentContext';
 import { useNavigation } from '@react-navigation/native';
 import { getActiveChallenges, joinChallenge as joinChallengeContract, getContract } from '../services/contract';
 import { getActivityIcon, getDaysLeft, getStatusColor } from '../utils/helpers';
@@ -21,6 +22,7 @@ import { Ionicons, MaterialIcons, FontAwesome5, MaterialCommunityIcons, Feather 
 export default function JoinChallenge() {
   const navigation = useNavigation();
   const { account, isConnected, getSigner, getProvider, getWalletConnectInfo } = useWeb3();
+  const { isAuthenticated, jwt } = useVincent();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
@@ -100,82 +102,107 @@ export default function JoinChallenge() {
   };
 
   const handleJoinChallenge = async (challenge) => {
+    console.log('🎯 handleJoinChallenge called for challenge:', challenge.id);
+    console.log('📱 isConnected:', isConnected);
+    console.log('👤 account:', account);
+    
     if (!isConnected) {
       Alert.alert('Error', 'Please connect your wallet first');
       return;
     }
 
-    // Try Vincent auto-stake first, fall back to manual if it fails
-    setJoiningId(challenge.id);
-    try {
-      console.log('🚀 Attempting Vincent auto-stake...');
-      
-      // Try Vincent auto-stake (no user signature needed)
-      const result = await autoStakeToChallenge(
-        challenge.id,
-        challenge.stakeAmount,
-        account
-      );
-      
-      Alert.alert(
-        'Success! 🎉',
-        `You've joined "${challenge.name}" via Vincent!\n\nTransaction: ${result.transactionHash.substring(0, 10)}...${result.transactionHash.substring(result.transactionHash.length - 8)}\n\nNo gas fees! Start tracking your activities on Strava to complete this challenge.`,
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              loadChallenges();
-              navigation.navigate('Home');
-            },
-          },
-        ]
-      );
-    } catch (vincentError) {
-      console.log('⚠️ Vincent auto-stake failed, falling back to manual signing:', vincentError.message);
-      
-      // Fall back to manual wallet signing
-      Alert.alert(
-        'Join Challenge',
-        `Join "${challenge.name}"?\n\nStake: ${challenge.stakeAmount} ETH\nTarget: ${challenge.targetDistance} ${challenge.unit} in ${challenge.duration} days\n\n(Manual signing required)`,
-        [
-          { text: 'Cancel', style: 'cancel', onPress: () => setJoiningId(null) },
-          {
-            text: 'Join & Stake',
-            onPress: async () => {
-              try {
-                const signer = getSigner();
-                const walletConnectInfo = getWalletConnectInfo();
-                const result = await joinChallengeContract(
-                  signer,
-                  challenge.id,
-                  challenge.stakeAmount,
-                  walletConnectInfo
-                );
-                
-                Alert.alert(
-                  'Success! 🎉',
-                  `You've joined "${challenge.name}"!\n\nTransaction: ${result.transactionHash.substring(0, 10)}...${result.transactionHash.substring(result.transactionHash.length - 8)}\n\nStart tracking your activities on Strava to complete this challenge.`,
-                  [
-                    {
-                      text: 'OK',
-                      onPress: () => {
-                        loadChallenges();
-                        navigation.navigate('Home');
-                      },
-                    },
-                  ]
-                );
-              } catch (error) {
-                console.error('Error joining challenge:', error);
-                Alert.alert('Error', error.message || 'Failed to join challenge. Please try again.');
-              } finally {
-                setJoiningId(null);
-              }
-            },
-          },
-        ]
-      );
+    if (!account) {
+      Alert.alert('Error', 'Account not available. Please reconnect your wallet.');
+      return;
     }
+
+    setJoiningId(challenge.id);
+    
+    // Try Vincent auto-stake if logged in, otherwise use manual signing
+    console.log('🔍 Checking Vincent auth...', { isAuthenticated, hasJWT: !!jwt });
+    
+    if (isAuthenticated && jwt) {
+      // Try Vincent auto-stake with JWT
+      try {
+        console.log('🚀 Attempting Vincent auto-stake with JWT...');
+        const result = await autoStakeToChallenge(
+          challenge.id,
+          challenge.stakeAmount,
+          account,
+          jwt
+        );
+        
+        console.log('✅ Vincent auto-stake successful:', result);
+        
+        Alert.alert(
+          'Success! 🎉',
+          `You've joined "${challenge.name}" via Vincent!\n\nNo gas fees!\nTransaction: ${result.transactionHash}`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                loadChallenges();
+                navigation.navigate('Home');
+              },
+            },
+          ]
+        );
+        setJoiningId(null);
+        return;
+      } catch (vincentError) {
+        console.error('⚠️ Vincent auto-stake failed:', vincentError);
+        // Fall through to manual signing
+      }
+    }
+    
+    // Manual signing fallback
+    console.log('💰 Using manual wallet signing to join challenge');
+    
+    Alert.alert(
+      'Join Challenge',
+      `Join "${challenge.name}"?\n\nStake: ${challenge.stakeAmount} ETH\nTarget: ${challenge.targetDistance} ${challenge.unit} in ${challenge.duration} days\n\n⚠️ You'll need to sign with your wallet (pays gas fees)`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => setJoiningId(null)
+        },
+        {
+          text: 'Join & Stake',
+          onPress: async () => {
+            try {
+              const signer = getSigner();
+              const walletConnectInfo = getWalletConnectInfo();
+              const result = await joinChallengeContract(
+                signer,
+                challenge.id,
+                challenge.stakeAmount,
+                walletConnectInfo
+              );
+              
+              Alert.alert(
+                'Success! 🎉',
+                `You've joined "${challenge.name}"!\n\nTransaction: ${result.transactionHash.substring(0, 10)}...${result.transactionHash.substring(result.transactionHash.length - 8)}\n\nStart tracking your activities on Strava to complete this challenge.`,
+                [
+                  {
+                    text: 'OK',
+                    onPress: () => {
+                      loadChallenges();
+                      navigation.navigate('Home');
+                    },
+                  },
+                ]
+              );
+            } catch (error) {
+              console.error('Error joining challenge:', error);
+              Alert.alert('Error', error.message || 'Failed to join challenge. Please try again.');
+            } finally {
+              setJoiningId(null);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -205,13 +232,44 @@ export default function JoinChallenge() {
             </Text>
           </View>
           
-          <TouchableOpacity
-            onPress={loadChallenges}
-            className="w-10 h-10 bg-white rounded-xl border border-pink-200 items-center justify-center shadow-sm"
-            activeOpacity={0.8}
-          >
-            <Ionicons name="refresh" size={20} color="#EC4899" />
-          </TouchableOpacity>
+          <View className="flex-row gap-2">
+            <TouchableOpacity
+              onPress={async () => {
+                console.log('🧪 Testing backend connection...');
+                try {
+                  const url = 'http://10.68.250.64:3001/test';
+                  console.log('Testing URL:', url);
+                  const response = await fetch(url);
+                  const data = await response.json();
+                  console.log('✅ Backend reachable!', data);
+                  Alert.alert(
+                    '✅ Connection Test Passed',
+                    `Backend is reachable!\n\n${JSON.stringify(data, null, 2)}`,
+                    [{ text: 'OK' }]
+                  );
+                } catch (error) {
+                  console.error('❌ Backend not reachable:', error);
+                  Alert.alert(
+                    '❌ Connection Failed',
+                    `Cannot reach backend:\n\n${error.message}\n\nAre you using the right URL?\nCurrent: http://10.68.250.64:3001\n\nCheck: Platform is ${Platform.OS}\n\nMake sure:\n1. Backend is running on port 3001\n2. Phone and computer are on same WiFi\n3. Windows Firewall allows port 3001`,
+                    [{ text: 'OK' }]
+                  );
+                }
+              }}
+              className="w-10 h-10 bg-blue-500 rounded-xl border border-blue-200 items-center justify-center shadow-sm"
+              activeOpacity={0.8}
+            >
+              <Ionicons name="bug" size={18} color="white" />
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              onPress={loadChallenges}
+              className="w-10 h-10 bg-white rounded-xl border border-pink-200 items-center justify-center shadow-sm"
+              activeOpacity={0.8}
+            >
+              <Ionicons name="refresh" size={20} color="#EC4899" />
+            </TouchableOpacity>
+          </View>
         </View>
       </LinearGradient>
 
