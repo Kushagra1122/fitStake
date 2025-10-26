@@ -109,113 +109,226 @@ Traditional fitness apps lack meaningful incentives. Without financial commitmen
 
 ```mermaid
 graph TB
-    subgraph "Mobile Application"
-        MobileApp[Mobile App<br/>React Native<br/>iOS/Android]
-        Screens[UI Screens<br/>Home, Challenges, Profile]
-        Services[Services Layer<br/>Contract, Strava, Oracle]
+    subgraph "Mobile Application - React Native"
+        MobileApp[Mobile App<br/>Expo Framework]
+        subgraph Screens
+            HomeScreen[Home Screen]
+            CreateScreen[Create Challenge]
+            JoinScreen[Join Challenge]
+            ProfileScreen[Profile]
+            ChallengesScreen[My Challenges]
+        end
+        subgraph Services
+            ContractService[Contract Service<br/>ethers.js]
+            StravaService[Strava Service<br/>OAuth & Activities]
+            OracleService[Oracle Service<br/>Verification Client]
+            EnvioService[Envio Service<br/>GraphQL]
+        end
+        subgraph Context
+            Web3Context[Web3 Context<br/>Wallet State]
+            StravaContext[Strava Context<br/>User Activities]
+        end
     end
     
-    subgraph "Blockchain Layer"
-        SmartContract[ChallengeContract.sol<br/>0xe38d8f585936c60ecb7bfae7297457f6a35058bb<br/>Ethereum Sepolia]
+    subgraph "Smart Contract Layer - Ethereum Sepolia"
+        SmartContract[ChallengeContract.sol<br/>0xe38d8f585936c60ecb7bfae7297457f6a35058bb]
+        Events[Contract Events<br/>ChallengeCreated, UserJoined<br/>TaskCompleted, Finalized]
     end
     
     subgraph "Backend Services"
-        OracleBackend[Oracle API Service<br/>Lit Protocol Integration]
-        VincentBackend[Vincent Backend<br/>Ability Verification]
-        OAuthServer[OAuth Server<br/>Strava Authentication]
+        subgraph OAuth
+            OAuthServer[OAuth Server<br/>Express.js :3000]
+        end
+        subgraph Oracle
+            OracleBackend[Oracle Service<br/>Lit Protocol :3000]
+            VincentBackend[Vincent Backend<br/>Ability Verification :3001]
+        end
     end
     
-    subgraph "External APIs"
+    subgraph "External Services"
         StravaAPI[Strava API<br/>Activity Data]
-        LitProtocol[Lit Protocol<br/>Decentralized Oracle]
+        LitNetwork[Lit Protocol Network<br/>PKP Signing]
         EnvioIndexer[Envio Indexer<br/>GraphQL API]
     end
     
     subgraph "Infrastructure"
-        PKPWallet[Programmable Key Pair<br/>Autonomous Signing]
+        PKPWallet[Programmable Key Pair<br/>Autonomous Wallet<br/>PKP Token ID]
+        WalletConnect[WalletConnect<br/>Mobile Wallet Protocol]
+        MetaMask[MetaMask<br/>User Wallet]
     end
     
-    MobileApp -->|WalletConnect Protocol| SmartContract
-    MobileApp -->|OAuth 2.0| OAuthServer
-    OAuthServer -->|OAuth Flow| StravaAPI
-    MobileApp -->|HTTP POST| OracleBackend
-    OracleBackend -->|HTTP GET| StravaAPI
-    OracleBackend -->|PKP Signature| LitProtocol
-    LitProtocol -->|Execute Transaction| SmartContract
-    SmartContract -->|Event Logs| EnvioIndexer
-    MobileApp -->|GraphQL Query| EnvioIndexer
-    VincentBackend -->|Verify Activity| StravaAPI
-    VincentBackend -->|Sign Transaction| SmartContract
+    MobileApp --- MobileApp
+    Screens --- Screens
+    Services --- Services
+    Context --- Context
+    
+    Services -->|Contract Calls| SmartContract
+    Services -->|GraphQL Queries| EnvioIndexer
+    Services -->|OAuth Callback| OAuthServer
+    Services -->|Verify Request| OracleBackend
+    
+    OAuthServer -->|Exchange Token| StravaAPI
+    
+    OracleBackend -->|Fetch Activity| StravaAPI
+    OracleBackend -->|PKP Signing| LitNetwork
+    VincentBackend -->|Fetch Activity| StravaAPI
+    VincentBackend -->|Sign & Execute| SmartContract
+    
+    LitNetwork -->|Autonomous Signing| PKPWallet
+    
+    SmartContract -->|Emit Events| Events
+    Events -->|Index| EnvioIndexer
+    
+    MobileApp -->|WalletConnect| WalletConnect
+    WalletConnect -->|Connect| MetaMask
+    MetaMask -->|Send Transaction| SmartContract
 ```
 
-### Data Flow Sequence
+### Complete System Data Flow
 
 ```mermaid
 sequenceDiagram
-    participant User
-    participant App
-    participant Wallet
-    participant Contract
-    participant Strava
-    participant Oracle
-    participant Indexer
+    participant User as 👤 User
+    participant App as 📱 Mobile App
+    participant Wallet as 💼 MetaMask
+    participant Contract as 🔗 Smart Contract
+    participant Strava as 🏃 Strava API
+    participant Oracle as 🔍 Oracle Service
+    participant Lit as ⚡ Lit Protocol
+    participant Indexer as 📊 Envio Indexer
     
+    rect rgb(220, 237, 255)
+    Note over User,Indexer: Initial Setup Flow
+    User->>App: Open FitStake App
+    App->>Wallet: Connect via WalletConnect
+    Wallet-->>App: Wallet Connected
+    App->>Strava: Initiate OAuth Flow
+    Strava-->>App: Access Token
+    App->>Strava: Fetch User Activities
+    Strava-->>App: Activity List
+    end
+    
+    rect rgb(255, 240, 220)
     Note over User,Indexer: Challenge Creation Flow
-    User->>App: Create Challenge
-    App->>Wallet: Request Transaction
-    Wallet->>Contract: execute createChallenge()
-    Contract-->>App: ChallengeCreated Event
-    Indexer->>Indexer: Index Event
+    User->>App: Tap Create Challenge
+    App->>App: Fill Challenge Details<br/>(distance, stake, duration)
+    App->>Wallet: Sign createChallenge Transaction
+    Wallet->>Wallet: User Confirms
+    Wallet->>Contract: Execute createChallenge()
+    Contract->>Contract: Store Challenge Details
+    Contract-->>App: Emit ChallengeCreated Event
+    App->>Indexer: Query via GraphQL
+    Indexer-->>App: Challenge Data
+    App-->>User: Challenge Created Successfully
+    end
     
+    rect rgb(240, 255, 220)
     Note over User,Indexer: Challenge Join Flow
-    User->>App: Join Challenge
-    App->>Wallet: Sign + Send ETH
-    Wallet->>Contract: execute joinChallenge()
-    Contract->>Contract: Lock Funds
-    Contract-->>App: UserJoined Event
-    Indexer->>Indexer: Index Event
+    User->>App: Browse Challenges
+    App->>Indexer: Query Available Challenges
+    Indexer-->>App: Challenge List
+    User->>App: Select & Join Challenge
+    App->>Contract: Check Required Stake
+    Contract-->>App: Stake Amount
+    App->>Wallet: Request Signature + ETH
+    Wallet->>Wallet: User Approves Payment
+    Wallet->>Contract: Execute joinChallenge() with ETH
+    Contract->>Contract: Lock Funds in Contract
+    Contract->>Contract: Add Participant
+    Contract-->>App: Emit UserJoined Event
+    App->>Indexer: Refresh Challenge Data
+    Indexer-->>App: Updated Participant Count
+    App-->>User: Successfully Joined Challenge
+    end
     
-    Note over User,Indexer: Verification Flow
-    User->>Strava: Record Activity
+    rect rgb(255, 220, 237)
+    Note over User,Indexer: Activity Verification Flow
+    User->>Strava: Record Activity (Run/Walk)
+    Strava->>Strava: Store Activity Data
     User->>App: Request Verification
-    App->>Oracle: Verify Activity
-    Oracle->>Strava: Fetch Activity Data
+    App->>Oracle: POST /verify-strava<br/>(challengeId, userAddress, activityId)
+    Oracle->>Contract: Get Challenge Details
+    Contract-->>Oracle: Challenge Requirements
+    Oracle->>Strava: GET /activities/{id}
     Strava-->>Oracle: Activity Response
-    Oracle->>Oracle: Validate Requirements
-    Oracle->>Contract: markTaskComplete()
-    Contract-->>App: TaskCompleted Event
-    Indexer->>Indexer: Index Event
+    Oracle->>Oracle: Validate Activity Type = Run
+    Oracle->>Oracle: Validate Distance >= Target
+    Oracle->>Oracle: Validate Timestamp Window
+    Oracle->>Lit: Execute Lit Action with PKP
+    Lit->>Lit: PKP Signs Transaction
+    Lit->>Contract: Execute markTaskComplete()
+    Contract->>Contract: Set hasCompleted = true
+    Contract-->>App: Emit TaskCompleted Event
+    App->>Indexer: Query TaskCompleted Events
+    Indexer-->>App: Verification Status
+    App-->>User: Verification Successful
+    end
     
-    Note over User,Indexer: Withdrawal Flow
-    User->>App: Withdraw Winnings
-    App->>Contract: withdrawWinnings()
-    Contract->>User: Transfer ETH
-    Contract-->>App: WinningsDistributed Event
+    rect rgb(220, 255, 240)
+    Note over User,Indexer: Challenge Finalization Flow
+    App->>Contract: Check if EndTime Passed
+    Contract-->>App: EndTime Status
+    User->>App: Tap Finalize Challenge
+    App->>Wallet: Sign finalizeChallenge Transaction
+    Wallet->>Contract: Execute finalizeChallenge()
+    Contract->>Contract: Calculate Winners & Losers
+    Contract->>Contract: Distribute Loser Stakes
+    Contract-->>App: Emit ChallengeFinalized Event
+    App->>Indexer: Query Finalized Challenges
+    Indexer-->>App: Finalization Status
+    App-->>User: Challenge Finalized
+    end
+    
+    rect rgb(255, 255, 220)
+    Note over User,Indexer: Winnings Withdrawal Flow
+    User->>App: Tap Withdraw Winnings
+    App->>Contract: Check hasCompleted & finalized
+    Contract-->>App: Withdrawable Amount
+    App->>Wallet: Sign withdrawWinnings Transaction
+    Wallet->>Contract: Execute withdrawWinnings()
+    Contract->>Contract: Transfer ETH to User
+    Contract-->>App: Emit WinningsDistributed Event
+    App->>Indexer: Query Withdrawal Events
+    Indexer-->>App: Transaction Confirmed
+    App-->>User: Winnings Received
+    end
 ```
 
-### Smart Contract State Machine
+### Challenge Lifecycle State Machine
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Created: createChallenge()
+    [*] --> Created: User calls createChallenge()<br/>Challenge ID assigned<br/>Start & End time set
     
-    Created --> Active: StartTime <= block.timestamp
+    Created --> Active: block.timestamp >= startTime<br/>Challenge accepts participants
     
-    Active --> Joining: joinChallenge() called
-    Joining --> Active: Transaction Pending
+    state Active {
+        [*] --> Waiting: No participants yet
+        Waiting --> Joining: User calls joinChallenge()
+        Joining --> Waiting: Transaction confirmed<br/>Funds locked in contract
+        Waiting --> Enrolling: Multiple users joining
+        Enrolling --> Enrolling: Each join adds participant<br/>Total staked amount increases
+    }
     
-    Active --> Ongoing: EndTime <= block.timestamp<br/>Participants >= 1
+    Active --> Ongoing: block.timestamp <= endTime<br/>AND Participants >= 1
     
-    Ongoing --> Completed: markTaskComplete()<br/>hasCompleted = true
+    state Ongoing {
+        [*] --> Verification
+        Verification --> Completed: Oracle marks TaskComplete<br/>hasCompleted = true<br/>Verifies distance, type, timestamp
+        Verification --> Pending: Waiting for oracle verification
+    }
     
-    Ongoing --> Finalized: EndTime passed<br/>finalizeChallenge() called
+    Ongoing --> Expired: block.timestamp > endTime<br/>No completion yet
     
-    Completed --> Finalized: EndTime passed
+    Completed --> Finalized: block.timestamp > endTime<br/>Admin calls finalizeChallenge()<br/>Calculate winners & losers<br/>Distribute stakes
     
-    Finalized --> Withdrawn: withdrawWinnings()<br/>hasWithdrawn = true
+    Expired --> Finalized: Admin calls finalizeChallenge()<br/>Participants forfeit stakes<br/>No winners to distribute
     
-    Withdrawn --> [*]
-    Finalized --> [*]
+    Finalized --> Withdrawn: User calls withdrawWinnings()<br/>hasWithdrawn = true
+    
+    Withdrawn --> [*]: Funds transferred to user
+    
+    Finalized --> [*]: All participants withdrawn
 ```
 
 ---
@@ -761,24 +874,63 @@ The oracle service uses multiple verification methods to ensure reliable and dec
 2. **Vincent Backend**: Structured ability-based verification
 3. **Strava API**: Direct activity data source
 
-### Verification Flow
+### Oracle Verification Flow
 
 ```mermaid
 flowchart TD
-    A[Client Request<br/>POST /api/verify-strava] --> B[Oracle Service]
-    B --> C[Extract Parameters]
-    C --> D[Fetch Challenge Details]
-    D --> E[GET Strava Activity]
-    E --> F{Validate Activity Type}
-    F -->|Not Run| G[Return Error]
-    F -->|Run| H{Validate Distance}
-    H -->|Insufficient| G
-    H -->|Sufficient| I{Validate Timestamp}
-    I -->|Outside Window| G
-    I -->|Valid| J[Execute Lit Action]
-    J --> K[PKP Signs Transaction]
-    K --> L[Submit to Blockchain]
-    L --> M[Return Success]
+    Start([User Requests<br/>Verification]) --> Request[Receive POST Request<br/>/api/verify-strava]
+    
+    Request --> Extract[Extract Parameters<br/>challengeId, userAddress,<br/>stravaAccessToken]
+    
+    Extract --> GetContract[Query Smart Contract<br/>Get Challenge Details]
+    
+    GetContract --> ContractData{Contract<br/>Response}
+    
+    ContractData -->|Challenge Exists| FetchStrava[Fetch Activity from Strava API<br/>GET /activities/:id]
+    ContractData -->|Error| Error1[Return Error:<br/>Challenge Not Found]
+    
+    FetchStrava --> StravaData{Strava<br/>Response}
+    
+    StravaData -->|Success| ValidateType{Activity Type?}
+    StravaData -->|Error| Error2[Return Error:<br/>Activity Not Found]
+    
+    ValidateType -->|Not Run| Error3[Return Error:<br/>Invalid Activity Type]
+    ValidateType -->|Run| ValidateDistance{Distance >=<br/>Target Distance?}
+    
+    ValidateDistance -->|No| Error4[Return Error:<br/>Insufficient Distance]
+    ValidateDistance -->|Yes| ValidateTime{Timestamp Within<br/>Challenge Window?}
+    
+    ValidateTime -->|No| Error5[Return Error:<br/>Activity Outside Time Window]
+    ValidateTime -->|Yes| PrepareTX[Prepare Transaction Data<br/>markTaskComplete Function]
+    
+    PrepareTX --> CallLit[Call Lit Protocol<br/>Execute Action with PKP]
+    
+    CallLit --> PKPSign[PKP Signs Transaction<br/>Autonomous Signing]
+    
+    PKPSign --> SubmitTx[Submit to Blockchain<br/>Execute markTaskComplete]
+    
+    SubmitTx --> TxStatus{Transaction<br/>Status?}
+    
+    TxStatus -->|Success| Success[Return Success Response<br/>Emit TaskCompleted Event]
+    TxStatus -->|Failed| Error6[Return Error:<br/>Transaction Failed]
+    
+    Error1 --> End([End])
+    Error2 --> End
+    Error3 --> End
+    Error4 --> End
+    Error5 --> End
+    Error6 --> End
+    Success --> End
+    
+    style Start fill:#e1f5ff
+    style End fill:#ffe1f5
+    style Success fill:#e1ffe1
+    style Error1 fill:#ffe1e1
+    style Error2 fill:#ffe1e1
+    style Error3 fill:#ffe1e1
+    style Error4 fill:#ffe1e1
+    style Error5 fill:#ffe1e1
+    style Error6 fill:#ffe1e1
 ```
 
 ### Oracle API Endpoints
@@ -1297,24 +1449,8 @@ SEPOLIA_RPC_URL=...
 
 ---
 
-## 🤝 Contributing
 
-We welcome contributions! Fork the repo, create a branch, make changes, and submit a PR.
 
----
-
-## 📝 License
-
-This project is licensed under the MIT License.
-
----
-
-## 📞 Contact
-
-- **Email**: devgambo.work@gmail.com
-- **GitHub**: [@Kushagra1122](https://github.com/Kushagra1122)
-
----
 <div align="center">
 
 **Built with ❤️ for the Web3 and fitness communities**
