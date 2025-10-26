@@ -1,21 +1,34 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Animated, Dimensions } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { StatusBar } from 'expo-status-bar';
-import { useWeb3 } from '../context/Web3Context';
-import { getUserChallenges } from '../services/contract';
-import { Ionicons, MaterialIcons, FontAwesome5, Feather, Fontisto } from '@expo/vector-icons';
+import React, { useEffect, useRef, useState } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  Animated,
+  Dimensions,
+  Platform,
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { StatusBar } from "expo-status-bar";
+import { useWeb3 } from "../context/Web3Context";
+import { getUserChallenges } from "../services/contract";
+import {
+  Ionicons,
+  MaterialIcons,
+  FontAwesome5,
+  Feather,
+} from "@expo/vector-icons";
 
-const { width, height } = Dimensions.get('window');
+const { width, height } = Dimensions.get("window");
 
 export default function Home({ navigation }) {
-  const { account, chainId, disconnectWallet, getProvider } = useWeb3();
+  const { account, disconnectWallet, getProvider } = useWeb3();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const scrollY = useRef(new Animated.Value(0)).current;
-  
+
   const [activeChallengesCount, setActiveChallengesCount] = useState(0);
-  const [totalStaked, setTotalStaked] = useState('0');
+  const [totalStaked, setTotalStaked] = useState("0");
 
   useEffect(() => {
     Animated.parallel([
@@ -36,59 +49,72 @@ export default function Home({ navigation }) {
   }, [account]);
 
   const loadUserStats = async () => {
-    if (!account) {
-      return;
-    }
-
+    if (!account) return;
     try {
       const provider = getProvider();
       const userChallenges = await getUserChallenges(provider, account);
-      
-      const activeChallenges = userChallenges.filter(c => !c.finalized && !c.hasWithdrawn);
+      const activeChallenges = userChallenges.filter(
+        (c) => !c.finalized && !c.hasWithdrawn
+      );
       setActiveChallengesCount(activeChallenges.length);
-      
-      const total = activeChallenges.reduce((sum, challenge) => {
-        return sum + parseFloat(challenge.stakeAmount || '0');
-      }, 0);
+
+      const total = activeChallenges.reduce(
+        (sum, c) => sum + parseFloat(c.stakeAmount || "0"),
+        0
+      );
       setTotalStaked(total.toFixed(4));
     } catch (error) {
-      console.error('Error loading user stats:', error);
+      console.error("Error loading user stats:", error);
     }
   };
 
   const handleDisconnect = async () => {
     await disconnectWallet();
-    navigation.navigate('ConnectWallet');
+    navigation.navigate("ConnectWallet");
   };
 
   const backgroundInterpolate = scrollY.interpolate({
     inputRange: [0, height * 0.3, height * 0.6],
-    outputRange: ['rgba(255,255,255,0)', 'rgba(255,235,238,0.4)', 'rgba(255,220,225,0.8)'],
-    extrapolate: 'clamp',
+    outputRange: [
+      "rgba(255,255,255,0)",
+      "rgba(255,235,238,0.4)",
+      "rgba(255,220,225,0.8)",
+    ],
+    extrapolate: "clamp",
   });
 
   return (
-    <View className="flex-1 bg-white">
-       <StatusBar style="dark" />
+    <View className="flex-1 bg-gray-50">
+      <StatusBar style="dark" />
       {/* Header */}
-      <View className="bg-white pt-16 pb-5 px-6 shadow-sm border-b border-gray-100">
+      <LinearGradient
+        colors={["#ffffff", "#f8fafc"]}
+        className="pt-16 pb-5 px-6 shadow-sm border-b border-gray-100"
+      >
         <View className="flex-row items-center justify-between">
           <View className="flex-1">
-            <Text className="text-gray-600 text-sm font-medium mb-2">Welcome back</Text>
+            <Text className="text-gray-600 text-sm font-medium mb-1">
+              Welcome back
+            </Text>
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center">
                 <Text className="text-gray-900 font-bold text-2xl mr-3">
-                  {account ? `${account.slice(0, 6)}...${account.slice(-4)}` : 'User'}
+                  {account
+                    ? `${account.slice(0, 6)}...${account.slice(-4)}`
+                    : "User"}
                 </Text>
                 <View className="bg-green-50 px-3 py-1.5 rounded-full border border-green-200">
                   <View className="flex-row items-center">
                     <View className="w-2 h-2 bg-green-500 rounded-full mr-2" />
-                    <Text className="text-green-700 text-xs font-semibold">Connected</Text>
+                    <Text className="text-green-700 text-xs font-semibold">
+                      Connected
+                    </Text>
                   </View>
                 </View>
               </View>
-              <TouchableOpacity 
-                className="w-10 h-10 bg-gray-100 rounded-xl border border-gray-200 active:bg-gray-200 items-center justify-center"
+              <TouchableOpacity
+                className="w-10 h-10 bg-gray-100 rounded-xl border border-gray-200 items-center justify-center"
+                activeOpacity={0.8}
                 onPress={handleDisconnect}
               >
                 <Ionicons name="log-out-outline" size={20} color="#6B7280" />
@@ -96,12 +122,13 @@ export default function Home({ navigation }) {
             </View>
           </View>
         </View>
-      </View>
+      </LinearGradient>
 
+      {/* Body */}
       <View className="flex-1">
-        <Animated.View 
+        <Animated.View
           style={{
-            position: 'absolute',
+            position: "absolute",
             top: 0,
             left: 0,
             right: 0,
@@ -109,118 +136,172 @@ export default function Home({ navigation }) {
             backgroundColor: backgroundInterpolate,
           }}
         />
-        
-        <ScrollView 
+
+        <ScrollView
           className="flex-1"
-          contentContainerStyle={{ paddingBottom: 40 }}
+          contentContainerStyle={{ paddingBottom: 60 }}
           showsVerticalScrollIndicator={false}
           onScroll={Animated.event(
             [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: false }
+            {
+              useNativeDriver: false,
+            }
           )}
           scrollEventThrottle={16}
         >
           <View className="px-6 pt-8">
-            <Animated.View 
-              style={{ 
+            <Animated.View
+              style={{
                 opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }]
+                transform: [{ translateY: slideAnim }],
               }}
             >
-              {/* Stats Cards */}
-              <View className="flex-row mb-10">
-                <StatCard 
-                  title="Active Challenges" 
-                  value={activeChallengesCount.toString()} 
+              {/* Stats */}
+              <View className="flex-row mb-8">
+                <StatCard
+                  title="Active Challenges"
+                  value={activeChallengesCount.toString()}
                   subtitle="In Progress"
-                  icon={<FontAwesome5 name="running" size={20} color="#3B82F6" />}
+                  icon={
+                    <FontAwesome5 name="running" size={20} color="#3B82F6" />
+                  }
                 />
                 <View className="w-4" />
-                <StatCard 
-                  title="Total Staked" 
-                  value={`${totalStaked} ETH`} 
+                <StatCard
+                  title="Total Staked"
+                  value={`${totalStaked} ETH`}
                   subtitle="Amount Locked"
-                  icon={<FontAwesome5 name="ethereum" size={20} color="#10B981" />}
+                  icon={
+                    <FontAwesome5 name="ethereum" size={20} color="#10B981" />
+                  }
                 />
               </View>
 
-              {/* Main Dashboard */}
-              <View className="bg-white rounded-2xl p-7 mb-8 shadow-sm border border-gray-100">
-                <View className="mb-8">
-                  <Text className="text-3xl font-black text-gray-900 mb-3">FitStake Dashboard</Text>
-                  <Text className="text-gray-600 text-base leading-7">
-                    Create fitness challenges, stake cryptocurrency, and achieve your health goals with blockchain-powered accountability.
-                  </Text>
-                </View>
-                
+              {/* Dashboard */}
+              <View
+                className="bg-white rounded-2xl p-7 mb-8 border border-gray-100"
+                style={Platform.select({
+                  ios: {
+                    shadowColor: "#000",
+                    shadowOpacity: 0.1,
+                    shadowRadius: 10,
+                    shadowOffset: { width: 0, height: 6 },
+                  },
+                  android: { elevation: 5 },
+                })}
+              >
+                <Text className="text-3xl font-extrabold text-gray-900 mb-3">
+                  FitStake Dashboard
+                </Text>
+                <Text className="text-gray-600 text-base leading-7 mb-8">
+                  Create fitness challenges, stake cryptocurrency, and achieve
+                  your health goals with blockchain-powered accountability.
+                </Text>
+
                 <View className="space-y-4">
                   <FeatureCard
-                    icon={<Ionicons name="person-outline" size={24} color="white" />}
+                    icon={
+                      <Ionicons name="person-outline" size={22} color="white" />
+                    }
                     title="Profile Management"
                     description="View and manage your personal fitness profile"
-                    gradient="from-gray-600 to-gray-700"
-                    onPress={() => navigation.navigate('Profile')}
+                    gradient={["#4B5563", "#374151"]}
+                    onPress={() => navigation.navigate("Profile")}
                   />
                   <FeatureCard
-                    icon={<Ionicons name="trophy-outline" size={24} color="white" />}
+                    icon={
+                      <Ionicons name="trophy-outline" size={22} color="white" />
+                    }
                     title="Create Challenge"
                     description="Set fitness goals and stake cryptocurrency"
-                    gradient="from-purple-500 to-purple-600"
-                    onPress={() => navigation.navigate('CreateChallenge')}
+                    gradient={["#8B5CF6", "#7C3AED"]}
+                    onPress={() => navigation.navigate("CreateChallenge")}
                   />
                   <FeatureCard
-                    icon={<FontAwesome5 name="hands-helping" size={20} color="white" />}
+                    icon={
+                      <FontAwesome5
+                        name="hands-helping"
+                        size={18}
+                        color="white"
+                      />
+                    }
                     title="Join Challenge"
                     description="Browse and participate in community challenges"
-                    gradient="from-blue-500 to-blue-600"
-                    onPress={() => navigation.navigate('JoinChallenge')}
+                    gradient={["#3B82F6", "#2563EB"]}
+                    onPress={() => navigation.navigate("JoinChallenge")}
                   />
                   <FeatureCard
-                    icon={<Ionicons name="stats-chart-outline" size={24} color="white" />}
+                    icon={
+                      <Ionicons
+                        name="stats-chart-outline"
+                        size={22}
+                        color="white"
+                      />
+                    }
                     title="My Challenges"
                     description="Monitor progress and track your active goals"
-                    gradient="from-green-500 to-green-600"
-                    onPress={() => navigation.navigate('MyChallenges')}
+                    gradient={["#10B981", "#059669"]}
+                    onPress={() => navigation.navigate("MyChallenges")}
                   />
                   <FeatureCard
-                    icon={<MaterialIcons name="sports-football" size={24} color="black" />}
+                    icon={
+                      <MaterialIcons
+                        name="sports-football"
+                        size={22}
+                        color="white"
+                      />
+                    }
                     title="Connect Strava"
                     description="Integrate your fitness tracking application"
-                    gradient="from-orange-500 to-orange-600"
-                    onPress={() => navigation.navigate('ConnectStrava')}
+                    gradient={["#F59E0B", "#D97706"]}
+                    onPress={() => navigation.navigate("ConnectStrava")}
                   />
                 </View>
               </View>
 
-              {/* How It Works - Updated */}
+              {/* How It Works (Original Style Restored) */}
               <View className="rounded-2xl p-7">
                 <View className="flex-row items-center mb-6">
-                  <Ionicons name="help-circle-outline" size={24} color="#374151" />
-                  <Text className="text-gray-900 text-xl font-bold ml-3">How It Works</Text>
+                  <Ionicons
+                    name="help-circle-outline"
+                    size={24}
+                    color="#374151"
+                  />
+                  <Text className="text-gray-900 text-xl font-bold ml-3">
+                    How It Works
+                  </Text>
                 </View>
                 <View className="space-y-5">
-                  <Step 
-                    number="1" 
-                    title="Create Challenge" 
-                    description="Define fitness goals and stake crypto" 
+                  <Step
+                    number="1"
+                    title="Create Challenge"
+                    description="Define fitness goals and stake crypto"
                     icon={<Feather name="target" size={16} color="white" />}
                   />
-                  <Step 
-                    number="2" 
-                    title="Track Workouts" 
-                    description="Log activities via Strava integration" 
-                    icon={<Ionicons name="fitness-outline" size={16} color="white" />}
+                  <Step
+                    number="2"
+                    title="Track Workouts"
+                    description="Log activities via Strava integration"
+                    icon={
+                      <Ionicons
+                        name="fitness-outline"
+                        size={16}
+                        color="white"
+                      />
+                    }
                   />
-                  <Step 
-                    number="3" 
-                    title="Smart Verification" 
-                    description="Blockchain verifies your progress automatically" 
-                    icon={<MaterialIcons name="verified" size={16} color="white" />}
+                  <Step
+                    number="3"
+                    title="Smart Verification"
+                    description="Blockchain verifies your progress automatically"
+                    icon={
+                      <MaterialIcons name="verified" size={16} color="white" />
+                    }
                   />
-                  <Step 
-                    number="4" 
-                    title="Earn Rewards" 
-                    description="Complete goals to reclaim stake and earn rewards" 
+                  <Step
+                    number="4"
+                    title="Earn Rewards"
+                    description="Complete goals to reclaim stake and earn rewards"
                     icon={<FontAwesome5 name="award" size={16} color="white" />}
                   />
                 </View>
@@ -235,8 +316,19 @@ export default function Home({ navigation }) {
 
 function StatCard({ title, value, subtitle, icon }) {
   return (
-    <View className="flex-1 bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-      <View className="flex-row items-center justify-between mb-4">
+    <View
+      className="flex-1 bg-white rounded-2xl p-6 border border-gray-100"
+      style={Platform.select({
+        ios: {
+          shadowColor: "#000",
+          shadowOpacity: 0.1,
+          shadowRadius: 8,
+          shadowOffset: { width: 0, height: 4 },
+        },
+        android: { elevation: 4 },
+      })}
+    >
+      <View className="flex-row items-center justify-between mb-3">
         <View className="w-10 h-10 bg-blue-50 rounded-lg items-center justify-center">
           {icon}
         </View>
@@ -250,23 +342,30 @@ function StatCard({ title, value, subtitle, icon }) {
 
 function FeatureCard({ icon, title, description, gradient, onPress }) {
   return (
-    <TouchableOpacity 
-      className="bg-white rounded-xl p-5 flex-row items-center border border-gray-100 active:bg-gray-50 shadow-sm"
-      activeOpacity={0.7}
+    <TouchableOpacity
+      activeOpacity={0.8}
       onPress={onPress}
+      className="bg-white rounded-xl p-5 flex-row items-center border border-gray-100"
+      style={Platform.select({
+        ios: {
+          shadowColor: "#000",
+          shadowOpacity: 0.08,
+          shadowRadius: 6,
+          shadowOffset: { width: 0, height: 3 },
+        },
+        android: { elevation: 3 },
+      })}
     >
       <LinearGradient
-        colors={gradient === 'from-gray-600 to-gray-700' ? ['#4B5563', '#374151'] :
-                gradient === 'from-purple-500 to-purple-600' ? ['#8B5CF6', '#7C3AED'] :
-                gradient === 'from-blue-500 to-blue-600' ? ['#3B82F6', '#2563EB'] :
-                gradient === 'from-green-500 to-green-600' ? ['#10B981', '#059669'] :
-                ['#F59E0B', '#D97706']}
+        colors={gradient}
         className="w-12 h-12 rounded-xl items-center justify-center mr-4"
       >
         {icon}
       </LinearGradient>
       <View className="flex-1">
-        <Text className="text-gray-900 font-bold text-base mb-1.5">{title}</Text>
+        <Text className="text-gray-900 font-bold text-base mb-1.5">
+          {title}
+        </Text>
         <Text className="text-gray-500 text-sm leading-5">{description}</Text>
       </View>
       <View className="bg-gray-100 w-8 h-8 rounded-full items-center justify-center">
