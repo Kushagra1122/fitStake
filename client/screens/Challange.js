@@ -13,8 +13,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useWeb3 } from '../context/Web3Context';
 import { useStrava } from '../context/StravaContext';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import { getChallengeById, getContract, getProvider } from '../services/contract';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import { getChallengeById, getContract } from '../services/contract';
 import { formatAddress, getActivityIcon, getDaysLeft } from '../utils/helpers';
 import { ethers } from 'ethers';
 import { 
@@ -25,6 +25,7 @@ import {
 } from '../services/envioService';
 import stravaService from '../services/stravaService';
 import { verifyStravaActivity } from '../services/litOracleService';
+import { saveVerification, isVerified, formatDate as formatDateForStorage } from '../utils/verificationStorage';
 import { Ionicons, MaterialIcons, FontAwesome5, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 
 export default function Challenge() {
@@ -42,6 +43,7 @@ export default function Challenge() {
   const [isLoading, setIsLoading] = useState(true);
   const [totalStaked, setTotalStaked] = useState('0');
   const [isActive, setIsActive] = useState(true);
+  const [verifiedStatuses, setVerifiedStatuses] = useState({});
 
   useEffect(() => {
     Animated.parallel([
@@ -62,6 +64,52 @@ export default function Challenge() {
       loadChallengeDetails();
     }
   }, [initialChallenge]);
+
+  // Also load verification when account becomes available
+  useEffect(() => {
+    if (initialChallenge && account) {
+      console.log('👤 Account available, loading verification status');
+      loadVerificationStatuses();
+    }
+  }, [account]);
+
+  // Reload verification status when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      if (initialChallenge && account) {
+        console.log('🔄 Reloading verification statuses on focus');
+        loadVerificationStatuses();
+        // Reload challenge details to get updated participant data
+        loadChallengeDetails();
+      }
+    }, [initialChallenge, account])
+  );
+
+  const loadVerificationStatuses = async () => {
+    if (!initialChallenge || !account) {
+      console.log('⚠️ Cannot load verification statuses:', { initialChallenge: !!initialChallenge, account: !!account });
+      return;
+    }
+    
+    try {
+      const today = formatDateForStorage(new Date());
+      const verified = await isVerified(initialChallenge.id, account, today);
+      console.log('✅ Checking verification status:', {
+        challengeId: initialChallenge.id,
+        account,
+        today,
+        verified
+      });
+      // Store with lowercase for case-insensitive lookup
+      setVerifiedStatuses(prev => {
+        const newStatus = { ...prev, [account.toLowerCase()]: verified };
+        console.log('💾 Setting verified statuses:', newStatus);
+        return newStatus;
+      });
+    } catch (error) {
+      console.error('Error loading verification statuses:', error);
+    }
+  };
 
   const loadChallengeDetails = async () => {
     if (!initialChallenge) return;
@@ -286,18 +334,36 @@ export default function Challenge() {
               });
 
               if (result.success) {
+                // Store verification status
+                const today = formatDateForStorage(new Date());
+                const transactionHash = result.result?.transaction?.transactionHash || 'pending';
+                
+                console.log('💾 Storing verification:', {
+                  challengeId: challenge.id,
+                  account,
+                  today,
+                  transactionHash
+                });
+                
+                await saveVerification(challenge.id, account, today, transactionHash);
+                
+                // Update local verified status with lowercase key
+                setVerifiedStatuses(prev => ({ ...prev, [account.toLowerCase()]: true }));
+                
+                console.log('✅ Verified status updated:', { account, isVerified: true });
+
                 // Success - navigate to verification success screen
                 navigation.navigate('VerificationSuccess', {
                   challenge: challenge,
                   activity: selectedActivity,
-                  transactionHash: result.result?.transaction?.transactionHash || 'pending',
-                  etherscanUrl: `https://sepolia.etherscan.io/tx/${result.result?.transaction?.transactionHash}`,
+                  transactionHash: transactionHash,
+                  etherscanUrl: `https://sepolia.etherscan.io/tx/${transactionHash}`,
                   blockNumber: result.result?.transaction?.blockNumber || 'pending'
                 });
 
                 Alert.alert(
                   'Verification Success! 🎉',
-                  `Your activity has been verified on-chain!\n\nTransaction: ${result.result?.transaction?.transactionHash?.substring(0, 10)}...`
+                  `Your activity has been verified on-chain!\n\nTransaction: ${transactionHash.substring(0, 10)}...`
                 );
               } else {
                 Alert.alert('Verification Failed', result.error || 'Failed to verify activity. Please try again.');
@@ -533,15 +599,26 @@ export default function Challenge() {
             ) : (
               <>
               <View className="space-y-3">
-                {participants.map((participant, index) => (
-                  <ParticipantCard
-                  key={participant.address}
-                  participant={participant}
-                  index={index}
-                  isCurrentUser={participant.address.toLowerCase() === account?.toLowerCase()}
-                  onVerify={handleVerifyActivity}
-                  />
-                ))}
+                {participants.map((participant, index) => {
+                  const participantKey = participant.address?.toLowerCase();
+                  const isVerifiedStatus = verifiedStatuses[participantKey] || false;
+                  console.log('📋 Rendering participant:', {
+                    address: participant.address,
+                    participantKey,
+                    verifiedStatuses,
+                    isVerifiedStatus
+                  });
+                  return (
+                    <ParticipantCard
+                      key={participant.address}
+                      participant={participant}
+                      index={index}
+                      isCurrentUser={participant.address && account ? participant.address.toLowerCase() === account.toLowerCase() : false}
+                      onVerify={handleVerifyActivity}
+                      isVerified={isVerifiedStatus}
+                    />
+                  );
+                })}
               </View>
               </>
             )}
@@ -584,7 +661,7 @@ function DetailRow({ icon, label, value, valueColor = 'text-gray-900' }) {
 }
 
 // Participant Card Component
-function ParticipantCard({ participant, index, isCurrentUser, onVerify }) {
+function ParticipantCard({ participant, index, isCurrentUser, onVerify, isVerified: isVerifiedProp }) {
   const slideAnim = useRef(new Animated.Value(50)).current;
 
   useEffect(() => {
@@ -595,6 +672,15 @@ function ParticipantCard({ participant, index, isCurrentUser, onVerify }) {
       useNativeDriver: true,
     }).start();
   }, []);
+
+  useEffect(() => {
+    console.log('🔍 ParticipantCard render:', { 
+      participantAddress: participant.address,
+      participantAddressLower: participant.address?.toLowerCase(),
+      isCurrentUser,
+      isVerified: isVerifiedProp 
+    });
+  }, [isVerifiedProp, isCurrentUser, participant.address]);
 
   return (
     <Animated.View
@@ -618,14 +704,24 @@ function ParticipantCard({ participant, index, isCurrentUser, onVerify }) {
               </Text>
             )}
             {isCurrentUser && (
-              <TouchableOpacity
-                className="ml-2 bg-blue-500 px-2 py-1 rounded"
-                onPress={() => {
-                 onVerify(participant);
-                }}
-              >
-                <Text className="text-white text-xs font-semibold">Verify</Text>
-              </TouchableOpacity>
+              <>
+                {isVerifiedProp ? (
+                  <View className="ml-2 bg-green-500 px-2 py-1 rounded flex-row items-center">
+                    <Ionicons name="checkmark-circle" size={12} color="white" />
+                    <Text className="text-white text-xs font-semibold ml-1">Verified ✓</Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    className="ml-2 bg-blue-500 px-2 py-1 rounded"
+                    onPress={() => {
+                      console.log('🔘 Verify button pressed for participant:', participant.address);
+                      onVerify(participant);
+                    }}
+                  >
+                    <Text className="text-white text-xs font-semibold">Verify</Text>
+                  </TouchableOpacity>
+                )}
+              </>
             )}
           </View>
           <Text className="text-gray-500 text-xs mt-1">
@@ -639,14 +735,16 @@ function ParticipantCard({ participant, index, isCurrentUser, onVerify }) {
 
       {/* Completed Today Status */}
       <View className={`flex-row items-center justify-between p-3 rounded-lg ${
-        participant.completedToday ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+        participant.completedToday || isVerifiedProp ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
       }`}>
         <Text className="text-gray-700 text-xs font-medium">Today's Goal</Text>
         <View className="flex-row items-center">
-          {participant.completedToday ? (
+          {participant.completedToday || isVerifiedProp ? (
             <View className="flex-row items-center">
               <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
-              <Text className="text-green-700 text-xs font-bold ml-1">Completed</Text>
+              <Text className="text-green-700 text-xs font-bold ml-1">
+                {isVerifiedProp ? 'Verified' : 'Completed'}
+              </Text>
             </View>
           ) : (
             <View className="flex-row items-center">

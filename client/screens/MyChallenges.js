@@ -20,6 +20,7 @@ import { Ionicons, MaterialIcons, FontAwesome5, MaterialCommunityIcons, Feather,
 import { useStrava } from '../context/StravaContext';
 import stravaService from '../services/stravaService';
 import { verifyStravaActivity } from '../services/litOracleService';
+import { saveVerification, formatDate as formatDateForStorage } from '../utils/verificationStorage';
 
 export default function MyChallenges() {
   const navigation = useNavigation();
@@ -176,9 +177,14 @@ export default function MyChallenges() {
               });
 
               if (result.success) {
+                // Store verification status
+                const today = formatDateForStorage(new Date());
+                const transactionHash = result.result?.transaction?.transactionHash || 'pending';
+                await saveVerification(challenge.id, account, today, transactionHash);
+
                 Alert.alert(
                   'Verification Success! 🎉',
-                  `Your activity has been verified on-chain!\n\nTransaction: ${result.result?.transaction?.transactionHash?.substring(0, 10)}...`
+                  `Your activity has been verified on-chain!\n\nTransaction: ${transactionHash.substring(0, 10)}...`
                 );
                 
                 // Reload challenges to update the UI
