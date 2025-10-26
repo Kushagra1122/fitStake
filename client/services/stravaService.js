@@ -230,6 +230,23 @@ const fetchActivityDetails = async (accessToken, activityId) => {
   }
 };
 
+const fetchActivity=async(accessToken)=>{
+  try {
+    const response = await fetch(`${STRAVA_API_BASE}/activities/`, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+    if (!response.ok) {
+      console.warn(`Failed to fetch activity: ${response.status} ${response.statusText}`);
+      return [];
+    }
+    const activity = await response.json();
+    return activity[0];
+  }
+  catch (error) {
+    console.error(`Error fetching activity`, error);
+    throw error;
+  }
+}
 /**
  * Fetch athlete's segments (starred segments)
  */
@@ -519,4 +536,5 @@ export default {
   fetchAthleteGear,
   fetchSegmentDetails,
   getDataSummary,
+  fetchActivity,
 };
