@@ -399,6 +399,32 @@ stateDiagram-v2
 
 ## 🛠️ Technology Stack
 
+### Key Technologies
+
+**Lit Protocol & Vincent:**
+- **Lit Protocol** (v4.0.0): Decentralized oracle infrastructure
+- **Vincent SDK** (`@lit-protocol/vincent-app-sdk` v2.2.3): Serverless abilities
+- **Lit Actions**: Immutable serverless functions for automated verification
+- **PKP (Programmable Key Pair)**: Autonomous wallet for gasless transactions
+- **SIWE (Sign-In With Ethereum)**: Authentication flow for PKP delegation
+
+**Blockchain:**
+- **Solidity** (v0.8.28): Smart contract language
+- **Hardhat** (v3.0.7): Development framework
+- **Ethers.js** (v6.15.0): Ethereum interaction library
+- **WalletConnect** (v2.22.4): Mobile wallet protocol
+
+**Mobile:**
+- **React Native** (v0.81.5): Cross-platform framework
+- **Expo** (v54.0.17): Build system and tooling
+- **NativeWind** (v2.0.11): Tailwind CSS styling
+- **React Navigation** (v7.x): Screen management
+
+**Backend:**
+- **Express.js** (v4.21.2): HTTP API framework
+- **Node.js** (v20): Runtime environment
+- **TypeScript** (v5.8.0): Type-safe development
+
 ### Frontend (Mobile App)
 
 | Component           | Technology  | Version | Purpose                           |
@@ -418,11 +444,18 @@ stateDiagram-v2
 
 | Component        | Technology | Version | Purpose                        |
 |------------------|------------|---------|--------------------------------|
-| Oracle Framework | Lit Protocol | 4.0.0 | Decentralized oracle          |
+| Oracle Framework | Lit Protocol | 7.3.1 | Decentralized oracle          |
+| Vincent SDK      | @lit-protocol/vincent-app-sdk | 2.2.3 | Ability-based verification    |
+| Vincent Node Client| @lit-protocol/lit-node-client-nodejs | 7.3.1 | Node.js Lit client |
+| Vincent Core     | @lit-protocol/core | 7.3.1 | Vincent core utilities |
+| Ability Auto-Stake| @sogalabhi/ability-auto-stake | 1.2.0 | Automated staking ability |
+| Ability Verify Strava| ability-verify-strava | 0.2.0 | Strava verification ability |
+| Lit Actions      | Lit SDK    | 7.3.1  | Serverless execution          |
 | API Server       | Express.js | 4.21.2 | HTTP API service              |
 | Language         | TypeScript | 5.8.0  | Type-safe development         |
 | Execution        | tsx        | 4.0.0  | TypeScript execution          |
 | OAuth Server     | Express.js | 4.21.2 | Strava OAuth implementation   |
+| HTTP Client      | Axios      | 1.12.2 | API requests                   |
 
 ### Smart Contracts
 
@@ -485,6 +518,12 @@ npm install
 # Install Vincent backend dependencies
 cd ../vincent-backend
 npm install
+
+# Vincent backend uses the following key packages:
+# - @lit-protocol/vincent-app-sdk: Vincent SDK for ability execution
+# - @sogalabhi/ability-auto-stake: Auto-stake ability
+# - ability-verify-strava: Strava verification ability
+# - @lit-protocol/lit-node-client-nodejs: Lit Protocol Node.js client
 ```
 
 ### Environment Variables
@@ -915,33 +954,24 @@ flowchart TD
 
 **Health Check**
 ```http
-GET http://localhost:3001/health
+GET http://localhost:3001/test
+Authorization: Bearer {JWT_TOKEN}
 ```
 
-**Verify Strava Activity**
-```http
-POST http://localhost:3001/api/verify-strava
-Content-Type: application/json
-
-{
-  "challengeId": "1",
-  "userAddress": "YOUR_USER_ADDRESS",
-  "stravaAccessToken": "access_token",
-  "contractAddress": "0xe38d8f585936c60ecb7bfae7297457f6a35058bb"
-}
-```
-
-**Auto-Stake to Challenge**
+**Auto-Stake to Challenge (with Vincent SIWE Authentication)**
 ```http
 POST http://localhost:3001/api/auto-stake
 Content-Type: application/json
+Authorization: Bearer {JWT_TOKEN}
 
 {
-  "challengeId": "1",
-  "userAddress": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
-  "stakeAmount": "1000000000000000"
+  "challengeId": 1,
+  "stakeAmount": "1000000000000000",
+  "userAddress": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
 }
 ```
+
+**Note**: The `Authorization` header with a valid Vincent JWT token is required for `/api/auto-stake`. This enables PKP autonomous signing and gasless transactions.
 
 #### OAuth Server Endpoints
 
@@ -993,6 +1023,24 @@ The oracle validates three key criteria:
 1. **Activity Type**: Must be a "Run"
 2. **Distance**: Must meet or exceed challenge target distance
 3. **Timestamp**: Must be within challenge active window
+
+### Vincent Authentication Flow (SIWE)
+
+FitStake uses Vincent Protocol for gasless transactions via PKP (Programmable Key Pair):
+
+1. **User Login**: User clicks "Login with Vincent" in mobile app
+2. **SIWE Flow**: Browser opens Vincent Dashboard, user signs SIWE message
+3. **JWT Token**: Vincent returns JWT via deep link (`fitstake://vincent-callback`)
+4. **Auto-Stake**: When joining a challenge, app attempts Vincent auto-stake with JWT
+5. **PKP Execution**: Vincent SDK executes ability on behalf of user's wallet
+6. **Gasless**: Transaction executes without user wallet signature or gas fees
+
+**Key Technologies:**
+- `@lit-protocol/vincent-app-sdk` (v2.2.3): Vincent SDK for ability execution
+- `@sogalabhi/ability-auto-stake` (v1.2.0): Auto-stake ability implementation
+- Lit Actions: Serverless execution for Strava verification
+- PKP: Programmable Key Pair for autonomous signing
+- SIWE: Sign-In With Ethereum for authentication
 
 ---
 
@@ -1183,9 +1231,10 @@ TUI_OFF=true pnpm dev
 - Challenge state queries
 
 **vincentService.js**: Vincent backend client
-- Ability-based verification
-- Auto-stake functionality
-- Activity verification
+- Ability-based verification with Lit Actions
+- Auto-stake functionality via Vincent SDK
+- JWT authentication flow
+- Activity verification with PKP signing
 
 #### Smart Contract Structure
 
@@ -1197,20 +1246,24 @@ TUI_OFF=true pnpm dev
 
 #### Oracle Services
 
-**lit-oracle-service.ts**: Lit Protocol oracle
-- PKP signing integration
+**Lit Actions (verifyStravaActivity.js)**: Decentralized verification
+- Serverless execution on Lit Network
+- PKP autonomous signing
 - Strava API validation
-- Transaction execution
+- Immutable verification logic
 
-**real-oracle-service.ts**: Production oracle
-- Enhanced validation logic
-- Comprehensive error handling
-- Transaction monitoring
+**Vincent Backend (index.js)**: Ability execution service
+- Vincent SDK integration (@lit-protocol/vincent-app-sdk)
+- SIWE authentication flow
+- JWT session management
+- PKP key delegation
+- Auto-stake ability execution
 
-**simple-oracle-service.ts**: Simplified oracle
-- Basic validation
-- Direct API calls
-- Minimal dependencies
+**OAuth Server (server.js)**: Strava authentication
+- OAuth 2.0 flow
+- Token exchange
+- Session management
+- Polling for redirect completion
 
 ### Development Workflow
 
