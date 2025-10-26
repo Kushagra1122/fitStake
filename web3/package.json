@@ -57,6 +57,6 @@
   "author": "FitStake Team",
   "license": "MIT",
   "dependencies": {
-    "@fitstake/ability-verify-strava": "file:../vincent-starter-app/packages/ability-verify-strava"
+    "@sogalabhi/ability-verify-strava": "file:../vincent-starter-app/packages/ability-verify-strava"
   }
 }
