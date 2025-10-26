@@ -1,0 +1,25 @@
+{
+  "name": "vincent-backend",
+  "version": "1.0.0",
+  "description": "FitStake backend with Vincent integration for Strava verification",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "dependencies": {
+    "ability-auto-stake": "^0.2.0",
+    "ability-verify-strava": "^0.2.0",
+    "@lit-protocol/core": "^7.3.1",
+    "@lit-protocol/lit-node-client-nodejs": "^7.3.1",
+    "@lit-protocol/vincent-app-sdk": "^2.2.3",
+    "axios": "^1.12.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "ethers": "^5.8.0",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

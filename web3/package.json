@@ -22,7 +22,10 @@
     "test-lit-e2e": "hardhat run scripts/test-lit-oracle-e2e.ts --network sepolia",
     "demo-oracle": "hardhat run scripts/demo-oracle.ts --network sepolia",
     "test-low-stake": "hardhat run scripts/test-low-stake.ts --network sepolia",
-    "test-enhanced": "hardhat run scripts/test-enhanced-contract.ts --network sepolia"
+    "test-enhanced": "hardhat run scripts/test-enhanced-contract.ts --network sepolia",
+    "setup-oracle-complete": "tsx scripts/setup-oracle-complete.ts",
+    "simple-backend": "tsx backend/simple-oracle-service.ts",
+    "real-backend": "tsx backend/real-oracle-service.ts"
   },
   "devDependencies": {
     "@lit-protocol/auth-helpers": "^4.0.0",
@@ -34,7 +37,7 @@
     "@types/express": "^4.17.23",
     "@types/node": "^22.18.11",
     "dotenv": "^17.2.3",
-    "ethers": "^6.9.0",
+    "ethers": "^6.15.0",
     "express": "^4.21.2",
     "forge-std": "github:foundry-rs/forge-std#v1.9.4",
     "hardhat": "^3.0.7",
@@ -52,5 +55,8 @@
     "lit-protocol"
   ],
   "author": "FitStake Team",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@sogalabhi/ability-verify-strava": "file:../vincent-starter-app/packages/ability-verify-strava"
+  }
 }

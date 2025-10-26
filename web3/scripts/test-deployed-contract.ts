@@ -8,7 +8,7 @@ import { ethers } from 'ethers';
  * Using the actual deployed address
  */
 
-const DEPLOYED_CONTRACT_ADDRESS = "0xbaf067fe68f032d9fdc906c6dcb32299baa2404f      ";
+const DEPLOYED_CONTRACT_ADDRESS = "0xe38d8f585936c60ecb7bfae7297457f6a35058bb      ";
 
 async function main() {
   console.log('🧪 Testing Deployed ChallengeContract on Sepolia...\n');

@@ -26,7 +26,7 @@ Decentralized oracle integration with Lit Protocol
 
 ### Contract Versions
 
-**Original Contract** (Sepolia: `0xbaf067fe68f032d9fdc906c6dcb32299baa2404f      `):
+**Original Contract** (Sepolia: `0xe38d8f585936c60ecb7bfae7297457f6a35058bb      `):
 - Basic TaskCompleted events
 - Functional for staking and verification
 - Deployed and tested

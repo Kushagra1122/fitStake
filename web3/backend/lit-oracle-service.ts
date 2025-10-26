@@ -19,7 +19,7 @@ const app = express();
 app.use(express.json());
 
 // Configuration
-let CONTRACT_ADDRESS = "0xbaf067fe68f032d9fdc906c6dcb32299baa2404f      ";
+let CONTRACT_ADDRESS = "0xe38d8f585936c60ecb7bfae7297457f6a35058bb";
 let FUNCTION_SELECTOR = "0xf7aeca30"; // Default for old contract
 
 // Try to load enhanced deployment config
@@ -30,7 +30,7 @@ try {
     CONTRACT_ADDRESS = deploymentConfig.contractAddress;
     FUNCTION_SELECTOR = deploymentConfig.markTaskCompleteSelector;
     console.log('✅ Loaded enhanced contract configuration');
-    console.log('   Contract:', CONTRACT_ADDRESS);
+  console.log('   Contract:', CONTRACT_ADDRESS);
     console.log('   Selector:', FUNCTION_SELECTOR);
   }
 } catch (error) {
@@ -38,7 +38,7 @@ try {
 }
 
 const PORT = process.env.ORACLE_PORT || 3000;
-const LIT_NETWORK = process.env.LIT_NETWORK || 'datil-test';
+const LIT_NETWORK = process.env.LIT_NETWORK || 'habanero';
 
 // Load Lit Action code
 const litActionPath = path.join(process.cwd(), 'lit-actions', 'verifyStravaActivity.js');
@@ -61,12 +61,12 @@ async function initializeLitClient() {
   console.log('🔧 Initializing Lit Protocol client...');
   
   litClient = new LitNodeClient({ 
-    litNetwork: LIT_NETWORK as any,
+    litNetwork: 'cayenne',
     debug: true 
   });
   
   await litClient.connect();
-  console.log('✅ Lit Protocol client connected to', LIT_NETWORK);
+  console.log('✅ Lit Protocol client connected to cayenne');
 }
 
 /**

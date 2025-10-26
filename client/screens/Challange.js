@@ -12,6 +12,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useWeb3 } from '../context/Web3Context';
+import { useStrava } from '../context/StravaContext';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { getChallengeById, getContract, getProvider } from '../services/contract';
 import { formatAddress, getActivityIcon, getDaysLeft } from '../utils/helpers';
@@ -22,12 +23,14 @@ import {
   getChallengeTaskCompletions,
   getChallengeFinalization 
 } from '../services/envioService';
+import stravaService from '../services/stravaService';
 import { Ionicons, MaterialIcons, FontAwesome5, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 
 export default function Challenge() {
   const navigation = useNavigation();
   const route = useRoute();
   const { account, getProvider } = useWeb3();
+  const { getValidAccessToken, isConnected } = useStrava();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   
@@ -239,7 +242,41 @@ export default function Challenge() {
     // Placeholder function - to be implemented later
     Alert.alert('Withdraw', 'Withdraw function will be implemented soon');
   };
+  const handleVerifyActivity = async (participant) => {
+    try {
+      if (!isConnected) {
+        Alert.alert('Error', 'Please connect your Strava account first.');
+        return;
+      }
+      
+      const accessToken = await getValidAccessToken();
+      const activity = await stravaService.fetchActivity(accessToken);
+      
+      if (!activity) {
+        Alert.alert('No Activity Found', 'No recent activity found. Please make sure you have completed your activity today.');
+        return;
+      }
 
+      // Extract key activity data
+      const distance = (activity.distance / 1000).toFixed(2); // Convert meters to km
+      const startDate = new Date(activity.start_date);
+      const endDate = new Date(startDate.getTime() + activity.elapsed_time * 1000);
+      
+      console.log('Distance (km):', distance);
+      console.log('Start Date:', startDate.toISOString());
+      console.log('End Date:', endDate.toISOString());
+
+      // Check if the activity matches the challenge requirements
+      Alert.alert('Success', `Activity found: ${activity.name || 'Untitled'} (${activity.type})`);
+      
+      // TODO: Submit activity to the contract for verification
+      // This would typically involve sending a transaction to the smart contract
+      
+    } catch (error) {
+      console.error('Error verifying activity:', error);
+      Alert.alert('Error', 'Failed to verify activity. Please try again.');
+    }
+  };
   if (isLoading) {
     return (
       <View className="flex-1 bg-gray-50">
@@ -468,6 +505,7 @@ export default function Challenge() {
                   participant={participant}
                   index={index}
                   isCurrentUser={participant.address.toLowerCase() === account?.toLowerCase()}
+                  onVerify={handleVerifyActivity}
                   />
                 ))}
               </View>
@@ -512,7 +550,7 @@ function DetailRow({ icon, label, value, valueColor = 'text-gray-900' }) {
 }
 
 // Participant Card Component
-function ParticipantCard({ participant, index, isCurrentUser }) {
+function ParticipantCard({ participant, index, isCurrentUser, onVerify }) {
   const slideAnim = useRef(new Animated.Value(50)).current;
 
   useEffect(() => {
@@ -549,7 +587,7 @@ function ParticipantCard({ participant, index, isCurrentUser }) {
               <TouchableOpacity
                 className="ml-2 bg-blue-500 px-2 py-1 rounded"
                 onPress={() => {
-                  console.log('Verify activity:', participant);
+                 onVerify(participant);
                 }}
               >
                 <Text className="text-white text-xs font-semibold">Verify</Text>

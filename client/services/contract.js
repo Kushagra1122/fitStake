@@ -8,7 +8,7 @@
 import { ethers } from 'ethers';
 
 // Deployed contract address on Sepolia
-const CONTRACT_ADDRESS = '0xbaf067fe68f032d9fdc906c6dcb32299baa2404f';
+const CONTRACT_ADDRESS = '0xe38d8f585936c60ecb7bfae7297457f6a35058bb';
 
 // Sepolia RPC URL for reading blockchain data
 const SEPOLIA_RPC_URL = 'https://sepolia.infura.io/v3/fccd5042681c42b598675d08a67dbaa8'; // Using Infura endpoint (matches MetaMask's built-in Sepolia)

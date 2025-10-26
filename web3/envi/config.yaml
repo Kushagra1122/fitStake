@@ -6,7 +6,7 @@ networks:
   contracts:
   - name: challengercc
     address:
-    - 0xe38D8f585936c60eCB7BfAe7297457f6A35058Bb
+    - 0xe38d8f585936c60ecb7bfae7297457f6a35058bb
     handler: ./src/EventHandlers.js
     events:
     - event: ChallengeCreated(uint256 indexed challengeId, address indexed creator, string description, uint256 stakeAmount, uint256 startTime, uint256 endTime, uint256 targetDistance)

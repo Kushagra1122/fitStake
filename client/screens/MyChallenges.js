@@ -13,7 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useWeb3 } from '../context/Web3Context';
 import { useNavigation } from '@react-navigation/native';
-import { getUserChallenges } from '../services/contract';
+import { getUserChallenges, withdrawWinnings } from '../services/contract';
 import { getActivityIcon, getDaysLeft, formatDistance } from '../utils/helpers';
 import { runTests } from '../services/test';
 import { Ionicons, MaterialIcons, FontAwesome5, MaterialCommunityIcons, Feather, FontAwesome } from '@expo/vector-icons';
@@ -21,6 +21,7 @@ import { Ionicons, MaterialIcons, FontAwesome5, MaterialCommunityIcons, Feather,
 export default function MyChallenges() {
   const navigation = useNavigation();
   const { account, getSigner, getWalletConnectInfo, getProvider } = useWeb3();
+  const { accessToken, isConnected } = useStrava();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
@@ -291,7 +292,9 @@ export default function MyChallenges() {
                   challenge={challenge}
                   onPress={handleChallengePress}
                   onComplete={handleCompleteChallenge}
+                  onVerify={handleVerifyRun}
                   isActive={activeTab === 'active'}
+                  isVerifying={isVerifying && verifyingChallengeId === challenge.id}
                   index={index}
                 />
               ))}
@@ -480,7 +483,7 @@ function ChallengeCard({ challenge, onPress, onComplete, isActive, index }) {
           />
         </View>
 
-        {/* Action Button */}
+        {/* Action Buttons */}
         {isActive && challenge.finalized && !challenge.hasWithdrawn && (
           <TouchableOpacity
             className="bg-green-600 py-4 rounded-xl shadow-sm"
@@ -496,10 +499,36 @@ function ChallengeCard({ challenge, onPress, onComplete, isActive, index }) {
           </TouchableOpacity>
         )}
 
-        {isActive && !challenge.finalized && (
-          <View className="bg-blue-50 p-3 rounded-xl">
-            <Text className="text-blue-700 text-xs text-center font-medium">
-              Challenge in progress • Connect Strava to track your progress
+        {isActive && !challenge.finalized && !challenge.isCompleted && (
+          <TouchableOpacity
+            className={`py-4 rounded-2xl ${
+              isVerifying 
+                ? 'bg-gray-400' 
+                : 'bg-gradient-to-r from-purple-600 to-pink-600'
+            }`}
+            onPress={() => onVerify(challenge)}
+            activeOpacity={0.8}
+            disabled={isVerifying}
+          >
+            {isVerifying ? (
+              <View className="flex-row items-center justify-center">
+                <ActivityIndicator size="small" color="white" className="mr-2" />
+                <Text className="text-white font-bold text-base">
+                  Verifying Run...
+                </Text>
+              </View>
+            ) : (
+              <Text className="text-white font-bold text-base text-center">
+                Verify Run 🏃
+              </Text>
+            )}
+          </TouchableOpacity>
+        )}
+
+        {isActive && !challenge.finalized && challenge.isCompleted && (
+          <View className="bg-green-50 p-3 rounded-xl">
+            <Text className="text-green-700 text-xs text-center font-medium">
+              ✅ Challenge completed! Waiting for finalization
             </Text>
           </View>
         )}
