@@ -18,17 +18,21 @@ import { getActivityIcon, getDaysLeft, formatDistance } from '../utils/helpers';
 import { runTests } from '../services/test';
 import { Ionicons, MaterialIcons, FontAwesome5, MaterialCommunityIcons, Feather, FontAwesome } from '@expo/vector-icons';
 import { useStrava } from '../context/StravaContext';
+import stravaService from '../services/stravaService';
+import { verifyStravaActivity } from '../services/litOracleService';
 
 export default function MyChallenges() {
   const navigation = useNavigation();
   const { account, getSigner, getWalletConnectInfo, getProvider } = useWeb3();
-  const { accessToken, isConnected } = useStrava();
+  const { accessToken, isConnected, getValidAccessToken } = useStrava();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
   const [challenges, setChallenges] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('active');
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verifyingChallengeId, setVerifyingChallengeId] = useState(null);
 
   useEffect(() => {
     Animated.parallel([
@@ -122,6 +126,75 @@ export default function MyChallenges() {
             }
           },
         },
+      ]
+    );
+  };
+
+  const handleVerifyRun = async (challenge) => {
+    if (!isConnected) {
+      Alert.alert('Error', 'Please connect your wallet first.');
+      return;
+    }
+
+    Alert.alert(
+      'Verify Activity',
+      `Verify completion for "${challenge.name}"? This will submit your Strava activity to be verified on-chain.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Verify',
+          onPress: async () => {
+            setIsVerifying(true);
+            setVerifyingChallengeId(challenge.id);
+            
+            try {
+              // Get Strava access token
+              const accessToken = await getValidAccessToken();
+              
+              // Fetch user's Strava activities
+              const recentActivities = await stravaService.fetchRecentActivities(accessToken);
+              
+              if (!recentActivities || recentActivities.length === 0) {
+                Alert.alert('No Activities', 'No recent Strava activities found. Please complete a run and try again.');
+                return;
+              }
+
+              // Let user select an activity (simplified - just use most recent)
+              const selectedActivity = recentActivities[0];
+              
+              console.log('🔍 Selected activity:', selectedActivity);
+              
+              // Show loading
+              Alert.alert('Verifying...', 'Submitting your activity for verification via Lit Protocol.');
+
+              // Call Lit Protocol oracle to verify and mark complete
+              const result = await verifyStravaActivity({
+                challengeId: challenge.id,
+                userAddress: account,
+                stravaAccessToken: accessToken,
+                activityData: selectedActivity
+              });
+
+              if (result.success) {
+                Alert.alert(
+                  'Verification Success! 🎉',
+                  `Your activity has been verified on-chain!\n\nTransaction: ${result.result?.transaction?.transactionHash?.substring(0, 10)}...`
+                );
+                
+                // Reload challenges to update the UI
+                await loadMyChallenges();
+              } else {
+                Alert.alert('Verification Failed', result.error || 'Failed to verify activity. Please try again.');
+              }
+            } catch (error) {
+              console.error('Error verifying activity:', error);
+              Alert.alert('Error', error.message || 'Failed to verify activity. Please try again.');
+            } finally {
+              setIsVerifying(false);
+              setVerifyingChallengeId(null);
+            }
+          }
+        }
       ]
     );
   };
@@ -340,7 +413,7 @@ export default function MyChallenges() {
   );
 }
 
-function ChallengeCard({ challenge, onPress, onComplete, isActive, index }) {
+function ChallengeCard({ challenge, onPress, onComplete, onVerify, isActive, isVerifying, index }) {
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
 

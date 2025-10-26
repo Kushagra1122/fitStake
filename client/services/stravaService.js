@@ -247,6 +247,38 @@ const fetchActivity=async(accessToken)=>{
     throw error;
   }
 }
+
+/**
+ * Fetch recent activities for the authenticated athlete
+ * @param {string} accessToken - Strava access token
+ * @param {number} perPage - Number of activities per page (default: 30, max: 200)
+ * @returns {Promise<Array>} Array of recent activities
+ */
+const fetchRecentActivities = async (accessToken, perPage = 30) => {
+  try {
+    logDebug('📥 Fetching recent activities', { perPage });
+    
+    const response = await fetch(`${STRAVA_API_BASE}/activities?per_page=${perPage}`, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+    
+    if (!response.ok) {
+      logError('❌ Failed to fetch recent activities', {
+        status: response.status,
+        statusText: response.statusText
+      });
+      return [];
+    }
+    
+    const activities = await response.json();
+    logDebug('✅ Fetched recent activities', { count: activities.length });
+    
+    return activities || [];
+  } catch (error) {
+    logError('❌ Error fetching recent activities', error);
+    throw error;
+  }
+}
 /**
  * Fetch athlete's segments (starred segments)
  */
@@ -537,4 +569,5 @@ export default {
   fetchSegmentDetails,
   getDataSummary,
   fetchActivity,
+  fetchRecentActivities,
 };

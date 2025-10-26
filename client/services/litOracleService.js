@@ -6,7 +6,7 @@
  */
 
 // Backend oracle URL - using localhost for development
-const ORACLE_BACKEND_URL = 'http://10.68.250.64:3000';
+const ORACLE_BACKEND_URL = 'http://10.175.109.154:3001';
 
 /**
  * Logs debug information
@@ -48,7 +48,7 @@ export const checkOracleHealth = async () => {
     const healthData = await response.json();
     logDebug('✅ Oracle health check passed', healthData);
     
-    return healthData.status === 'healthy';
+    return healthData.status === 'OK' || healthData.status === 'healthy';
   } catch (error) {
     logError('❌ Health check error', error);
     return false;
@@ -89,18 +89,16 @@ export const verifyStravaActivity = async ({
     const requestBody = {
       challengeId: challengeId.toString(),
       userAddress,
-      stravaAccessToken: stravaAccessToken || '',
-      activityId: activityData?.id?.toString() || '',
-      mockActivityData: activityData || null
+      stravaAccessToken: stravaAccessToken || ''
     };
 
     logDebug('📤 Sending verification request', {
-      url: `${ORACLE_BACKEND_URL}/verify-strava-run`,
+      url: `${ORACLE_BACKEND_URL}/api/verify-strava`,
       body: requestBody
     });
 
     // Send verification request to oracle backend
-    const response = await fetch(`${ORACLE_BACKEND_URL}/verify-strava-run`, {
+    const response = await fetch(`${ORACLE_BACKEND_URL}/api/verify-strava`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -129,19 +127,19 @@ export const verifyStravaActivity = async ({
     logDebug('✅ Verification result', result);
 
     if (!result.success) {
-      throw new Error(result.error || 'Verification failed');
+      throw new Error(result.error || result.message || 'Verification failed');
     }
 
     console.log('🎉 Strava activity verified successfully!');
     console.log('📄 Transaction details:', {
-      hash: result.result?.transaction?.transactionHash,
-      status: result.result?.transaction?.status
+      hash: result.transactionHash,
+      blockNumber: result.blockNumber
     });
 
     return {
       success: true,
-      result: result.result,
-      timestamp: result.timestamp
+      result: result,
+      timestamp: new Date().toISOString()
     };
 
   } catch (error) {
