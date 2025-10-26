@@ -1,29 +1,43 @@
 <div align="center">
 
-# FitStake
+<table>
+<tr>
+<td width="100" align="center">
+  <img src="./client/assets/final_icon.png" alt="FitStake Logo" width="80" height="80" />
+</td>
+<td align="center">
+  <h1>FitStake</h1>
+</td>
+</tr>
+</table>
 
-<img src="./client/assets/final_icon.png" alt="FitStake Logo" width="120" height="120" />
+**Decentralized Fitness Challenge Platform Powered by Web3**
 
-**Decentralized Fitness Challenge Platform**
+*A blockchain-based application that incentivizes fitness through cryptocurrency staking and automated verification*
 
-A Web3-powered platform that incentivizes fitness through cryptocurrency stakes and automated verification
+[![React Native](https://img.shields.io/badge/React%20Native-0.81.5-61dafb?logo=react)](https://reactnative.dev/)
+[![Solidity](https://img.shields.io/badge/Solidity-0.8.28-363636?logo=solidity)](https://soliditylang.org/)
+[![Express](https://img.shields.io/badge/Express-4.21.2-000000?logo=express)](https://expressjs.com/)
+[![Lit Protocol](https://img.shields.io/badge/Lit%20Protocol-4.0.0-4318E2?logo=litprotocol)](https://litprotocol.com/)
+[![Envio](https://img.shields.io/badge/Envio-Indexer-00D4AA?logo=envio)](https://enviodev.com/)
+[![Hardhat](https://img.shields.io/badge/Hardhat-3.0.7-FFF176?logo=ethereum)](https://hardhat.org/)
 
-[![React Native](https://img.shields.io/badge/React%20Native-0.81.5-61dafb)](https://reactnative.dev/)
-[![Solidity](https://img.shields.io/badge/Solidity-0.8.28-363636)](https://soliditylang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Testnet: Sepolia](https://img.shields.io/badge/Testnet-Sepolia-blue)](https://sepolia.etherscan.io/address/0xe38d8f585936c60ecb7bfae7297457f6a35058bb)
 
 </div>
 
 ---
 
-## Table of Contents
+## 📑 Table of Contents
 
 - [Overview](#overview)
-- [System Architecture](#system-architecture)
+- [Features](#features)
+- [Architecture](#architecture)
 - [Technology Stack](#technology-stack)
-- [Key Features](#key-features)
 - [Installation](#installation)
 - [Configuration](#configuration)
+- [Project Structure](#project-structure)
 - [Smart Contracts](#smart-contracts)
 - [Oracle System](#oracle-system)
 - [API Reference](#api-reference)
@@ -31,106 +45,152 @@ A Web3-powered platform that incentivizes fitness through cryptocurrency stakes 
 - [Testing](#testing)
 - [Deployment](#deployment)
 - [Contributing](#contributing)
+- [License](#license)
 
 ---
 
-## Overview
+## 🎯 Overview
 
-FitStake is a decentralized application that enables users to create and join fitness challenges with cryptocurrency stakes. The platform combines blockchain technology, oracle services, and fitness tracking APIs to create a transparent and automated challenge system.
+FitStake is a comprehensive Web3 fitness challenge platform that enables users to create and join fitness challenges with cryptocurrency stakes. The platform combines blockchain technology, oracle services, and fitness tracking APIs to create a transparent and automated challenge system.
 
 ### Core Concept
 
-Users stake cryptocurrency (ETH) to participate in fitness challenges. Upon completion, activities are verified through the Strava API by an oracle service. Successful participants receive rewards, while failed challenges distribute stakes to winners.
+Users stake cryptocurrency (ETH) to participate in fitness challenges. Upon completion, activities are verified through the Strava API by an oracle service powered by Lit Protocol. Successful participants receive rewards, while failed challenges distribute stakes to winners.
 
-### Problem Statement
+### Why FitStake?
 
 Traditional fitness apps lack meaningful incentives. Without financial commitment, users frequently abandon goals. FitStake addresses this by requiring cryptocurrency stakes, creating real economic incentives for challenge completion.
 
 ---
 
-## System Architecture
+## ✨ Features
 
-### High-Level Architecture
+### 🎯 Challenge Management
+- Create custom fitness challenges with configurable parameters
+- Set target distance, stake amount, and duration
+- Real-time challenge status tracking
+- Automatic challenge finalization
+
+### 💰 Staking Mechanism
+- Secure cryptocurrency staking with ETH
+- Funds locked in smart contract until challenge completion
+- Automatic distribution upon challenge completion
+- Transparent reward calculation
+
+### 🔍 Oracle Verification
+- Automated activity verification via Strava API
+- Lit Protocol for decentralized oracle signing
+- Checks distance, activity type, and timestamp
+- Only authorized oracle can mark tasks as complete
+
+### 🏆 Reward Distribution
+- Winners receive proportional share of stakes
+- Failed participants forfeit stakes to winners
+- Automated withdrawal mechanism
+- All transactions recorded on blockchain
+
+### 📊 Real-time Indexing
+- Blockchain data indexing via Envio
+- GraphQL API for efficient queries
+- Real-time event synchronization
+- Historical data access
+
+### 📱 Mobile-First Design
+- Cross-platform mobile app (iOS & Android)
+- WalletConnect integration for wallet connection
+- Modern, intuitive UI with NativeWind styling
+- Real-time notifications and updates
+
+---
+
+## 🏗️ Architecture
+
+### High-Level System Architecture
 
 ```mermaid
 graph TB
-    subgraph "Client Application"
+    subgraph "Mobile Application"
         MobileApp[Mobile App<br/>React Native<br/>iOS/Android]
+        Screens[UI Screens<br/>Home, Challenges, Profile]
+        Services[Services Layer<br/>Contract, Strava, Oracle]
     end
     
     subgraph "Blockchain Layer"
         SmartContract[ChallengeContract.sol<br/>0xe38d8f585936c60ecb7bfae7297457f6a35058bb<br/>Ethereum Sepolia]
     end
     
-    subgraph "Oracle Service"
-        OracleBackend[Oracle API Service<br/>Lit Protocol<br/>Express.js]
-        PKPWallet[Programmable Key Pair<br/>Autonomous Signing]
+    subgraph "Backend Services"
+        OracleBackend[Oracle API Service<br/>Lit Protocol Integration]
+        VincentBackend[Vincent Backend<br/>Ability Verification]
+        OAuthServer[OAuth Server<br/>Strava Authentication]
     end
     
     subgraph "External APIs"
         StravaAPI[Strava API<br/>Activity Data]
+        LitProtocol[Lit Protocol<br/>Decentralized Oracle]
         EnvioIndexer[Envio Indexer<br/>GraphQL API]
     end
     
+    subgraph "Infrastructure"
+        PKPWallet[Programmable Key Pair<br/>Autonomous Signing]
+    end
+    
     MobileApp -->|WalletConnect Protocol| SmartContract
-    MobileApp -->|OAuth 2.0| StravaAPI
+    MobileApp -->|OAuth 2.0| OAuthServer
+    OAuthServer -->|OAuth Flow| StravaAPI
     MobileApp -->|HTTP POST| OracleBackend
     OracleBackend -->|HTTP GET| StravaAPI
-    OracleBackend -->|PKP Signature| SmartContract
+    OracleBackend -->|PKP Signature| LitProtocol
+    LitProtocol -->|Execute Transaction| SmartContract
     SmartContract -->|Event Logs| EnvioIndexer
     MobileApp -->|GraphQL Query| EnvioIndexer
+    VincentBackend -->|Verify Activity| StravaAPI
+    VincentBackend -->|Sign Transaction| SmartContract
 ```
 
 ### Data Flow Sequence
 
 ```mermaid
 sequenceDiagram
-    participant U as User
-    participant A as Mobile App
-    participant W as MetaMask
-    participant SC as Smart Contract
-    participant S as Strava API
-    participant O as Oracle Service
-    participant E as Envio Indexer
+    participant User
+    participant App
+    participant Wallet
+    participant Contract
+    participant Strava
+    participant Oracle
+    participant Indexer
     
-    U->>A: Connect Wallet
-    A->>W: Request Connection
-    W-->>A: Session Established
+    Note over User,Indexer: Challenge Creation Flow
+    User->>App: Create Challenge
+    App->>Wallet: Request Transaction
+    Wallet->>Contract: execute createChallenge()
+    Contract-->>App: ChallengeCreated Event
+    Indexer->>Indexer: Index Event
     
-    U->>A: Connect Strava
-    A->>S: OAuth Authorization
-    S-->>A: Access Token
+    Note over User,Indexer: Challenge Join Flow
+    User->>App: Join Challenge
+    App->>Wallet: Sign + Send ETH
+    Wallet->>Contract: execute joinChallenge()
+    Contract->>Contract: Lock Funds
+    Contract-->>App: UserJoined Event
+    Indexer->>Indexer: Index Event
     
-    U->>A: Create Challenge<br/>description, distance, stake, duration
-    A->>W: Sign createChallenge Transaction
-    W->>SC: execute createChallenge()
-    SC-->>A: ChallengeCreated Event
-    A-->>U: Challenge Created
+    Note over User,Indexer: Verification Flow
+    User->>Strava: Record Activity
+    User->>App: Request Verification
+    App->>Oracle: Verify Activity
+    Oracle->>Strava: Fetch Activity Data
+    Strava-->>Oracle: Activity Response
+    Oracle->>Oracle: Validate Requirements
+    Oracle->>Contract: markTaskComplete()
+    Contract-->>App: TaskCompleted Event
+    Indexer->>Indexer: Index Event
     
-    U->>A: Join Challenge
-    A->>W: Sign joinChallenge + ETH Value
-    W->>SC: execute joinChallenge() with ETH
-    SC->>SC: Store Participant & Stake
-    SC-->>A: UserJoined Event
-    A-->>U: Joined Successfully
-    
-    U->>S: Record Activity via Strava App
-    U->>A: Request Verification
-    A->>O: POST /verify-strava-run<br/>challengeId, userAddress, activityId
-    O->>S: GET /activities/{id}
-    S-->>O: Activity Data
-    O->>O: Validate Distance, Type, Timestamp
-    O->>SC: execute markTaskComplete()
-    SC->>SC: Set hasCompleted = true
-    SC-->>A: TaskCompleted Event
-    A-->>U: Verification Successful
-    
-    U->>A: Withdraw Winnings
-    A->>W: Sign withdrawWinnings Transaction
-    W->>SC: execute withdrawWinnings()
-    SC->>W: Transfer ETH to User
-    SC-->>A: WinningsDistributed Event
-    A-->>U: Funds Received
+    Note over User,Indexer: Withdrawal Flow
+    User->>App: Withdraw Winnings
+    App->>Contract: withdrawWinnings()
+    Contract->>User: Transfer ETH
+    Contract-->>App: WinningsDistributed Event
 ```
 
 ### Smart Contract State Machine
@@ -160,117 +220,80 @@ stateDiagram-v2
 
 ---
 
-## Technology Stack
+## 🛠️ Technology Stack
 
-### Frontend
+### Frontend (Mobile App)
 
-| Component | Technology | Version | Purpose |
-|-----------|-----------|---------|---------|
-| Framework | React Native | 0.81.5 | Cross-platform mobile development |
-| Platform | Expo | 54.0.17 | Build system and tooling |
-| Styling | NativeWind | 2.0.11 | Tailwind CSS for React Native |
-| Navigation | React Navigation | 7.x | Routing and screen management |
-| Blockchain | ethers.js | 6.15.0 | Ethereum library for contract interaction |
-| Wallet | WalletConnect | 2.22.4 | Decentralized wallet connection protocol |
-| Charts | Victory Native | 41.20.1 | Data visualization components |
-| State | React Context | - | Global state management |
+| Component           | Technology  | Version | Purpose                           |
+|---------------------|-------------|---------|-----------------------------------|
+| Framework           | React Native| 0.81.5 | Cross-platform mobile development |
+| Build System        | Expo        | 54.0.17 | Build system and tooling          |
+| Styling             | NativeWind  | 2.0.11  | Tailwind CSS for React Native     |
+| Navigation          | React Navigation | 7.x  | Routing and screen management     |
+| Blockchain          | ethers.js   | 6.15.0  | Ethereum library                  |
+| Wallet              | WalletConnect | 2.22.4 | Decentralized wallet protocol     |
+| Charts              | Victory Native | 41.20.1 | Data visualization               |
+| State Management    | React Context | -     | Global state management           |
+| HTTP Client         | Axios       | 1.12.2  | API requests                      |
+| Secure Storage      | Expo Secure Store | 15.0.7 | Secure key storage              |
 
-### Backend
+### Backend Services
 
-| Component | Technology | Version | Purpose |
-|-----------|-----------|---------|---------|
-| Oracle Framework | Lit Protocol | 4.0.0 | Decentralized oracle infrastructure |
-| API Server | Express.js | 4.21.2 | HTTP API service |
-| Language | TypeScript | 5.8.0 | Type-safe development |
-| Execution | tsx | 4.0.0 | TypeScript execution |
+| Component        | Technology | Version | Purpose                        |
+|------------------|------------|---------|--------------------------------|
+| Oracle Framework | Lit Protocol | 4.0.0 | Decentralized oracle          |
+| API Server       | Express.js | 4.21.2 | HTTP API service              |
+| Language         | TypeScript | 5.8.0  | Type-safe development         |
+| Execution        | tsx        | 4.0.0  | TypeScript execution          |
+| OAuth Server     | Express.js | 4.21.2 | Strava OAuth implementation   |
 
 ### Smart Contracts
 
-| Component | Technology | Version | Purpose |
-|-----------|-----------|---------|---------|
-| Language | Solidity | 0.8.28 | Smart contract development |
-| Framework | Hardhat | 3.0.7 | Development environment |
-| Deployment | Hardhat Ignition | 3.0.3 | Automated deployment |
-| Testing | Hardhat Test | - | Contract testing framework |
+| Component | Technology | Version | Purpose                    |
+|-----------|------------|---------|----------------------------|
+| Language  | Solidity   | 0.8.28  | Smart contract development |
+| Framework | Hardhat    | 3.0.7   | Development environment    |
+| Deployment| Hardhat Ignition | 3.0.3 | Automated deployment       |
+| Testing   | Hardhat Test | -    | Contract testing          |
 
-### Infrastructure
+### Blockchain & Infrastructure
 
-| Service | Technology | Purpose |
-|---------|-----------|---------|
-| Blockchain Network | Ethereum Sepolia | Testnet deployment |
-| Block Explorer | Sepolia Etherscan | Transaction verification |
-| Indexer | Envio | Blockchain data indexing |
-| Fitness API | Strava API | Activity data source |
-| OAuth Server | Express.js | Strava authentication flow |
-
----
-
-## Key Features
-
-### Challenge Management
-
-Create custom fitness challenges with configurable parameters:
-- Challenge description
-- Target distance (in meters)
-- Stake amount (in ETH)
-- Start time and duration
-
-### Staking Mechanism
-
-Secure cryptocurrency staking:
-- Participants stake ETH equal to challenge requirement
-- Funds locked in smart contract
-- Automatic distribution upon challenge completion
-
-### Oracle Verification
-
-Automated activity verification:
-- Oracle service validates Strava activities
-- Checks distance, activity type, and timestamp
-- Only oracle can mark tasks as complete
-- All verification recorded on-chain
-
-### Reward Distribution
-
-Fair and transparent payout system:
-- Winners receive proportional share of stakes
-- Failed participants forfeit stakes to winners
-- Automated withdrawal mechanism
-- All transactions recorded on blockchain
-
-### Real-time Indexing
-
-Blockchain data indexing via Envio:
-- GraphQL API for efficient queries
-- Real-time event synchronization
-- Historical data access
-- Optimized for mobile queries
+| Component          | Technology       | Purpose                            |
+|--------------------|------------------|------------------------------------|
+| Network            | Ethereum Sepolia | Testnet deployment                 |
+| Chain ID           | 11155111         | Sepolia network identifier         |
+| Contract Address   | 0xe38d8f585936c60ecb7bfae7297457f6a35058bb | Deployed contract |
+| Block Explorer     | Sepolia Etherscan| Transaction verification           |
+| Indexer            | Envio            | Blockchain data indexing            |
+| Fitness API        | Strava API       | Activity data source                |
+| OAuth Server       | Express.js       | Strava authentication flow          |
+| Programmable Keys  | Lit Protocol PKP | Autonomous transaction signing      |
 
 ---
 
-## Installation
+## 📦 Installation
 
 ### Prerequisites
 
-- Node.js v20.x
-- pnpm
-- Docker (optional)
-- Expo CLI
-- MetaMask mobile wallet
-- Strava account
+- **Node.js** v20.x (required)
+- **pnpm** (package manager)
+- **Docker** (optional, for local blockchain)
+- **Expo CLI** (for mobile development)
+- **MetaMask** mobile wallet
+- **Strava account** (for fitness tracking)
 
-### Setup Instructions
+### Quick Start
 
 ```bash
-# Clone repository
+# Clone the repository
 git clone https://github.com/Kushagra1122/fitStake.git
 cd fitStake
 
-# Install client dependencies
+# Install mobile app dependencies
 cd client
 npm install
 
-# Install web3 dependencies
+# Install Web3 dependencies
 cd ../web3
 pnpm install
 
@@ -281,72 +304,268 @@ pnpm install
 # Install OAuth server dependencies
 cd ../../oauth-server
 npm install
+
+# Install Vincent backend dependencies
+cd ../vincent-backend
+npm install
 ```
 
 ### Environment Variables
 
-**client/.env**
+#### Client Configuration (`client/.env`)
 
 ```env
+# WalletConnect Configuration
 EXPO_PUBLIC_WALLET_CONNECT_PROJECT_ID=your_walletconnect_project_id
+
+# Strava API Configuration
 EXPO_PUBLIC_STRAVA_CLIENT_ID=your_strava_client_id
 EXPO_PUBLIC_STRAVA_CLIENT_SECRET=your_strava_client_secret
+
+# Server Configuration
 EXPO_PUBLIC_OAUTH_SERVER_HOST=localhost
-EXPO_PUBLIC_CONTRACT_ADDRESS=0xe38d8f585936c60ecb7bfae7297457f6a35058bb
 EXPO_PUBLIC_ORACLE_BACKEND_URL=http://localhost:3000
+EXPO_PUBLIC_VINCENT_BACKEND_URL=http://localhost:3001
+
+# Contract Configuration
+EXPO_PUBLIC_CONTRACT_ADDRESS=0xe38d8f585936c60ecb7bfae7297457f6a35058bb
+EXPO_PUBLIC_CHAIN_ID=11155111
 ```
 
-**web3/.env**
+#### Web3 Configuration (`web3/.env`)
 
 ```env
+# Private Key (without 0x prefix)
 PRIVATE_KEY=your_deployer_private_key
+
+# RPC URLs
 SEPOLIA_RPC_URL=https://sepolia.infura.io/v3/your_api_key
+RPC_URL=https://sepolia.infura.io/v3/your_api_key
+
+# Lit Protocol Configuration
 PKP_TOKEN_ID=your_pkp_token_id
 PKP_PUBLIC_KEY=your_pkp_public_key
+
+# Vincent Configuration
+VINCENT_DELEGATEE_PRIVATE_KEY=your_delegatee_private_key
+VINCENT_PKP_ADDRESS=your_pkp_address
+VINCENT_APP_ID=9593630138
+```
+
+#### OAuth Server Configuration (`oauth-server/.env`)
+
+```env
+STRAVA_CLIENT_ID=your_strava_client_id
+STRAVA_CLIENT_SECRET=your_strava_client_secret
+PORT=3000
+APP_SCHEME=fitstake
+```
+
+#### Vincent Backend Configuration (`vincent-backend/.env`)
+
+```env
+PORT=3001
+VINCENT_DELEGATEE_PRIVATE_KEY=your_private_key
+VINCENT_PKP_ADDRESS=your_pkp_address
+VINCENT_APP_ID=9593630138
+RPC_URL=https://sepolia.infura.io/v3/your_api_key
+CONTRACT_ADDRESS=0xe38d8f585936c60ecb7bfae7297457f6a35058bb
 ```
 
 ---
 
-## Configuration
+## ⚙️ Configuration
 
 ### Wallet Setup
 
-1. Install MetaMask mobile application
-2. Create or import wallet
-3. Switch network to Sepolia Testnet
-4. Obtain test ETH from Sepolia faucet
-5. Connect wallet via WalletConnect in application
+1. **Install MetaMask Mobile Application**
+   - Download from App Store or Google Play
+   - Create or import wallet
+
+2. **Configure Sepolia Testnet**
+   - Switch network to Sepolia Testnet
+   - Add network if not present:
+     - Network Name: `Sepolia Test Network`
+     - RPC URL: `https://sepolia.infura.io/v3/YOUR_KEY`
+     - Chain ID: `11155111`
+     - Currency Symbol: `ETH`
+
+3. **Obtain Test ETH**
+   - Visit [Sepolia Faucet](https://sepoliafaucet.com/)
+   - Request test ETH to your wallet
+   - Wait for confirmation
+
+4. **Connect Wallet in App**
+   - Open FitStake app
+   - Tap "Connect Wallet"
+   - Follow WalletConnect prompts
 
 ### Strava Integration
 
-1. Register application at https://www.strava.com/settings/api
-2. Obtain Client ID and Client Secret
-3. Configure redirect URI: `http://YOUR_SERVER_IP:3000/exchange_token`
-4. Update environment variables with credentials
-5. Grant activity read permissions during OAuth
+1. **Register Application**
+   - Visit [Strava API Settings](https://www.strava.com/settings/api)
+   - Click "Create App"
+   - Fill in application details:
+     - Website: `http://localhost`
+     - Authorization Callback Domain: `localhost`
+   - Save and note your `Client ID` and `Client Secret`
+
+2. **Configure Redirect URI**
+   - Add `http://YOUR_SERVER_IP:3000/exchange_token`
+   - Ensure OAuth server is accessible
+
+3. **Update Environment Variables**
+   - Add Client ID and Secret to `.env` files
+   - Grant `activity:read_all` scope during OAuth
+
+4. **Connect Strava in App**
+   - Open FitStake app
+   - Tap "Connect Strava"
+   - Authorize application
+   - Strava activities will be accessible
 
 ### Oracle Configuration
 
-1. Generate Programmable Key Pair via Lit Protocol
-2. Fund PKP wallet with Sepolia ETH for gas
-3. Configure oracle address on smart contract
-4. Deploy oracle backend service
-5. Test verification flow with sample activities
+1. **Generate Programmable Key Pair (PKP)**
+   ```bash
+   cd web3
+   npm run mint-pkp
+   ```
+   - Note the PKP Token ID and Public Key
+   - Store securely for configuration
+
+2. **Fund PKP Wallet**
+   - Send Sepolia ETH to PKP public address
+   - Ensure sufficient gas for transactions
+
+3. **Set Oracle on Contract**
+   ```bash
+   npm run set-oracle
+   ```
+
+4. **Deploy Oracle Backend**
+   ```bash
+   npm run backend
+   ```
+
+5. **Test Verification Flow**
+   - Record activity on Strava
+   - Request verification in app
+   - Check oracle logs for confirmation
+
+### Envio Indexer Setup
+
+1. **Generate Code**
+   ```bash
+   cd web3/envi
+   pnpm codegen
+   ```
+
+2. **Verify Compilation**
+   ```bash
+   pnpm tsc --noEmit
+   ```
+
+3. **Start Indexer**
+   ```bash
+   pnpm dev
+   ```
 
 ---
 
-## Smart Contracts
+## 📁 Project Structure
+
+```
+fitStake/
+├── client/                           # React Native Mobile Application
+│   ├── android/                      # Android native code
+│   ├── ios/                          # iOS native code
+│   ├── assets/                       # Static assets (images, icons)
+│   ├── components/                   # Reusable components
+│   │   ├── Dashboard/                # Dashboard components
+│   │   │   ├── ActivityFeedItem.js   # Activity feed item
+│   │   │   ├── ComparisonChart.js    # Comparison chart
+│   │   │   ├── DashboardDemo.js      # Demo dashboard
+│   │   │   ├── DashboardLayout.js    # Main layout
+│   │   │   ├── LeaderboardCard.js    # Leaderboard
+│   │   │   ├── LiveStatsCard.js      # Live statistics
+│   │   │   ├── ProtocolHealthIndicator.js  # Health status
+│   │   │   └── TrendChart.js         # Trend visualization
+│   │   └── StravaActivitiesExample.js
+│   ├── context/                      # State management
+│   │   ├── StravaContext.js          # Strava state
+│   │   └── Web3Context.js            # Web3 state
+│   ├── screens/                      # Screen components
+│   │   ├── Home.js                   # Home screen
+│   │   ├── Challange.js              # Challenge detail
+│   │   ├── CreateChallenge.js        # Create challenge
+│   │   ├── JoinChallenge.js          # Join challenge
+│   │   ├── MyChallenges.js           # User challenges
+│   │   ├── Profile.js                 # User profile
+│   │   ├── ConnectWallet.js          # Wallet connection
+│   │   ├── ConnectStrava.js          # Strava connection
+│   │   └── VerificationSuccess.js    # Verification success
+│   ├── services/                     # API services
+│   │   ├── contract.js               # Contract interactions
+│   │   ├── stravaService.js          # Strava API integration
+│   │   ├── litOracleService.js       # Lit oracle client
+│   │   ├── envioService.js           # Envio GraphQL client
+│   │   ├── vincentService.js         # Vincent backend client
+│   │   └── test.js                   # Test utilities
+│   └── utils/                         # Utility functions
+│       └── helpers.js                # Helper functions
+│
+├── web3/                              # Smart Contracts & Infrastructure
+│   ├── contracts/                     # Solidity contracts
+│   │   └── ChallengeContract.sol      # Main challenge contract
+│   ├── backend/                        # Oracle services
+│   │   ├── lit-oracle-service.ts      # Lit oracle implementation
+│   │   ├── real-oracle-service.ts      # Production oracle
+│   │   └── simple-oracle-service.ts    # Simple oracle
+│   ├── lit-actions/                    # Lit Protocol actions
+│   │   ├── helpers.js                  # Helper functions
+│   │   ├── validation.js               # Validation logic
+│   │   ├── verifyStravaActivity.js     # Main verification action
+│   │   └── types/strava.ts             # TypeScript types
+│   ├── scripts/                        # Deployment scripts
+│   │   ├── deploy-sepolia.ts           # Sepolia deployment
+│   │   ├── set-oracle.ts               # Oracle setup
+│   │   ├── mint-pkp.ts                 # PKP generation
+│   │   └── test-lit-oracle-e2e.ts      # E2E tests
+│   ├── test/                           # Contract tests
+│   │   ├── ChallengeContract.ts        # Contract tests
+│   │   └── LitOracleIntegration.ts     # Oracle integration tests
+│   └── envi/                           # Envio indexer
+│       ├── config.yaml                 # Indexer configuration
+│       ├── schema.graphql               # GraphQL schema
+│       └── src/
+│           └── EventHandlers.js        # Event handlers
+│
+├── oauth-server/                       # Strava OAuth Server
+│   ├── server.js                       # Main server
+│   └── package.json
+│
+└── vincent-backend/                    # Vincent Backend Service
+    ├── src/
+    │   └── index.js                    # Main server
+    └── package.json
+```
+
+---
+
+## 🔗 Smart Contracts
 
 ### Contract Specification
 
-**Network:** Ethereum Sepolia Testnet  
-**Chain ID:** 11155111  
-**Contract Address:** 0xe38d8f585936c60ecb7bfae7297457f6a35058bb  
-**Solidity Version:** 0.8.28
+- **Network**: Ethereum Sepolia Testnet
+- **Chain ID**: 11155111
+- **Contract Address**: `0xe38d8f585936c60ecb7bfae7297457f6a35058bb`
+- **Solidity Version**: 0.8.28
+- **License**: MIT
 
 ### Core Functions
 
-#### createChallenge
+#### `createChallenge`
 
 Creates a new fitness challenge with specified parameters.
 
@@ -369,7 +588,7 @@ function createChallenge(
 
 **Access:** Public
 
-#### joinChallenge
+#### `joinChallenge`
 
 Allows users to join an existing challenge by staking required amount.
 
@@ -381,17 +600,17 @@ function joinChallenge(uint256 challengeId) external payable
 - `challengeId`: ID of challenge to join
 
 **Access:** Public  
-**Requires:** Challenge active, sufficient msg.value
+**Requires:** Challenge active, correct msg.value
 
-#### markTaskComplete
+#### `markTaskComplete`
 
 Marks a participant's challenge as completed. Only callable by authorized oracle.
 
 ```solidity
 function markTaskComplete(
     uint256 challengeId,
-    address user,
-    uint256 timestamp,
+    address userAddress,
+    uint256 completionTimestamp,
     uint256 distance,
     uint256 duration,
     string memory stravaActivityId
@@ -400,15 +619,15 @@ function markTaskComplete(
 
 **Parameters:**
 - `challengeId`: ID of challenge
-- `user`: Participant address
-- `timestamp`: Activity completion timestamp
+- `userAddress`: Participant address
+- `completionTimestamp`: Activity completion timestamp
 - `distance`: Activity distance in meters
 - `duration`: Activity duration in seconds
 - `stravaActivityId`: Strava activity identifier
 
 **Access:** Oracle only
 
-#### finalizeChallenge
+#### `finalizeChallenge`
 
 Finalizes challenge and calculates winner distribution.
 
@@ -422,7 +641,7 @@ function finalizeChallenge(uint256 challengeId) external
 **Access:** Public  
 **Requires:** Challenge end time passed
 
-#### withdrawWinnings
+#### `withdrawWinnings`
 
 Allows successful participants to withdraw their share of winnings.
 
@@ -435,6 +654,28 @@ function withdrawWinnings(uint256 challengeId) external
 
 **Access:** Public  
 **Requires:** Participant completed, challenge finalized
+
+#### `setOracleAddress`
+
+Sets the authorized oracle address. Owner only.
+
+```solidity
+function setOracleAddress(address oracleAddress) external onlyOwner
+```
+
+**Parameters:**
+- `oracleAddress`: Oracle contract address
+
+**Access:** Owner only
+
+### View Functions
+
+- `getChallenge(uint256 challengeId)`: Get challenge details
+- `getParticipant(uint256 challengeId, address user)`: Get participant info
+- `getChallengeParticipants(uint256 challengeId)`: Get all participants
+- `isParticipant(uint256 challengeId, address user)`: Check participation
+- `getUserChallenges(address user)`: Get user's challenges
+- `getUserChallengeDetails(address user)`: Get detailed challenge info
 
 ### Events
 
@@ -498,160 +739,165 @@ event WinningsDistributed(
 ### Deployment
 
 ```bash
-cd web3
+# Compile contracts
 npm run compile
+
+# Deploy to Sepolia
 npm run deploy-sepolia
+
+# Verify on Etherscan
 npx hardhat verify --network sepolia 0xe38d8f585936c60ecb7bfae7297457f6a35058bb
 ```
 
 ---
 
-## Oracle System
+## 🔮 Oracle System
 
-### Architecture
+### Architecture Overview
 
-The oracle service uses Lit Protocol for decentralized verification and signing. The system consists of three main components:
+The oracle service uses multiple verification methods to ensure reliable and decentralized activity verification:
 
-1. Oracle API Service - Express.js backend handling verification requests
-2. Lit Protocol Network - Distributed network for secure computation
-3. Programmable Key Pair - Autonomous wallet for transaction signing
+1. **Lit Protocol**: Decentralized oracle infrastructure with PKP signing
+2. **Vincent Backend**: Structured ability-based verification
+3. **Strava API**: Direct activity data source
 
 ### Verification Flow
 
 ```mermaid
 flowchart TD
-    A[Client Request<br/>POST /verify-strava-run] --> B[Oracle Service Receives Request]
-    B --> C[Extract challengeId, userAddress, activityId]
-    C --> D[Fetch Challenge Details from Contract]
-    D --> E[GET Strava Activity Data]
+    A[Client Request<br/>POST /api/verify-strava] --> B[Oracle Service]
+    B --> C[Extract Parameters]
+    C --> D[Fetch Challenge Details]
+    D --> E[GET Strava Activity]
     E --> F{Validate Activity Type}
-    F -->|Not Run| G[Return Validation Error]
+    F -->|Not Run| G[Return Error]
     F -->|Run| H{Validate Distance}
     H -->|Insufficient| G
     H -->|Sufficient| I{Validate Timestamp}
     I -->|Outside Window| G
-    I -->|Valid| J[Generate Transaction Data]
-    J --> K[Execute Lit Action]
-    K --> L[PKP Signs Transaction]
-    L --> M[Submit to Blockchain]
-    M --> N[Return Success Response]
+    I -->|Valid| J[Execute Lit Action]
+    J --> K[PKP Signs Transaction]
+    K --> L[Submit to Blockchain]
+    L --> M[Return Success]
 ```
 
 ### Oracle API Endpoints
 
-#### Health Check
+#### Vincent Backend Endpoints
 
+**Health Check**
 ```http
-GET /health
+GET http://localhost:3001/health
 ```
 
-Returns service status and basic information.
-
-**Response:**
-```json
-{
-  "status": "healthy",
-  "timestamp": "2025-01-15T10:30:00Z"
-}
-```
-
-#### Verify Activity
-
+**Verify Strava Activity**
 ```http
-POST /verify-strava-run
+POST http://localhost:3001/api/verify-strava
 Content-Type: application/json
-```
 
-Verifies a Strava activity against challenge requirements.
-
-**Request Body:**
-```json
 {
   "challengeId": "1",
   "userAddress": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
   "stravaAccessToken": "access_token",
-  "activityId": "12345678"
+  "contractAddress": "0xe38d8f585936c60ecb7bfae7297457f6a35058bb"
 }
 ```
 
-**Response (Success):**
-```json
+**Auto-Stake to Challenge**
+```http
+POST http://localhost:3001/api/auto-stake
+Content-Type: application/json
+
 {
-  "success": true,
-  "result": {
-    "transaction": {
-      "transactionHash": "0x...",
-      "status": "confirmed",
-      "blockNumber": 123456
-    },
-    "verificationResult": {
-      "success": true,
-      "reason": "Activity validation successful",
-      "isValidDistance": true,
-      "isValidType": true,
-      "isValidTimestamp": true
-    }
-  }
+  "challengeId": "1",
+  "userAddress": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
+  "stakeAmount": "1000000000000000"
 }
 ```
 
-**Response (Error):**
-```json
-{
-  "success": false,
-  "error": "Activity does not meet challenge requirements"
-}
+#### OAuth Server Endpoints
+
+**Exchange Token**
+```http
+GET http://localhost:3000/exchange_token?code=xxx&state=xxx
 ```
 
-### Oracle Setup
-
-```bash
-# Install dependencies
-cd web3
-pnpm install
-
-# Mint Programmable Key Pair
-npm run mint-pkp
-
-# Fund PKP address with Sepolia ETH (manual)
-
-# Configure oracle on contract
-npm run set-oracle
-
-# Start oracle service
-npm run backend
+**Auth Status**
+```http
+GET http://localhost:3000/auth-status/:sessionId
 ```
+
+### Oracle Setup Instructions
+
+1. **Install Dependencies**
+   ```bash
+   cd web3
+   pnpm install
+   ```
+
+2. **Mint Programmable Key Pair**
+   ```bash
+   npm run mint-pkp
+   ```
+   - Copy PKP Token ID and Public Key
+   - Fund the PKP address with Sepolia ETH
+
+3. **Set Oracle Address**
+   ```bash
+   npm run set-oracle
+   ```
+
+4. **Start Oracle Services**
+   ```bash
+   # Vincent Backend (Port 3001)
+   cd vincent-backend
+   npm start
+   
+   # OAuth Server (Port 3000)
+   cd oauth-server
+   npm start
+   ```
+
+### Oracle Verification Logic
+
+The oracle validates three key criteria:
+
+1. **Activity Type**: Must be a "Run"
+2. **Distance**: Must meet or exceed challenge target distance
+3. **Timestamp**: Must be within challenge active window
 
 ---
 
-## API Reference
+## 📡 API Reference
 
 ### Contract Interface
 
-**ABI File:** `web3/abi/abi.json`
+**ABI Location**: `web3/abi/abi.json`
 
-**Network:** Sepolia Testnet
+**Network**: Sepolia Testnet (Chain ID: 11155111)
 
-**Primary Functions:**
+#### Function Reference
 
-| Function | Input | Output | Description |
-|----------|-------|--------|-------------|
-| `createChallenge` | description, distance, stake, duration | uint256 | Create challenge |
-| `joinChallenge` | challengeId | - | Join with stake |
-| `markTaskComplete` | challengeId, user, data | - | Mark complete (oracle) |
-| `finalizeChallenge` | challengeId | - | Finalize challenge |
-| `withdrawWinnings` | challengeId | - | Withdraw rewards |
-| `getChallenge` | challengeId | ChallengeDetails | Get challenge info |
+| Function              | Input                    | Output        | Description              |
+|-----------------------|--------------------------|---------------|--------------------------|
+| `createChallenge`     | description, distance, stake, duration | uint256 | Create challenge |
+| `joinChallenge`       | challengeId              | -             | Join with stake          |
+| `markTaskComplete`    | challengeId, user, data  | -             | Mark complete (oracle)   |
+| `finalizeChallenge`   | challengeId              | -             | Finalize challenge       |
+| `withdrawWinnings`    | challengeId              | -             | Withdraw rewards         |
+| `getChallenge`        | challengeId              | ChallengeDetails | Get challenge info    |
+| `setOracleAddress`    | oracleAddress            | -             | Set oracle (owner only)  |
 
-### Indexer API
+### Envio Indexer API
 
-**GraphQL Endpoint:** Configured in Envio deployment
+**GraphQL Endpoint**: Configured during Envio deployment
 
-**Available Queries:**
+#### Query Examples
 
+**Get Challenge Details**
 ```graphql
 query GetChallenge($id: ID!) {
-  challenge(id: $id) {
+  challengercc_challengeCreated(id: $id) {
     id
     challengeId
     creator
@@ -662,104 +908,216 @@ query GetChallenge($id: ID!) {
     targetDistance
   }
 }
+```
 
-query GetChallenges {
-  challenges {
+**Get All Challenges**
+```graphql
+query GetAllChallenges {
+  challengercc_challengeCreateds {
     id
     challengeId
     creator
     description
     targetDistance
+    stakeAmount
+  }
+}
+```
+
+**Get Challenge Participants**
+```graphql
+query GetParticipants($challengeId: BigInt!) {
+  challengercc_userJoineds(where: { challengeId: $challengeId }) {
+    id
+    user
+    stakedAmount
+  }
+}
+```
+
+**Get Task Completions**
+```graphql
+query GetCompletions($challengeId: BigInt!) {
+  challengercc_taskCompleteds(where: { challengeId: $challengeId }) {
+    id
+    user
+    distance
+    duration
+    completionTimestamp
+    stravaActivityId
   }
 }
 ```
 
 ---
 
-## Development
-
-### Project Structure
-
-```
-fitStake/
-├── client/                    # React Native application
-│   ├── android/               # Android native code
-│   ├── ios/                    # iOS native code
-│   ├── assets/                 # Static assets
-│   ├── components/             # Reusable components
-│   ├── context/                # State management
-│   ├── screens/                # Screen components
-│   ├── services/               # API services
-│   └── utils/                  # Utility functions
-│
-├── web3/                       # Smart contracts and infrastructure
-│   ├── contracts/              # Solidity contracts
-│   ├── backend/                # Oracle services
-│   ├── lit-actions/            # Lit Protocol actions
-│   ├── scripts/                 # Deployment scripts
-│   ├── test/                   # Contract tests
-│   └── envi/                    # Envio indexer
-│
-├── oauth-server/               # Strava OAuth server
-└── docs/                       # Documentation
-```
+## 🚀 Development
 
 ### Development Commands
 
-#### Mobile App
+#### Mobile App Development
 
 ```bash
 cd client
-npm start              # Start Expo development server
-npm run ios           # Run on iOS simulator
-npm run android       # Run on Android emulator
+
+# Start Expo development server
+npm start
+
+# Run on iOS simulator
+npm run ios
+
+# Run on Android emulator
+npm run android
+
+# Run on web browser
+npm run web
 ```
 
-#### Smart Contracts
+#### Smart Contract Development
 
 ```bash
 cd web3
-npm run compile       # Compile contracts
-npm test              # Run tests
-npm run deploy        # Deploy to network
+
+# Compile contracts
+npm run compile
+
+# Run tests
+npm test
+
+# Start local Hardhat node
+npm run node
+
+# Deploy to local network
+npm run deploy
+
+# Deploy to Sepolia testnet
+npm run deploy-sepolia
 ```
 
-#### Oracle Service
+#### Oracle Service Development
 
 ```bash
+# Vincent Backend
+cd vincent-backend
+npm start              # Start on port 3001
+
+# OAuth Server
+cd oauth-server
+npm start             # Start on port 3000
+
+# Lit Oracle Service
 cd web3
-npm run backend       # Start oracle API
-npm run test-lit-e2e # Test oracle end-to-end
+npm run backend        # Start oracle service
 ```
 
-#### Envio Indexer
+#### Envio Indexer Development
 
 ```bash
 cd web3/envi
-pnpm codegen          # Generate code
-pnpm tsc --noEmit     # Check compilation
-pnpm dev              # Start indexer
+
+# Generate TypeScript code
+pnpm codegen
+
+# Verify compilation
+pnpm tsc --noEmit
+
+# Start indexer in development mode
+pnpm dev
+
+# Start indexer without TUI
+TUI_OFF=true pnpm dev
 ```
 
 ### Code Organization
 
-**Mobile App Services:**
+#### Mobile App Services
 
-- `services/contract.js` - Smart contract interactions via ethers.js
-- `services/stravaService.js` - Strava API integration and OAuth
-- `services/litOracleService.js` - Oracle service client
-- `services/envioService.js` - Envio GraphQL client
+**contract.js**: Smart contract interactions via ethers.js
+- Wallet connection management
+- Transaction signing
+- Event subscription
+- Contract read/write operations
 
-**Smart Contract Structure:**
+**stravaService.js**: Strava API integration
+- OAuth flow handling
+- Activity fetching
+- Token management
+- Authentication refresh
 
-- `contracts/ChallengeContract.sol` - Main challenge contract
-- `backend/real-oracle-service.ts` - Production oracle service
-- `lit-actions/verifyStravaActivity.js` - Lit Protocol action
-- `scripts/deploy-sepolia.ts` - Deployment automation
+**litOracleService.js**: Lit oracle client
+- Oracle verification requests
+- Transaction status checking
+- Error handling
+
+**envioService.js**: Envio GraphQL client
+- GraphQL query execution
+- Event data fetching
+- Challenge state queries
+
+**vincentService.js**: Vincent backend client
+- Ability-based verification
+- Auto-stake functionality
+- Activity verification
+
+#### Smart Contract Structure
+
+**ChallengeContract.sol**: Main challenge contract
+- Challenge lifecycle management
+- Participant tracking
+- Reward distribution logic
+- Access control modifiers
+
+#### Oracle Services
+
+**lit-oracle-service.ts**: Lit Protocol oracle
+- PKP signing integration
+- Strava API validation
+- Transaction execution
+
+**real-oracle-service.ts**: Production oracle
+- Enhanced validation logic
+- Comprehensive error handling
+- Transaction monitoring
+
+**simple-oracle-service.ts**: Simplified oracle
+- Basic validation
+- Direct API calls
+- Minimal dependencies
+
+### Development Workflow
+
+1. **Set Up Environment**
+   - Configure all `.env` files
+   - Install dependencies
+   - Start all services
+
+2. **Run Tests**
+   - Contract unit tests
+   - Integration tests
+   - E2E oracle tests
+
+3. **Deploy Contracts**
+   - Compile contracts
+   - Deploy to testnet
+   - Verify on Etherscan
+
+4. **Start Services**
+   - Oracle backend
+   - OAuth server
+   - Vincent backend
+   - Envio indexer
+
+5. **Test Mobile App**
+   - Connect wallet
+   - Connect Strava
+   - Create challenge
+   - Join challenge
+   - Verify activity
+   - Withdraw winnings
 
 ---
 
-## Testing
+## 🧪 Testing
 
 ### Contract Tests
 
@@ -768,132 +1126,267 @@ cd web3
 npm test
 ```
 
-Tests cover:
-- Challenge creation
-- Participant joining
-- Task completion
-- Finalization logic
-- Reward distribution
+**Test Coverage:**
+- Challenge creation and configuration
+- Participant joining with correct stake
+- Task completion by oracle
+- Challenge finalization logic
+- Winner reward distribution
+- Access control and permissions
 
 ### Integration Tests
 
 ```bash
-npm run test-deployed      # Test deployed contract
-npm run test-lit-e2e       # Test oracle flow
+# Test deployed contract
+npm run test-deployed
+
+# Test Lit oracle E2E
+npm run test-lit-e2e
+
+# Test low stake amounts
+npm run test-low-stake
 ```
 
 ### Manual Testing Flow
 
-1. Connect wallet to Sepolia testnet
-2. Connect Strava account via OAuth
-3. Create test challenge with parameters
-4. Join challenge with stake
-5. Record activity on Strava
-6. Request verification through oracle
-7. Confirm TaskCompleted event
-8. Withdraw winnings
+1. **Connect Wallet**
+   - Install MetaMask
+   - Switch to Sepolia testnet
+   - Get test ETH from faucet
+   - Connect via WalletConnect in app
+
+2. **Connect Strava**
+   - Tap "Connect Strava" in app
+   - Authorize FitStake
+   - Verify connection status
+
+3. **Create Challenge**
+   - Fill in challenge parameters
+   - Set stake amount and duration
+   - Submit transaction
+   - Wait for confirmation
+
+4. **Join Challenge**
+   - Browse available challenges
+   - Select a challenge
+   - Approve ETH stake
+   - Confirm transaction
+
+5. **Record Activity**
+   - Record activity on Strava
+   - Wait for synchronization
+
+6. **Request Verification**
+   - Tap "Verify Activity" in app
+   - Oracle verifies activity
+   - Wait for on-chain confirmation
+
+7. **Withdraw Winnings**
+   - Wait for challenge finalization
+   - Tap "Withdraw Winnings"
+   - Confirm transaction
+   - Verify funds received
 
 ---
 
-## Deployment
+## 📤 Deployment
 
-### Mobile App
+### Mobile App Deployment
 
-**iOS Deployment:**
+#### iOS Deployment
 
 ```bash
 cd client
+
+# Build for production
 eas build --platform ios
+
+# Submit to App Store
 eas submit --platform ios
 ```
 
-**Android Deployment:**
+#### Android Deployment
 
 ```bash
+cd client
+
+# Build for production
 eas build --platform android
+
+# Submit to Play Store
 eas submit --platform android
 ```
 
-### Smart Contracts
+### Smart Contract Deployment
 
-**Sepolia Deployment:**
+#### Sepolia Testnet
 
 ```bash
 cd web3
+
+# Compile contracts
+npm run compile
+
+# Deploy to Sepolia
 npm run deploy-sepolia
+
+# Verify contract
 npx hardhat verify --network sepolia <CONTRACT_ADDRESS>
 ```
 
-**Mainnet Deployment:**
+#### Mainnet Deployment
 
 ```bash
+cd web3
+
+# Deploy to mainnet
 npm run deploy --network mainnet
+
+# Verify contract
 npx hardhat verify --network mainnet <CONTRACT_ADDRESS>
 ```
 
-### Oracle Backend
+### Oracle Backend Deployment
 
-Deploy to cloud platform (Railway, Render, Fly.io):
+Deploy to cloud platform (Railway, Render, or Fly.io):
 
 ```bash
+# Push to repository
 git push origin main
-# Configure environment variables in platform dashboard
+
+# Platform will automatically deploy
+# Configure environment variables in dashboard
 ```
 
 **Required Environment Variables:**
-- `PRIVATE_KEY`
-- `PKP_TOKEN_ID`
-- `PKP_PUBLIC_KEY`
-- `SEPOLIA_RPC_URL`
-- `CONTRACT_ADDRESS`
+- `PRIVATE_KEY`: Deployer private key
+- `PKP_TOKEN_ID`: PKP token ID
+- `PKP_PUBLIC_KEY`: PKP public key
+- `SEPOLIA_RPC_URL`: Sepolia RPC endpoint
+- `CONTRACT_ADDRESS`: Contract address
 
-### Envio Indexer
+### Envio Indexer Deployment
 
 ```bash
 cd web3/envi
+
+# Deploy indexer
 envio deploy
+
+# Configure GraphQL endpoint
+# Update client configuration
+```
+
+### Environment Configuration
+
+#### Production Environment Variables
+
+```env
+# Client App
+EXPO_PUBLIC_CONTRACT_ADDRESS=0x...
+EXPO_PUBLIC_ORACLE_BACKEND_URL=https://...
+EXPO_PUBLIC_STRAVA_CLIENT_ID=...
+EXPO_PUBLIC_VINCENT_BACKEND_URL=https://...
+
+# Backend Services
+PRIVATE_KEY=...
+PKP_TOKEN_ID=...
+VINCENT_PKP_ADDRESS=...
+SEPOLIA_RPC_URL=...
 ```
 
 ---
 
-## Contributing
+## 🤝 Contributing
 
-We welcome contributions to FitStake. Please follow these guidelines:
+We welcome contributions to FitStake! Please follow these guidelines:
 
-1. Fork the repository
-2. Create a feature branch from `main`
-3. Make your changes with proper commit messages
-4. Add tests for new functionality
-5. Ensure all tests pass
-6. Submit a pull request
+### Contribution Workflow
 
-**Commit Message Format:**
+1. **Fork the Repository**
+   ```bash
+   gh repo fork Kushagra1122/fitStake
+   ```
+
+2. **Create Feature Branch**
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+3. **Make Changes**
+   - Follow code style guidelines
+   - Add tests for new functionality
+   - Update documentation
+
+4. **Commit Changes**
+   ```bash
+   git commit -m "feat: add new feature"
+   ```
+
+5. **Push to Branch**
+   ```bash
+   git push origin feature/your-feature-name
+   ```
+
+6. **Create Pull Request**
+   - Open PR on GitHub
+   - Link related issues
+   - Request reviews
+
+### Commit Message Format
+
 ```
 type(scope): brief description
 
 Detailed explanation if needed
 ```
 
-Types: feat, fix, docs, style, refactor, test, chore
+**Types:**
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation changes
+- `style`: Code style changes (formatting)
+- `refactor`: Code refactoring
+- `test`: Test additions or changes
+- `chore`: Maintenance tasks
+
+### Code Style Guidelines
+
+- Use ESLint for JavaScript/TypeScript
+- Follow Prettier formatting
+- Write descriptive variable names
+- Add comments for complex logic
+- Update tests for new features
+- Update README for API changes
+
+### Testing Requirements
+
+- All new features must have tests
+- Maintain test coverage above 80%
+- Run all tests before submitting PR
+- Ensure CI/CD pipeline passes
 
 ---
 
-## License
+## 📝 License
 
-This project is licensed under the MIT License. See the LICENSE file for details.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ---
 
-## Contact
+## 📞 Contact
 
-- **Email:** devgambo.work@gmail.com
-- **GitHub:** [@Kushagra1122](https://github.com/Kushagra1122)
-- **Repository:** https://github.com/Kushagra1122/fitStake
+- **Developer**: Kushagra Tiwari
+- **Email**: devgambo.work@gmail.com
+- **GitHub**: [@Kushagra1122](https://github.com/Kushagra1122)
+- **Repository**: [fitStake](https://github.com/Kushagra1122/fitStake)
 
 ---
 
 <div align="center">
 
-Built for the Web3 and fitness communities
+**Built with ❤️ for the Web3 and fitness communities**
+
+[⬆ Back to Top](#-fitstake)
 
 </div>
