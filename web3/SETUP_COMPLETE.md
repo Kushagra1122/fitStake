@@ -8,7 +8,7 @@
 - **Config Saved**: `.pkp-config.json`
 
 ### 2. Oracle Authorized on Contract ✅
-- **Contract**: `0xbaf067fe68f032d9fdc906c6dcb32299baa2404f      `
+- **Contract**: `0xe38d8f585936c60ecb7bfae7297457f6a35058bb      `
 - **Transaction**: [View on Etherscan](https://sepolia.etherscan.io/tx/0x8b3e8f156aa4fd5fa1fc50305b0297a9b158f4102bb73f862d0831c37cc2b5a2)
 - **Status**: Oracle is authorized and ready to call `markTaskComplete()`
 
@@ -145,7 +145,7 @@ User's challenge status updated ✅
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| Contract Deployed | ✅ | `0xbaf067fe68f032d9fdc906c6dcb32299baa2404f      ` |
+| Contract Deployed | ✅ | `0xe38d8f585936c60ecb7bfae7297457f6a35058bb      ` |
 | Oracle Created | ✅ | `0x43A94238Dc2BB59D42c7E95532026D73b0855a5A` |
 | Oracle Authorized | ✅ | Transaction confirmed |
 | Oracle Funded | ⏳ | **Needs funding** |

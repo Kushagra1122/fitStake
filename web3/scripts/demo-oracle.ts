@@ -8,7 +8,7 @@ import path from 'path';
  * Demonstrates the oracle can call markTaskComplete on the contract
  */
 
-const CONTRACT_ADDRESS = "0xbaf067fe68f032d9fdc906c6dcb32299baa2404f      ";
+const CONTRACT_ADDRESS = "0xe38d8f585936c60ecb7bfae7297457f6a35058bb      ";
 
 async function main() {
   console.log('╔════════════════════════════════════════════════╗');

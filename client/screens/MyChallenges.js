@@ -11,17 +11,23 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useWeb3 } from '../context/Web3Context';
 import { useNavigation } from '@react-navigation/native';
-import { getUserChallenges } from '../services/contract';
+import { getUserChallenges, withdrawWinnings } from '../services/contract';
 import { getActivityIcon, getDaysLeft, formatDistance } from '../utils/helpers';
+import { useStrava } from '../context/StravaContext';
+import { verifyStravaActivity, checkOracleHealth } from '../services/litOracleService';
+import stravaService from '../services/stravaService';
 
 export default function MyChallenges() {
   const navigation = useNavigation();
   const { account, getSigner, getWalletConnectInfo, getProvider } = useWeb3();
+  const { accessToken, isConnected } = useStrava();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const [challenges, setChallenges] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('active'); // 'active' or 'completed'
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verifyingChallengeId, setVerifyingChallengeId] = useState(null);
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -63,6 +69,96 @@ export default function MyChallenges() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleVerifyRun = async (challenge) => {
+    if (isVerifying) {
+      return; // Prevent multiple verifications
+    }
+
+    Alert.alert(
+      'Verify Your Run',
+      `Verify your run for "${challenge.name}"?\n\nThis will generate mock activity data and mark the challenge as complete on-chain.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Verify Run',
+          onPress: async () => {
+            setIsVerifying(true);
+            setVerifyingChallengeId(challenge.id);
+            
+            try {
+              console.log('🏃 Starting run verification for challenge:', challenge.id);
+              
+              // Check oracle health first
+              const isOracleHealthy = await checkOracleHealth();
+              if (!isOracleHealthy) {
+                throw new Error('Oracle service is not available. Please try again later.');
+              }
+
+              // Generate mock activity data
+              console.log('📊 Generating mock activity data...');
+              const now = Math.floor(Date.now() / 1000);
+              const challengeStartTime = challenge.startTime;
+              const challengeEndTime = challenge.endTime;
+              
+              // Generate activity within challenge time window
+              const activityTime = Math.max(challengeStartTime, now - 3600); // Within last hour or challenge start
+              
+              const mockActivity = {
+                id: Date.now(),
+                name: "Mock Run - Verification Test",
+                distance: 5200, // 5.2 km (always passes 5km requirement)
+                moving_time: 1800, // 30 minutes
+                elapsed_time: 1900,
+                type: "Run",
+                start_date: new Date(activityTime * 1000).toISOString(),
+                start_date_local: new Date(activityTime * 1000).toISOString()
+              };
+
+              console.log('✅ Generated mock activity:', mockActivity);
+
+              // Verify activity with real oracle
+              console.log('🔐 Sending activity to real oracle...');
+              const verificationResult = await verifyStravaActivity({
+                challengeId: challenge.id,
+                userAddress: account,
+                stravaAccessToken: '', // Not needed for mock data
+                activityData: mockActivity
+              });
+
+              if (verificationResult.success) {
+                console.log('🎉 Verification successful!');
+                const txHash = verificationResult.result?.transaction?.transactionHash;
+                const etherscanUrl = `https://sepolia.etherscan.io/tx/${txHash}`;
+                
+                // Navigate to success screen
+                navigation.navigate('VerificationSuccess', {
+                  challenge: challenge,
+                  activity: mockActivity,
+                  transactionHash: txHash,
+                  etherscanUrl: etherscanUrl,
+                  blockNumber: verificationResult.result?.transaction?.blockNumber
+                });
+              } else {
+                throw new Error(verificationResult.error || 'Verification failed');
+              }
+
+            } catch (error) {
+              console.error('❌ Verification error:', error);
+              Alert.alert(
+                'Verification Failed',
+                error.message || 'Failed to verify your run. Please try again.',
+                [{ text: 'OK' }]
+              );
+            } finally {
+              setIsVerifying(false);
+              setVerifyingChallengeId(null);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleCompleteChallenge = async (challenge) => {
@@ -226,7 +322,9 @@ export default function MyChallenges() {
                   key={challenge.id}
                   challenge={challenge}
                   onComplete={handleCompleteChallenge}
+                  onVerify={handleVerifyRun}
                   isActive={activeTab === 'active'}
+                  isVerifying={isVerifying && verifyingChallengeId === challenge.id}
                   index={index}
                 />
               ))}
@@ -258,7 +356,7 @@ export default function MyChallenges() {
 }
 
 // Challenge Card Component
-function ChallengeCard({ challenge, onComplete, isActive, index }) {
+function ChallengeCard({ challenge, onComplete, onVerify, isActive, isVerifying, index }) {
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
 
@@ -357,7 +455,7 @@ function ChallengeCard({ challenge, onComplete, isActive, index }) {
           <MiniStat icon="⏱️" label="Duration" value={`${challenge.duration}d`} />
         </View>
 
-        {/* Action Button */}
+        {/* Action Buttons */}
         {isActive && challenge.finalized && !challenge.hasWithdrawn && (
           <TouchableOpacity
             className="bg-gradient-to-r from-green-500 to-emerald-500 py-4 rounded-2xl"
@@ -370,10 +468,36 @@ function ChallengeCard({ challenge, onComplete, isActive, index }) {
           </TouchableOpacity>
         )}
 
-        {isActive && !challenge.finalized && (
-          <View className="bg-blue-50 p-3 rounded-xl">
-            <Text className="text-blue-700 text-xs text-center font-medium">
-              Challenge in progress • Connect Strava to track your progress
+        {isActive && !challenge.finalized && !challenge.isCompleted && (
+          <TouchableOpacity
+            className={`py-4 rounded-2xl ${
+              isVerifying 
+                ? 'bg-gray-400' 
+                : 'bg-gradient-to-r from-purple-600 to-pink-600'
+            }`}
+            onPress={() => onVerify(challenge)}
+            activeOpacity={0.8}
+            disabled={isVerifying}
+          >
+            {isVerifying ? (
+              <View className="flex-row items-center justify-center">
+                <ActivityIndicator size="small" color="white" className="mr-2" />
+                <Text className="text-white font-bold text-base">
+                  Verifying Run...
+                </Text>
+              </View>
+            ) : (
+              <Text className="text-white font-bold text-base text-center">
+                Verify Run 🏃
+              </Text>
+            )}
+          </TouchableOpacity>
+        )}
+
+        {isActive && !challenge.finalized && challenge.isCompleted && (
+          <View className="bg-green-50 p-3 rounded-xl">
+            <Text className="text-green-700 text-xs text-center font-medium">
+              ✅ Challenge completed! Waiting for finalization
             </Text>
           </View>
         )}
