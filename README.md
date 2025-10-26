@@ -272,7 +272,6 @@ sequenceDiagram
     participant Lit as ⚡ Lit Protocol
     participant Indexer as 📊 Envio Indexer
     
-    rect rgb(220, 237, 255)
     Note over User,Indexer: Initial Setup Flow
     User->>App: Open FitStake App
     App->>Wallet: Connect via WalletConnect
@@ -281,12 +280,10 @@ sequenceDiagram
     Strava-->>App: Access Token
     App->>Strava: Fetch User Activities
     Strava-->>App: Activity List
-    end
     
-    rect rgb(255, 240, 220)
     Note over User,Indexer: Challenge Creation Flow
     User->>App: Tap Create Challenge
-    App->>App: Fill Challenge Details<br/>(distance, stake, duration)
+    App->>App: Fill Challenge Details (distance, stake, duration)
     App->>Wallet: Sign createChallenge Transaction
     Wallet->>Wallet: User Confirms
     Wallet->>Contract: Execute createChallenge()
@@ -295,9 +292,7 @@ sequenceDiagram
     App->>Indexer: Query via GraphQL
     Indexer-->>App: Challenge Data
     App-->>User: Challenge Created Successfully
-    end
     
-    rect rgb(240, 255, 220)
     Note over User,Indexer: Challenge Join Flow
     User->>App: Browse Challenges
     App->>Indexer: Query Available Challenges
@@ -314,14 +309,12 @@ sequenceDiagram
     App->>Indexer: Refresh Challenge Data
     Indexer-->>App: Updated Participant Count
     App-->>User: Successfully Joined Challenge
-    end
     
-    rect rgb(255, 220, 237)
     Note over User,Indexer: Activity Verification Flow
     User->>Strava: Record Activity (Run/Walk)
     Strava->>Strava: Store Activity Data
     User->>App: Request Verification
-    App->>Oracle: POST /verify-strava<br/>(challengeId, userAddress, activityId)
+    App->>Oracle: POST /verify-strava (challengeId, userAddress, activityId)
     Oracle->>Contract: Get Challenge Details
     Contract-->>Oracle: Challenge Requirements
     Oracle->>Strava: GET /activities/{id}
@@ -337,9 +330,7 @@ sequenceDiagram
     App->>Indexer: Query TaskCompleted Events
     Indexer-->>App: Verification Status
     App-->>User: Verification Successful
-    end
     
-    rect rgb(220, 255, 240)
     Note over User,Indexer: Challenge Finalization Flow
     App->>Contract: Check if EndTime Passed
     Contract-->>App: EndTime Status
@@ -352,9 +343,7 @@ sequenceDiagram
     App->>Indexer: Query Finalized Challenges
     Indexer-->>App: Finalization Status
     App-->>User: Challenge Finalized
-    end
     
-    rect rgb(255, 255, 220)
     Note over User,Indexer: Winnings Withdrawal Flow
     User->>App: Tap Withdraw Winnings
     App->>Contract: Check hasCompleted & finalized
@@ -366,7 +355,7 @@ sequenceDiagram
     App->>Indexer: Query Withdrawal Events
     Indexer-->>App: Transaction Confirmed
     App-->>User: Winnings Received
-    end
+
 ```
 
 ### Challenge Lifecycle State Machine
@@ -875,41 +864,41 @@ The oracle service uses multiple verification methods to ensure reliable and dec
 
 ```mermaid
 flowchart TD
-    Start([User Requests<br/>Verification]) --> Request[Receive POST Request<br/>/api/verify-strava]
+    Start([User Requests Verification]) --> Request[Receive POST Request /api/verify-strava]
     
-    Request --> Extract[Extract Parameters<br/>challengeId, userAddress,<br/>stravaAccessToken]
+    Request --> Extract[Extract Parameters: challengeId, userAddress, stravaAccessToken]
     
-    Extract --> GetContract[Query Smart Contract<br/>Get Challenge Details]
+    Extract --> GetContract[Query Smart Contract - Get Challenge Details]
     
-    GetContract --> ContractData{Contract<br/>Response}
+    GetContract --> ContractData{Contract Response}
     
-    ContractData -->|Challenge Exists| FetchStrava[Fetch Activity from Strava API<br/>GET /activities/:id]
-    ContractData -->|Error| Error1[Return Error:<br/>Challenge Not Found]
+    ContractData -->|Challenge Exists| FetchStrava[Fetch Activity from Strava API GET /activities/:id]
+    ContractData -->|Error| Error1[Return Error: Challenge Not Found]
     
-    FetchStrava --> StravaData{Strava<br/>Response}
+    FetchStrava --> StravaData{Strava Response}
     
     StravaData -->|Success| ValidateType{Activity Type?}
-    StravaData -->|Error| Error2[Return Error:<br/>Activity Not Found]
+    StravaData -->|Error| Error2[Return Error: Activity Not Found]
     
-    ValidateType -->|Not Run| Error3[Return Error:<br/>Invalid Activity Type]
-    ValidateType -->|Run| ValidateDistance{Distance >=<br/>Target Distance?}
+    ValidateType -->|Not Run| Error3[Return Error: Invalid Activity Type]
+    ValidateType -->|Run| ValidateDistance{Distance >= Target Distance?}
     
-    ValidateDistance -->|No| Error4[Return Error:<br/>Insufficient Distance]
-    ValidateDistance -->|Yes| ValidateTime{Timestamp Within<br/>Challenge Window?}
+    ValidateDistance -->|No| Error4[Return Error: Insufficient Distance]
+    ValidateDistance -->|Yes| ValidateTime{Timestamp Within Challenge Window?}
     
-    ValidateTime -->|No| Error5[Return Error:<br/>Activity Outside Time Window]
-    ValidateTime -->|Yes| PrepareTX[Prepare Transaction Data<br/>markTaskComplete Function]
+    ValidateTime -->|No| Error5[Return Error: Activity Outside Time Window]
+    ValidateTime -->|Yes| PrepareTX[Prepare Transaction Data - markTaskComplete Function]
     
-    PrepareTX --> CallLit[Call Lit Protocol<br/>Execute Action with PKP]
+    PrepareTX --> CallLit[Call Lit Protocol - Execute Action with PKP]
     
-    CallLit --> PKPSign[PKP Signs Transaction<br/>Autonomous Signing]
+    CallLit --> PKPSign[PKP Signs Transaction - Autonomous Signing]
     
-    PKPSign --> SubmitTx[Submit to Blockchain<br/>Execute markTaskComplete]
+    PKPSign --> SubmitTx[Submit to Blockchain - Execute markTaskComplete]
     
-    SubmitTx --> TxStatus{Transaction<br/>Status?}
+    SubmitTx --> TxStatus{Transaction Status?}
     
-    TxStatus -->|Success| Success[Return Success Response<br/>Emit TaskCompleted Event]
-    TxStatus -->|Failed| Error6[Return Error:<br/>Transaction Failed]
+    TxStatus -->|Success| Success[Return Success Response - Emit TaskCompleted Event]
+    TxStatus -->|Failed| Error6[Return Error: Transaction Failed]
     
     Error1 --> End([End])
     Error2 --> End
@@ -918,16 +907,6 @@ flowchart TD
     Error5 --> End
     Error6 --> End
     Success --> End
-    
-    style Start fill:#e1f5ff
-    style End fill:#ffe1f5
-    style Success fill:#e1ffe1
-    style Error1 fill:#ffe1e1
-    style Error2 fill:#ffe1e1
-    style Error3 fill:#ffe1e1
-    style Error4 fill:#ffe1e1
-    style Error5 fill:#ffe1e1
-    style Error6 fill:#ffe1e1
 ```
 
 ### Oracle API Endpoints
