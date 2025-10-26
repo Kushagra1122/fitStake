@@ -249,14 +249,8 @@ export default function Home({ navigation }) {
                     onPress={() => navigation.navigate("MyChallenges")}
                   />
                   <View/>
-                  <FeatureCard
-                    icon={
-                      <MaterialIcons
-                        name="sports-football"
-                        size={22}
-                        color="white"
-                      />
-                    }
+                  <FeatureCard 
+                    icon={<FontAwesome5 name="strava" size={22} color="white" />} 
                     title="Connect Strava"
                     description="Integrate your fitness tracking application"
                     gradient={["#F59E0B", "#D97706"]}

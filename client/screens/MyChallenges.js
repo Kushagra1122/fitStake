@@ -414,36 +414,34 @@ function ChallengeCard({ challenge, onPress, onComplete, isActive, index }) {
               </Text>
             </View>
           ) : (
-            <View className="bg-green-100 px-3 py-1.5 rounded-full">
-              <Text className="text-green-700 text-xs font-bold">
-                {challenge.isCompleted ? (
-                  <View className="flex-row items-center">
-                    <Ionicons name="checkmark" size={12} color="#16a34a" />
-                    <Text className="ml-1">Completed</Text>
-                  </View>
-                ) : challenge.hasWithdrawn ? (
-                  <View className="flex-row items-center">
-                    <FontAwesome5 name="money-bill-wave" size={12} color="#16a34a" />
-                    <Text className="ml-1">Withdrawn</Text>
-                  </View>
-                ) : challenge.finalized ? (
-                  <View className="flex-row items-center">
-                    <MaterialIcons name="flag" size={12} color="#16a34a" />
-                    <Text className="ml-1">Finalized</Text>
-                  </View>
-                ) : (
-                  <View className="flex-row items-center">
-                    <Ionicons name="checkmark-done" size={12} color="#16a34a" />
-                    <Text className="ml-1">Done</Text>
-                  </View>
-                )}
-              </Text>
+            <View className={`bg-green-100 px-3 py-1.5 rounded-full ${challenge.isCompleted ? 'flex-row items-center' : ''}`}>
+              {challenge.isCompleted ? (
+                <>
+                  <Ionicons name="checkmark" size={12} color="#16a34a" />
+                  <Text className="text-green-700 text-xs font-bold ml-1">Completed</Text>
+                </>
+              ) : challenge.hasWithdrawn ? (
+                <View className="flex-row items-center">
+                  <FontAwesome5 name="money-bill-wave" size={12} color="#16a34a" />
+                  <Text className="text-green-700 text-xs font-bold ml-1">Withdrawn</Text>
+                </View>
+              ) : challenge.finalized ? (
+                <View className="flex-row items-center">
+                  <MaterialIcons name="flag" size={12} color="#16a34a" />
+                  <Text className="text-green-700 text-xs font-bold ml-1">Finalized</Text>
+                </View>
+              ) : (
+                <View className="flex-row items-center">
+                  <Ionicons name="checkmark-done" size={12} color="#16a34a" />
+                  <Text className="text-green-700 text-xs font-bold ml-1">Done</Text>
+                </View>
+              )}
             </View>
           )}
         </View>
 
         {/* Progress */}
-        <View className="mb-4">
+        {/* <View className="mb-4">
           <View className="flex-row justify-between items-center mb-2">
             <Text className="text-gray-600 text-sm font-medium">Progress</Text>
             <Text className="text-gray-900 text-sm font-bold">
@@ -461,7 +459,7 @@ function ChallengeCard({ challenge, onPress, onComplete, isActive, index }) {
           <Text className="text-gray-500 text-xs mt-1 text-right">
             {Math.round(progressPercentage)}% complete
           </Text>
-        </View>
+        </View> */}
 
         {/* Stats */}
         <View className="flex-row justify-between bg-gray-50 p-4 rounded-xl mb-4">

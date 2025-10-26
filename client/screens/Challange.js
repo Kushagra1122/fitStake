@@ -535,16 +535,16 @@ function ParticipantCard({ participant, index, isCurrentUser }) {
       <View className="flex-row items-center justify-between mb-3">
         <View className="flex-1">
           <View className="flex-row items-center">
-            <Text className="text-gray-900 font-bold text-base">
-              {isCurrentUser ? (
-                <View className="flex-row items-center">
-                  <Ionicons name="person" size={16} color="#EC4899" />
-                  <Text className="ml-1">You</Text>
-                </View>
-              ) : (
-                `Participant ${index + 1}`
-              )}
-            </Text>
+            {isCurrentUser ? (
+              <View className="flex-row items-center">
+                <Ionicons name="person" size={16} color="#EC4899" />
+                <Text className="text-gray-900 font-bold text-base ml-1">You</Text>
+              </View>
+            ) : (
+              <Text className="text-gray-900 font-bold text-base">
+                Participant {index + 1}
+              </Text>
+            )}
             {isCurrentUser && (
               <TouchableOpacity
                 className="ml-2 bg-blue-500 px-2 py-1 rounded"
