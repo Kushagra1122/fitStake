@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,64 +7,83 @@ import {
   Alert,
   ScrollView,
   Animated,
-  Dimensions,
-  FlatList,
+  Platform,
   Linking,
-} from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useStrava } from '../context/StravaContext';
-import stravaService from '../services/stravaService';
+  Image,
+} from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import { LinearGradient } from "expo-linear-gradient";
+import { StatusBar } from "expo-status-bar";
+import { Ionicons, MaterialIcons, FontAwesome5 } from "@expo/vector-icons";
+import { useStrava } from "../context/StravaContext";
+import stravaService from "../services/stravaService";
 
-const { width } = Dimensions.get('window');
+// Constants
+const ANIMATION_CONFIG = {
+  FADE_DURATION: 600,
+  SPRING_TENSION: 30,
+  SPRING_FRICTION: 8,
+};
+
+const SHADOW_STYLE = Platform.select({
+  ios: {
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  android: { elevation: 4 },
+});
 
 const ConnectStrava = () => {
   const navigation = useNavigation();
-  const { 
-    isConnected, 
-    connectStrava, 
-    disconnectStrava, 
-    getAthleteProfile, 
-    getRecentActivities, 
+  const {
+    isConnected,
+    connectStrava,
+    disconnectStrava,
+    getAthleteProfile,
+    getRecentActivities,
     fetchAllStravaData,
     getDataSummary,
     fetchAthleteSegments,
     fetchAthleteRoutes,
     fetchAthleteClubs,
     fetchAthleteGear,
-    isLoading 
   } = useStrava();
-  const [loading, setLoading] = useState(false);
-  const [connected, setConnected] = useState(false);
-  const [athlete, setAthlete] = useState(null);
-  const [checkingConnection, setCheckingConnection] = useState(true);
-  const [activities, setActivities] = useState([]);
-  const [showActivities, setShowActivities] = useState(false);
-  const [testResults, setTestResults] = useState({});
-  const [comprehensiveData, setComprehensiveData] = useState(null);
-  const [showComprehensiveData, setShowComprehensiveData] = useState(false);
-  
+
+  // State management
+  const [state, setState] = useState({
+    loading: false,
+    connected: false,
+    athlete: null,
+    checkingConnection: true,
+    activities: [],
+    showActivities: false,
+    comprehensiveData: null,
+    showComprehensiveData: false,
+    testResults: {},
+  });
+
+  // Animation refs
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
+  // Initialize animations
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 600,
+        duration: ANIMATION_CONFIG.FADE_DURATION,
         useNativeDriver: true,
       }),
       Animated.spring(slideAnim, {
         toValue: 0,
-        tension: 30,
-        friction: 8,
+        tension: ANIMATION_CONFIG.SPRING_TENSION,
+        friction: ANIMATION_CONFIG.SPRING_FRICTION,
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
 
-  // Check if already connected on mount
-  useEffect(() => {
     checkConnection();
   }, []);
 
@@ -72,642 +91,876 @@ const ConnectStrava = () => {
   useEffect(() => {
     const handleDeepLinkCallback = async (url) => {
       if (!url) return;
-      
+
       try {
-        const urlObj = new URL(url.replace('fitstake://', 'http://'));
-        const success = urlObj.searchParams.get('success');
-        const error = urlObj.searchParams.get('error');
-        
+        const urlObj = new URL(url.replace("fitstake://", "http://"));
+        const success = urlObj.searchParams.get("success");
+        const error = urlObj.searchParams.get("error");
+
         if (error) {
-          Alert.alert('Connection Failed', decodeURIComponent(error));
-          setLoading(false);
+          showAlert("Connection Failed", decodeURIComponent(error));
+          updateState({ loading: false });
           return;
         }
-        
-        if (success === 'true') {
-          // The stravaService is already polling the server
+
+        if (success === "true") {
+          await checkConnection();
         }
-      } catch (parseError) {
-        console.error('Error parsing deep link:', parseError);
+      } catch (error) {
+        // Silent error handling
       }
     };
 
-    const handleUrl = ({ url }) => {
-      handleDeepLinkCallback(url);
-    };
-    
-    Linking.getInitialURL().then((url) => {
-      if (url) {
-        handleDeepLinkCallback(url);
-      }
-    });
+    const handleUrl = ({ url }) => handleDeepLinkCallback(url);
 
-    const subscription = Linking.addEventListener('url', handleUrl);
+    Linking.getInitialURL().then(handleUrl);
+    const subscription = Linking.addEventListener("url", handleUrl);
 
-    return () => {
-      subscription?.remove();
-    };
+    return () => subscription?.remove();
+  }, []);
+
+  // Helper functions
+  const updateState = useCallback((updates) => {
+    setState((prev) => ({ ...prev, ...updates }));
+  }, []);
+
+  const showAlert = useCallback((title, message, buttons) => {
+    Alert.alert(title, message, buttons);
   }, []);
 
   const checkConnection = async () => {
     try {
-      setConnected(isConnected);
-      
-      if (isConnected) {
-        try {
-          const athleteData = await getAthleteProfile();
-          setAthlete(athleteData);
-        } catch (error) {
-          console.error('Error fetching athlete profile:', error);
-        }
+      const connected = isConnected;
+      updateState({ connected });
+
+      if (connected) {
+        const athleteData = await getAthleteProfile();
+        updateState({ athlete: athleteData });
       }
     } catch (error) {
-      console.error('Error checking connection:', error.message);
+      // Silent error handling
     } finally {
-      setCheckingConnection(false);
+      updateState({ checkingConnection: false });
     }
   };
 
   const handleConnect = async () => {
     try {
-      setLoading(true);
+      updateState({ loading: true });
       const result = await stravaService.connectStrava();
 
       if (result.success) {
-        // Connect to context with the tokens
-        await connectStrava(result.accessToken, result.refreshToken, result.expiresAt);
-        
-        setConnected(true);
-        setAthlete(result.athlete);
-        
-        Alert.alert(
-          'Success! 🎉',
+        await connectStrava(
+          result.accessToken,
+          result.refreshToken,
+          result.expiresAt
+        );
+
+        updateState({
+          connected: true,
+          athlete: result.athlete,
+        });
+
+        showAlert(
+          "Success! 🎉",
           `Connected as ${result.athlete.firstname} ${result.athlete.lastname}`,
-          [
-            {
-              text: 'Continue',
-              onPress: () => navigation.navigate('Home')
-            }
-          ]
+          [{ text: "Continue", onPress: () => navigation.navigate("Home") }]
         );
       } else {
-        Alert.alert('Connection Failed', result.error || 'Failed to connect to Strava');
+        showAlert(
+          "Connection Failed",
+          result.error || "Unable to connect to Strava. Please try again."
+        );
       }
     } catch (error) {
-      console.error('Connect error:', error.message);
-      Alert.alert('Error', error.message || 'Failed to connect to Strava. Please try again.');
+      showAlert("Error", "Failed to connect to Strava. Please try again.");
     } finally {
-      setLoading(false);
+      updateState({ loading: false });
     }
   };
 
-  const handleDisconnect = async () => {
-    Alert.alert(
-      'Disconnect Strava',
-      'Are you sure you want to disconnect your Strava account?',
+  const handleDisconnect = () => {
+    showAlert(
+      "Disconnect Strava",
+      "Are you sure you want to disconnect your Strava account?",
       [
-        { 
-          text: 'Cancel', 
-          style: 'cancel'
-        },
+        { text: "Cancel", style: "cancel" },
         {
-          text: 'Disconnect',
-          style: 'destructive',
+          text: "Disconnect",
+          style: "destructive",
           onPress: async () => {
             try {
               await disconnectStrava();
-              setConnected(false);
-              setAthlete(null);
-              setActivities([]);
-              setShowActivities(false);
-              setComprehensiveData(null);
-              setShowComprehensiveData(false);
-              setTestResults({});
-              Alert.alert('Disconnected', 'Your Strava account has been disconnected');
+              updateState({
+                connected: false,
+                athlete: null,
+                activities: [],
+                showActivities: false,
+                comprehensiveData: null,
+                showComprehensiveData: false,
+                testResults: {},
+              });
+              showAlert(
+                "Disconnected",
+                "Your Strava account has been disconnected"
+              );
             } catch (error) {
-              console.error('Disconnect error:', error.message);
-              Alert.alert('Error', 'Failed to disconnect');
+              showAlert("Error", "Failed to disconnect. Please try again.");
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
 
   const handleRefreshProfile = async () => {
     try {
-      setLoading(true);
-      setTestResults({ ...testResults, profile: 'loading' });
-      
+      updateState({
+        loading: true,
+        testResults: { ...state.testResults, profile: "loading" },
+      });
+
       const profile = await getAthleteProfile();
-      
-      setAthlete(profile);
-      setTestResults({ ...testResults, profile: 'success' });
-      
-      Alert.alert('Success! 🎉', 'Profile refreshed successfully!');
+
+      updateState({
+        athlete: profile,
+        testResults: { ...state.testResults, profile: "success" },
+      });
+
+      showAlert("Success! 🎉", "Profile refreshed successfully!");
     } catch (error) {
-      console.error('Refresh profile error:', error.message);
-      setTestResults({ ...testResults, profile: 'error' });
-      Alert.alert('Error', 'Failed to refresh profile: ' + error.message);
+      updateState({ testResults: { ...state.testResults, profile: "error" } });
+      showAlert("Error", "Failed to refresh profile: " + error.message);
     } finally {
-      setLoading(false);
+      updateState({ loading: false });
     }
   };
 
   const handleGetActivities = async () => {
     try {
-      setLoading(true);
-      setTestResults({ ...testResults, activities: 'loading' });
-      
+      updateState({
+        loading: true,
+        testResults: { ...state.testResults, activities: "loading" },
+      });
+
       const activitiesData = await getRecentActivities(1, 30);
-      
-      setActivities(activitiesData || []);
-      setShowActivities(true);
-      setTestResults({ ...testResults, activities: 'success' });
-      
-      Alert.alert('Success! 🎉', `Fetched ${activitiesData?.length || 0} activities`);
+
+      updateState({
+        activities: activitiesData || [],
+        showActivities: true,
+        testResults: { ...state.testResults, activities: "success" },
+      });
+
+      showAlert(
+        "Success! 🎉",
+        `Fetched ${activitiesData?.length || 0} activities`
+      );
     } catch (error) {
-      console.error('Get activities error:', error.message);
-      setTestResults({ ...testResults, activities: 'error' });
-      Alert.alert('Error', 'Failed to fetch activities: ' + error.message);
+      updateState({
+        testResults: { ...state.testResults, activities: "error" },
+      });
+      showAlert("Error", "Failed to fetch activities: " + error.message);
     } finally {
-      setLoading(false);
+      updateState({ loading: false });
     }
   };
 
   const handleFetchAllData = async () => {
     try {
-      setLoading(true);
-      setTestResults({ ...testResults, comprehensive: 'loading' });
-      
+      updateState({
+        loading: true,
+        testResults: { ...state.testResults, comprehensive: "loading" },
+      });
+
       const allData = await fetchAllStravaData({
         includeActivities: true,
-        includeDetailedActivities: false, // Set to true for detailed activity data
+        includeDetailedActivities: false,
         maxActivities: 100,
         includeSegments: true,
         includeRoutes: true,
         includeClubs: true,
         includeGear: true,
         includeStats: true,
-        includeZones: true
+        includeZones: true,
       });
-      
-      setComprehensiveData(allData);
-      setShowComprehensiveData(true);
-      setTestResults({ ...testResults, comprehensive: 'success' });
-      
+
+      // Log all data received from Strava
+      console.log("=== STRAVA DATA FETCHED ===");
+      console.log("Full Data Object:", JSON.stringify(allData, null, 2));
+      console.log("Activities:", allData.data?.activities?.length);
+      console.log("Segments:", allData.data?.segments?.length);
+      console.log("Routes:", allData.data?.routes?.length);
+      console.log("Clubs:", allData.data?.clubs?.length);
+      console.log("Gear:", allData.data?.gear?.length);
+      console.log("Stats:", allData.data?.stats);
+      console.log("Athlete:", allData.data?.athlete);
+
+      updateState({
+        comprehensiveData: allData,
+        showComprehensiveData: true,
+        testResults: { ...state.testResults, comprehensive: "success" },
+      });
+
       const summary = getDataSummary(allData.data);
-      
-      Alert.alert(
-        'Comprehensive Data Fetched! 🎉', 
+
+      showAlert(
+        "Comprehensive Data Fetched! 🎉",
         `Fetched:\n• ${summary.activities.total} activities\n• ${summary.segments.total} segments\n• ${summary.routes.total} routes\n• ${summary.clubs.total} clubs\n• ${summary.gear.bikes.length} bikes\n• ${summary.gear.shoes.length} shoes`
       );
     } catch (error) {
-      console.error('Comprehensive data fetch error:', error.message);
-      setTestResults({ ...testResults, comprehensive: 'error' });
-      Alert.alert('Error', 'Failed to fetch comprehensive data: ' + error.message);
+      updateState({
+        testResults: { ...state.testResults, comprehensive: "error" },
+      });
+      showAlert(
+        "Error",
+        "Failed to fetch comprehensive data: " + error.message
+      );
     } finally {
-      setLoading(false);
+      updateState({ loading: false });
     }
   };
 
   const handleFetchSegments = async () => {
     try {
-      setLoading(true);
-      setTestResults({ ...testResults, segments: 'loading' });
-      
+      updateState({
+        loading: true,
+        testResults: { ...state.testResults, segments: "loading" },
+      });
+
       const segments = await fetchAthleteSegments();
-      setTestResults({ ...testResults, segments: 'success' });
-      
-      Alert.alert('Success! 🎉', `Fetched ${segments.length} segments`);
+
+      updateState({
+        testResults: { ...state.testResults, segments: "success" },
+      });
+      showAlert("Success! 🎉", `Fetched ${segments.length} segments`);
     } catch (error) {
-      console.error('Segments fetch error:', error.message);
-      setTestResults({ ...testResults, segments: 'error' });
-      Alert.alert('Error', 'Failed to fetch segments: ' + error.message);
+      updateState({ testResults: { ...state.testResults, segments: "error" } });
+      showAlert("Error", "Failed to fetch segments: " + error.message);
     } finally {
-      setLoading(false);
+      updateState({ loading: false });
     }
   };
 
   const handleFetchRoutes = async () => {
     try {
-      setLoading(true);
-      setTestResults({ ...testResults, routes: 'loading' });
-      
+      updateState({
+        loading: true,
+        testResults: { ...state.testResults, routes: "loading" },
+      });
+
       const routes = await fetchAthleteRoutes();
-      setTestResults({ ...testResults, routes: 'success' });
-      
-      Alert.alert('Success! 🎉', `Fetched ${routes.length} routes`);
+
+      updateState({ testResults: { ...state.testResults, routes: "success" } });
+      showAlert("Success! 🎉", `Fetched ${routes.length} routes`);
     } catch (error) {
-      console.error('Routes fetch error:', error.message);
-      setTestResults({ ...testResults, routes: 'error' });
-      Alert.alert('Error', 'Failed to fetch routes: ' + error.message);
+      updateState({ testResults: { ...state.testResults, routes: "error" } });
+      showAlert("Error", "Failed to fetch routes: " + error.message);
     } finally {
-      setLoading(false);
+      updateState({ loading: false });
     }
   };
 
   const handleFetchClubs = async () => {
     try {
-      setLoading(true);
-      setTestResults({ ...testResults, clubs: 'loading' });
-      
+      updateState({
+        loading: true,
+        testResults: { ...state.testResults, clubs: "loading" },
+      });
+
       const clubs = await fetchAthleteClubs();
-      setTestResults({ ...testResults, clubs: 'success' });
-      
-      Alert.alert('Success! 🎉', `Fetched ${clubs.length} clubs`);
+
+      updateState({ testResults: { ...state.testResults, clubs: "success" } });
+      showAlert("Success! 🎉", `Fetched ${clubs.length} clubs`);
     } catch (error) {
-      console.error('Clubs fetch error:', error.message);
-      setTestResults({ ...testResults, clubs: 'error' });
-      Alert.alert('Error', 'Failed to fetch clubs: ' + error.message);
+      updateState({ testResults: { ...state.testResults, clubs: "error" } });
+      showAlert("Error", "Failed to fetch clubs: " + error.message);
     } finally {
-      setLoading(false);
+      updateState({ loading: false });
     }
   };
 
   const handleFetchGear = async () => {
     try {
-      setLoading(true);
-      setTestResults({ ...testResults, gear: 'loading' });
-      
+      updateState({
+        loading: true,
+        testResults: { ...state.testResults, gear: "loading" },
+      });
+
       const gear = await fetchAthleteGear();
-      setTestResults({ ...testResults, gear: 'success' });
-      
-      const bikes = gear.filter(item => item.resource_state === 3 && item.frame_type === 1);
-      const shoes = gear.filter(item => item.resource_state === 3 && item.frame_type === 4);
-      
-      Alert.alert('Success! 🎉', `Fetched ${bikes.length} bikes and ${shoes.length} shoes`);
+
+      const bikes = gear.filter(
+        (item) => item.resource_state === 3 && item.frame_type === 1
+      );
+      const shoes = gear.filter(
+        (item) => item.resource_state === 3 && item.frame_type === 4
+      );
+
+      updateState({ testResults: { ...state.testResults, gear: "success" } });
+      showAlert(
+        "Success! 🎉",
+        `Fetched ${bikes.length} bikes and ${shoes.length} shoes`
+      );
     } catch (error) {
-      console.error('Gear fetch error:', error.message);
-      setTestResults({ ...testResults, gear: 'error' });
-      Alert.alert('Error', 'Failed to fetch gear: ' + error.message);
+      updateState({ testResults: { ...state.testResults, gear: "error" } });
+      showAlert("Error", "Failed to fetch gear: " + error.message);
     } finally {
-      setLoading(false);
+      updateState({ loading: false });
     }
   };
 
   const handleContinue = () => {
-    navigation.navigate('Home');
+    navigation.navigate("Home");
   };
 
-  if (checkingConnection) {
+  // Loading state
+  if (state.checkingConnection) {
     return (
-      <LinearGradient
-        colors={['#667eea', '#764ba2']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        className="flex-1 items-center justify-center"
-      >
-        <ActivityIndicator size="large" color="#fff" />
-        <Text className="text-white text-base mt-3">Checking connection...</Text>
-      </LinearGradient>
+      <View className="flex-1 bg-gray-50 items-center justify-center">
+        <StatusBar style="dark" />
+        <ActivityIndicator size="large" color="#667eea" />
+        <Text className="text-gray-600 text-base mt-3 font-semibold">
+          Checking connection...
+        </Text>
+      </View>
     );
   }
 
   return (
-    <LinearGradient
-      colors={['#667eea', '#764ba2']}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      className="flex-1"
-    >
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
-        <View className="px-6 pt-16">
-          <Animated.View
-            style={{
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }}
+    <View className="flex-1 bg-gray-50">
+      <StatusBar style="dark" />
+
+      {/* Header */}
+      <LinearGradient
+        colors={["#ffffff", "#fdf2f8", "#ffffff"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        className="pt-16 pb-5 px-6 shadow-sm border-b border-pink-100"
+      >
+        <View className="flex-row items-center justify-between">
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            className="w-10 h-10 bg-white rounded-xl border border-pink-200 items-center justify-center shadow-sm"
+            activeOpacity={0.8}
           >
-            {/* Header Section */}
-            <View className="mb-8 items-center">
-              <View className="bg-white/20 backdrop-blur-xl rounded-full p-6 mb-6 shadow-lg">
-                <Text className="text-6xl">🏃</Text>
+            <Ionicons name="arrow-back" size={20} color="#EC4899" />
+          </TouchableOpacity>
+
+          <View className="flex-1 mx-4">
+            <Text className="text-gray-900 font-bold text-2xl text-center">
+              Connect Strava
+            </Text>
+            <Text className="text-pink-600 text-sm font-medium mt-1 text-center">
+              {state.connected
+                ? "Connected to Strava"
+                : "Sync your fitness data"}
+            </Text>
+          </View>
+
+          {state.connected && (
+            <View className="bg-white px-3 py-1.5 rounded-full border border-green-200 shadow-sm">
+              <View className="flex-row items-center">
+                <View className="w-2 h-2 bg-green-500 rounded-full mr-2" />
+                <Text className="text-green-700 text-xs font-semibold">
+                  Active
+                </Text>
               </View>
-              <Text className="text-4xl font-black text-white mb-3 text-center">
-                Connect to Strava
-              </Text>
-              <Text className="text-white/90 text-center text-base px-4">
-                {connected
-                  ? 'Your Strava account is connected!'
-                  : 'Link your fitness tracking to unlock challenges'}
-              </Text>
             </View>
+          )}
+        </View>
+      </LinearGradient>
 
-            {/* Connection Status */}
-            {connected && athlete && (
-              <View className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 shadow-2xl mb-6">
-                <View className="flex-row items-center justify-between mb-5">
-                  <Text className="text-gray-500 text-xs font-bold uppercase tracking-wider">
-                    Connected Account
-                  </Text>
-                  <View className="bg-green-500/20 px-3 py-1.5 rounded-full border border-green-500/30">
-                    <Text className="text-green-700 text-xs font-bold">● Active</Text>
-                  </View>
-                </View>
+      {/* Body */}
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <Animated.View
+          style={{
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          }}
+          className="px-6 pt-6"
+        >
+          {state.connected && state.athlete ? (
+            <>
+              <ConnectedView
+                athlete={state.athlete}
+                onContinue={handleContinue}
+                onDisconnect={handleDisconnect}
+              />
 
-                <View className="bg-gradient-to-r from-orange-50 to-red-50 p-5 rounded-2xl mb-4">
-                  <Text className="text-gray-900 font-black text-2xl mb-2">
-                    {athlete.firstname} {athlete.lastname}
-                  </Text>
-                  {athlete.username && (
-                    <Text className="text-orange-600 font-bold text-base mb-2">
-                      @{athlete.username}
-                    </Text>
-                  )}
-                  {athlete.city && athlete.country && (
-                    <Text className="text-gray-500 text-sm">
-                      📍 {athlete.city}, {athlete.country}
-                    </Text>
-                  )}
-                </View>
-
-                {/* Test API Buttons */}
-                <View className="border-t border-gray-200 pt-4 mt-2">
-                  <Text className="text-gray-700 font-bold text-sm mb-3">🧪 Test API Functions:</Text>
-                  
-                  <View className="space-y-2">
-                    <TestButton
-                      icon="👤"
-                      label="Refresh Profile"
-                      onPress={handleRefreshProfile}
-                      status={testResults.profile}
-                      disabled={loading}
-                    />
-                    
-                    <TestButton
-                      icon="🏃"
-                      label="Get Activities"
-                      onPress={handleGetActivities}
-                      status={testResults.activities}
-                      disabled={loading}
-                    />
-
-                    <TestButton
-                      icon="📊"
-                      label="Fetch ALL Data"
-                      onPress={handleFetchAllData}
-                      status={testResults.comprehensive}
-                      disabled={loading}
-                    />
-
-                    <TestButton
-                      icon="🏁"
-                      label="Get Segments"
-                      onPress={handleFetchSegments}
-                      status={testResults.segments}
-                      disabled={loading}
-                    />
-
-                    <TestButton
-                      icon="🗺️"
-                      label="Get Routes"
-                      onPress={handleFetchRoutes}
-                      status={testResults.routes}
-                      disabled={loading}
-                    />
-
-                    <TestButton
-                      icon="👥"
-                      label="Get Clubs"
-                      onPress={handleFetchClubs}
-                      status={testResults.clubs}
-                      disabled={loading}
-                    />
-
-                    <TestButton
-                      icon="🚴"
-                      label="Get Gear"
-                      onPress={handleFetchGear}
-                      status={testResults.gear}
-                      disabled={loading}
-                    />
-                  </View>
-                </View>
-              </View>
-            )}
-
-            {/* Activities List */}
-            {showActivities && activities.length > 0 && (
-              <View className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 shadow-2xl mb-6">
-                <View className="flex-row items-center justify-between mb-4">
-                  <Text className="text-gray-900 font-bold text-lg">
-                    Recent Activities 🏃
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => setShowActivities(false)}
-                    className="bg-gray-100 px-3 py-1 rounded-full"
-                  >
-                    <Text className="text-gray-600 text-xs font-bold">Hide</Text>
-                  </TouchableOpacity>
-                </View>
-
-                <View className="space-y-3">
-                  {activities.slice(0, 5).map((activity, index) => (
-                    <ActivityCard key={activity.id} activity={activity} index={index} />
-                  ))}
-                </View>
-
-                {activities.length > 5 && (
-                  <Text className="text-gray-500 text-xs text-center mt-3">
-                    Showing 5 of {activities.length} activities
-                  </Text>
-                )}
-              </View>
-            )}
-
-            {/* Comprehensive Data Display */}
-            {showComprehensiveData && comprehensiveData && (
-              <View className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 shadow-2xl mb-6">
-                <View className="flex-row items-center justify-between mb-4">
-                  <Text className="text-gray-900 font-bold text-lg">
-                    Comprehensive Strava Data 📊
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => setShowComprehensiveData(false)}
-                    className="bg-gray-100 px-3 py-1 rounded-full"
-                  >
-                    <Text className="text-gray-600 text-xs font-bold">Hide</Text>
-                  </TouchableOpacity>
-                </View>
-
-                <ComprehensiveDataDisplay data={comprehensiveData} />
-              </View>
-            )}
-
-            {/* Features - Only show if not connected */}
-            {!connected && (
-              <View className="bg-white/10 backdrop-blur-xl rounded-3xl p-6 mb-6 border border-white/20">
-                <FeatureItem icon="🏃" text="Track your fitness activities" />
-                <FeatureItem icon="📊" text="Sync workout data automatically" />
-                <FeatureItem icon="✅" text="Verify challenge completion" />
-                <FeatureItem icon="🏆" text="Earn rewards for your efforts" />
-              </View>
-            )}
-
-            {/* Action Buttons */}
-            {!connected ? (
-              <TouchableOpacity
-                className="bg-white px-8 py-5 rounded-2xl shadow-2xl mb-3"
-                onPress={handleConnect}
-                disabled={loading}
-                activeOpacity={0.9}
+              {/* Fetch Data Button */}
+              <View
+                className="bg-white rounded-2xl p-6 mb-6 border border-gray-100"
+                style={SHADOW_STYLE}
               >
-                {loading ? (
-                  <View className="flex-row items-center justify-center">
-                    <ActivityIndicator color="#667eea" size="small" />
-                    <Text className="text-purple-600 font-black text-lg ml-3">
-                      Connecting...
+                <View className="flex-row items-center mb-4">
+                  <View className="w-10 h-10 bg-orange-50 rounded-xl items-center justify-center mr-3">
+                    <MaterialIcons name="analytics" size={22} color="#EC4899" />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-gray-900 font-bold text-lg">
+                      Strava Analytics
+                    </Text>
+                    <Text className="text-gray-500 text-xs">
+                      Complete profile & stats
                     </Text>
                   </View>
-                ) : (
-                  <Text className="text-purple-600 font-black text-lg text-center tracking-wide">
-                    Connect with Strava
-                  </Text>
-                )}
-              </TouchableOpacity>
-            ) : (
-              <>
+                </View>
                 <TouchableOpacity
-                  className="bg-white px-8 py-5 rounded-2xl shadow-2xl mb-3"
-                  onPress={handleContinue}
-                  disabled={loading}
+                  onPress={handleFetchAllData}
+                  disabled={state.loading}
+                  className="bg-pink-600 px-6 py-4 rounded-xl flex-row items-center justify-center shadow-sm"
                   activeOpacity={0.8}
                 >
-                  <Text className="text-purple-600 font-black text-lg text-center tracking-wide">
-                    Continue to App →
-                  </Text>
+                  {state.loading ? (
+                    <>
+                      <ActivityIndicator color="white" size="small" />
+                      <Text className="text-white font-bold text-base ml-2">
+                        Fetching...
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <MaterialIcons name="download" size={20} color="white" />
+                      <Text className="text-white font-bold text-base ml-2">
+                        Fetch All Strava Data
+                      </Text>
+                    </>
+                  )}
                 </TouchableOpacity>
+                <Text className="text-gray-500 text-xs mt-3 text-center">
+                  Get your complete profile, activities, segments, and stats
+                </Text>
+              </View>
 
-                <TouchableOpacity
-                  className="bg-white/10 backdrop-blur-xl px-8 py-4 rounded-2xl border border-white/20"
-                  onPress={handleDisconnect}
-                  disabled={loading}
-                  activeOpacity={0.7}
-                >
-                  <Text className="text-white/80 font-bold text-base text-center">
-                    Disconnect
-                  </Text>
-                </TouchableOpacity>
-              </>
-            )}
+              {/* Comprehensive Data */}
+              {state.showComprehensiveData && state.comprehensiveData && (
+                <>
+                  {/* Enhanced Profile Display */}
+                  {state.comprehensiveData.data?.athlete && (
+                    <View
+                      className="bg-white rounded-2xl p-6 mb-6 border border-gray-100"
+                      style={SHADOW_STYLE}
+                    >
+                      <View className="mt-4 pt-4 border-t border-gray-100">
+                        <View className="flex-row justify-between">
+                          <View className="bg-gray-50 px-3 py-2 rounded-lg">
+                            <Text className="text-gray-600 text-xs font-semibold mb-1">
+                              Member Since
+                            </Text>
+                            <Text className="text-gray-900 font-bold text-sm">
+                              {new Date(
+                                state.comprehensiveData.data.athlete.created_at
+                              ).getFullYear()}
+                            </Text>
+                          </View>
+                          {state.comprehensiveData.data.athlete
+                            .athlete_type && (
+                            <View className="bg-gray-50 px-3 py-2 rounded-lg">
+                              <Text className="text-gray-600 text-xs font-semibold mb-1">
+                                Athlete Type
+                              </Text>
+                              <Text className="text-gray-900 font-bold text-sm capitalize">
+                                {state.comprehensiveData.data.athlete
+                                  .athlete_type === 1
+                                  ? "Runner"
+                                  : "Cyclist"}
+                              </Text>
+                            </View>
+                          )}
+                          {state.comprehensiveData.data.athlete
+                            .badge_type_id !== undefined && (
+                            <View className="bg-gray-50 px-3 py-2 rounded-lg">
+                              <Text className="text-gray-600 text-xs font-semibold mb-1">
+                                Badge
+                              </Text>
+                              <Text className="text-gray-900 font-bold text-sm">
+                                {state.comprehensiveData.data.athlete
+                                  .badge_type_id > 0
+                                  ? "⭐"
+                                  : "—"}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    </View>
+                  )}
 
-            {/* Info Section */}
-            <View className="bg-white/10 backdrop-blur-xl rounded-3xl p-6 mt-6 border border-white/20">
-              <Text className="text-white font-bold text-lg mb-4">
-                🔒 What we access:
-              </Text>
-              <InfoItem text="Your profile information" />
-              <InfoItem text="Activity data (runs, rides, etc.)" />
-              <InfoItem text="Activity details (distance, duration, pace)" />
-              <Text className="text-white/60 text-xs mt-4 italic">
-                We will never post to Strava without your permission
-              </Text>
-            </View>
-          </Animated.View>
-        </View>
+                  <View
+                    className="bg-white rounded-2xl p-6 mb-8 border border-gray-100"
+                    style={SHADOW_STYLE}
+                  >
+                    <View className="flex-row items-center justify-between mb-4">
+                      <View className="flex-row items-center">
+                        <View className="w-10 h-10 bg-blue-50 rounded-xl items-center justify-center mr-3">
+                          <MaterialIcons
+                            name="bar-chart"
+                            size={20}
+                            color="#3B82F6"
+                          />
+                        </View>
+                        <Text className="text-gray-900 font-bold text-lg">
+                          Activity Summary
+                        </Text>
+                      </View>
+                      <View className="flex-row gap-2">
+                        <TouchableOpacity
+                          onPress={() => {
+                            console.log("=== RAW DATA DUMP ===");
+                            console.log(
+                              JSON.stringify(state.comprehensiveData, null, 2)
+                            );
+                            showAlert(
+                              "Data Logged",
+                              "Check console for raw data"
+                            );
+                          }}
+                          className="bg-blue-100 px-3 py-2 rounded-full"
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons
+                            name="code-outline"
+                            size={18}
+                            color="#3B82F6"
+                          />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() =>
+                            updateState({ showComprehensiveData: false })
+                          }
+                          className="bg-gray-100 px-3 py-2 rounded-full"
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons
+                            name="eye-off-outline"
+                            size={18}
+                            color="#6B7280"
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                    <ComprehensiveDataDisplay data={state.comprehensiveData} />
+                  </View>
+                </>
+              )}
+            </>
+          ) : (
+            <DisconnectedView
+              loading={state.loading}
+              onConnect={handleConnect}
+            />
+          )}
+        </Animated.View>
       </ScrollView>
-    </LinearGradient>
+    </View>
   );
 };
 
-function FeatureItem({ icon, text }) {
-  return (
-    <View className="flex-row items-center mb-4 last:mb-0">
-      <View className="bg-white/10 w-10 h-10 rounded-xl items-center justify-center mr-3">
-        <Text className="text-2xl">{icon}</Text>
+// Connected State Component
+const ConnectedView = ({ athlete, onContinue, onDisconnect }) => (
+  <View
+    className="bg-white rounded-2xl p-6 mb-6 border border-gray-100"
+    style={SHADOW_STYLE}
+  >
+    <View className="items-center mb-6">
+      <View className="w-20 h-20 rounded-full items-center justify-center overflow-hidden bg-gray-100 border-2 border-gray-200">
+        {athlete.profile_medium || athlete.profile ? (
+          <Image
+            source={{ uri: athlete.profile_medium || athlete.profile }}
+            className="w-full h-full"
+            resizeMode="cover"
+          />
+        ) : (
+          <Image
+            source={require("../assets/final_icon.png")}
+            className="w-full h-full"
+            style={{ resizeMode: "contain" }}
+          />
+        )}
       </View>
-      <Text className="text-white font-semibold text-base flex-1">{text}</Text>
-    </View>
-  );
-}
-
-function InfoItem({ text }) {
-  return (
-    <View className="flex-row items-center mb-3">
-      <Text className="text-white/80 text-sm mr-2">•</Text>
-      <Text className="text-white/80 text-sm flex-1">{text}</Text>
-    </View>
-  );
-}
-
-function TestButton({ icon, label, onPress, status, disabled }) {
-  const getStatusColor = () => {
-    if (status === 'loading') return 'bg-blue-50 border-blue-300';
-    if (status === 'success') return 'bg-green-50 border-green-300';
-    if (status === 'error') return 'bg-red-50 border-red-300';
-    return 'bg-gray-50 border-gray-300';
-  };
-
-  const getStatusIcon = () => {
-    if (status === 'loading') return '⏳';
-    if (status === 'success') return '✅';
-    if (status === 'error') return '❌';
-    return '';
-  };
-
-  return (
-    <TouchableOpacity
-      className={`flex-row items-center justify-between p-3 rounded-xl border mb-2 ${getStatusColor()}`}
-      onPress={onPress}
-      disabled={disabled}
-      activeOpacity={0.7}
-    >
-      <View className="flex-row items-center flex-1">
-        <Text className="text-xl mr-3">{icon}</Text>
-        <Text className="text-gray-800 font-semibold text-sm">{label}</Text>
-      </View>
-      {status && (
-        <Text className="text-base ml-2">{getStatusIcon()}</Text>
+      <Text className="text-gray-900 font-bold text-xl mt-3 mb-1">
+        {athlete.firstname} {athlete.lastname}
+      </Text>
+      {athlete.city && athlete.country && (
+        <View className="flex-row items-center mt-2">
+          <Ionicons name="location-outline" size={16} color="#6B7280" />
+          <Text className="text-gray-600 text-sm ml-1">
+            {athlete.city}, {athlete.country}
+          </Text>
+        </View>
       )}
-    </TouchableOpacity>
-  );
-}
+      {athlete.state && (
+        <Text className="text-gray-500 text-xs mt-1">{athlete.state}</Text>
+      )}
+    </View>
 
-function ComprehensiveDataDisplay({ data }) {
-  // Safe data access with proper null checks
+    <View className="flex-row items-center justify-between pt-5 border-t border-gray-100">
+      <TouchableOpacity
+        className="bg-pink-600 px-6 py-3 rounded-xl flex-1 mr-2 shadow-sm"
+        onPress={onContinue}
+        activeOpacity={0.8}
+      >
+        <Text className="text-white font-bold text-center text-sm">
+          Continue to Home
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        className="bg-gray-50 px-6 py-3 rounded-xl border border-gray-200"
+        onPress={onDisconnect}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="log-out-outline" size={20} color="#6B7280" />
+      </TouchableOpacity>
+    </View>
+  </View>
+);
+
+// Disconnected State Component
+const DisconnectedView = ({ loading, onConnect }) => (
+  <>
+    <View
+      className="bg-white rounded-2xl p-6 mb-6 border border-gray-100"
+      style={SHADOW_STYLE}
+    >
+      <View className="items-center mb-6">
+        <View className="w-20 h-20 rounded-full items-center justify-center mb-4 overflow-hidden bg-gray-100 border-2 border-gray-200">
+          <Image
+            source={require("../assets/final_icon.png")}
+            className="w-full h-full"
+            style={{ resizeMode: "contain" }}
+          />
+        </View>
+        <Text className="text-gray-900 font-bold text-2xl mb-2 text-center">
+          Connect to Strava
+        </Text>
+        <Text className="text-gray-600 text-sm text-center leading-5 px-2">
+          Link your Strava account to track fitness activities and verify
+          challenge completion automatically.
+        </Text>
+      </View>
+
+      <View className="space-y-3 mb-6">
+        <FeatureCard
+          icon={<Ionicons name="fitness-outline" size={20} color="white" />}
+          title="Automatic Activity Tracking"
+          description="Your workouts sync automatically"
+          gradient={["#4B5563", "#374151"]}
+        />
+        <FeatureCard
+          icon={<MaterialIcons name="verified" size={20} color="white" />}
+          title="Challenge Verification"
+          description="Proof of completion without manual submission"
+          gradient={["#8B5CF6", "#7C3AED"]}
+        />
+        <FeatureCard
+          icon={<Ionicons name="trophy-outline" size={20} color="white" />}
+          title="Earn Rewards"
+          description="Complete challenges and earn crypto rewards"
+          gradient={["#10B981", "#059669"]}
+        />
+      </View>
+
+      <TouchableOpacity
+        className="bg-pink-600 px-6 py-4 rounded-xl shadow-sm"
+        onPress={onConnect}
+        disabled={loading}
+        activeOpacity={0.8}
+      >
+        {loading ? (
+          <View className="flex-row items-center justify-center">
+            <ActivityIndicator color="white" size="small" />
+            <Text className="text-white font-bold text-base ml-2">
+              Connecting...
+            </Text>
+          </View>
+        ) : (
+          <View className="flex-row items-center justify-center">
+            <Text className="text-white font-bold text-base mr-2">
+              Connect with Strava
+            </Text>
+            <Ionicons name="arrow-forward" size={18} color="white" />
+          </View>
+        )}
+      </TouchableOpacity>
+    </View>
+
+    <PrivacySection />
+  </>
+);
+
+// Privacy Section Component
+const PrivacySection = () => (
+  <View
+    className="bg-white rounded-2xl p-6 border border-gray-100"
+    style={SHADOW_STYLE}
+  >
+    <View className="flex-row items-center mb-4">
+      <Ionicons name="shield-checkmark-outline" size={22} color="#374151" />
+      <Text className="text-gray-900 text-lg font-bold ml-3">
+        Privacy & Security
+      </Text>
+    </View>
+    <View className="space-y-2">
+      <InfoRow
+        icon={<Ionicons name="checkmark-circle" size={16} color="#10B981" />}
+        text="Read-only access to your profile"
+      />
+      <InfoRow
+        icon={<Ionicons name="checkmark-circle" size={16} color="#10B981" />}
+        text="Activity data (runs, rides, etc.)"
+      />
+      <InfoRow
+        icon={<Ionicons name="checkmark-circle" size={16} color="#10B981" />}
+        text="Activity details for verification"
+      />
+      <Text className="text-gray-500 text-xs mt-4 italic">
+        We never post to Strava without your permission
+      </Text>
+    </View>
+  </View>
+);
+
+// Feature Card Component
+const FeatureCard = ({ icon, title, description, gradient }) => (
+  <View
+    className="bg-white rounded-xl p-4 flex-row items-center border border-gray-100"
+    style={Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOpacity: 0.06,
+        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 2 },
+      },
+      android: { elevation: 2 },
+    })}
+  >
+    <LinearGradient
+      colors={gradient}
+      className="w-12 h-12 rounded-xl items-center justify-center mr-4"
+    >
+      {icon}
+    </LinearGradient>
+    <View className="flex-1">
+      <Text className="text-gray-900 font-bold text-sm mb-1">{title}</Text>
+      <Text className="text-gray-500 text-xs leading-4">{description}</Text>
+    </View>
+  </View>
+);
+
+// Info Row Component
+const InfoRow = ({ icon, text }) => (
+  <View className="flex-row items-center">
+    <View className="mr-3">{icon}</View>
+    <Text className="text-gray-700 text-sm flex-1 leading-5">{text}</Text>
+  </View>
+);
+
+// Comprehensive Data Display Component
+const ComprehensiveDataDisplay = ({ data }) => {
   const safeData = data?.data || {};
-  
+
+  console.log("=== DISPLAYING DATA ===");
+  console.log("Safe Data:", safeData);
+
+  // Extract clubs from athlete if available
+  const clubs = safeData.athlete?.clubs || safeData.clubs || [];
+
   const summary = {
-    athlete: {
-      name: `${safeData.athlete?.firstname || ''} ${safeData.athlete?.lastname || ''}`,
-      username: safeData.athlete?.username,
-      location: safeData.athlete?.city && safeData.athlete?.country 
-        ? `${safeData.athlete.city}, ${safeData.athlete.country}` 
-        : null,
-      memberSince: safeData.athlete?.created_at,
-      premium: safeData.athlete?.premium
-    },
     activities: {
-      total: Array.isArray(safeData.activities) ? safeData.activities.length : 0,
-      types: Array.isArray(safeData.activities) ? safeData.activities.reduce((acc, activity) => {
-        acc[activity.type] = (acc[activity.type] || 0) + 1;
-        return acc;
-      }, {}) : {},
-      totalDistance: Array.isArray(safeData.activities) ? safeData.activities.reduce((sum, activity) => sum + (activity.distance || 0), 0) : 0,
-      totalTime: Array.isArray(safeData.activities) ? safeData.activities.reduce((sum, activity) => sum + (activity.moving_time || 0), 0) : 0
+      total: Array.isArray(safeData.activities)
+        ? safeData.activities.length
+        : 0,
+      types: Array.isArray(safeData.activities)
+        ? safeData.activities.reduce((acc, activity) => {
+            acc[activity.type] = (acc[activity.type] || 0) + 1;
+            return acc;
+          }, {})
+        : {},
+      totalDistance: Array.isArray(safeData.activities)
+        ? safeData.activities.reduce(
+            (sum, activity) => sum + (activity.distance || 0),
+            0
+          )
+        : 0,
+      totalTime: Array.isArray(safeData.activities)
+        ? safeData.activities.reduce(
+            (sum, activity) => sum + (activity.moving_time || 0),
+            0
+          )
+        : 0,
+      elevationGain: Array.isArray(safeData.activities)
+        ? safeData.activities.reduce(
+            (sum, activity) => sum + (activity.total_elevation_gain || 0),
+            0
+          )
+        : 0,
+      avgSpeed:
+        Array.isArray(safeData.activities) && safeData.activities.length > 0
+          ? safeData.activities.reduce(
+              (sum, activity) => sum + (activity.average_speed || 0),
+              0
+            ) / safeData.activities.length
+          : 0,
+      totalKudos: Array.isArray(safeData.activities)
+        ? safeData.activities.reduce(
+            (sum, activity) => sum + (activity.kudos_count || 0),
+            0
+          )
+        : 0,
+      totalComments: Array.isArray(safeData.activities)
+        ? safeData.activities.reduce(
+            (sum, activity) => sum + (activity.comment_count || 0),
+            0
+          )
+        : 0,
+      maxElevation:
+        Array.isArray(safeData.activities) && safeData.activities.length > 0
+          ? Math.max(...safeData.activities.map((a) => a.elev_high || 0))
+          : 0,
+      avgElevation:
+        Array.isArray(safeData.activities) && safeData.activities.length > 0
+          ? safeData.activities.reduce(
+              (sum, activity) =>
+                sum +
+                ((activity.elev_high || 0) + (activity.elev_low || 0)) / 2,
+              0
+            ) / safeData.activities.length
+          : 0,
     },
     segments: {
-      total: Array.isArray(safeData.segments) ? safeData.segments.length : 0
+      total: Array.isArray(safeData.segments) ? safeData.segments.length : 0,
     },
     routes: {
-      total: Array.isArray(safeData.routes) ? safeData.routes.length : 0
+      total: Array.isArray(safeData.routes) ? safeData.routes.length : 0,
     },
     clubs: {
-      total: Array.isArray(safeData.clubs) ? safeData.clubs.length : 0,
-      names: Array.isArray(safeData.clubs) ? safeData.clubs.map(club => club.name) : []
+      total: clubs.length,
+      list: clubs,
     },
     gear: {
-      bikes: Array.isArray(safeData.gear) ? safeData.gear.filter(item => item.resource_state === 3 && item.frame_type === 1) : [],
-      shoes: Array.isArray(safeData.gear) ? safeData.gear.filter(item => item.resource_state === 3 && item.frame_type === 4) : []
-    }
+      bikes: Array.isArray(safeData.gear)
+        ? safeData.gear.filter(
+            (item) => item.resource_state === 3 && item.frame_type === 1
+          )
+        : [],
+      shoes: Array.isArray(safeData.gear)
+        ? safeData.gear.filter(
+            (item) => item.resource_state === 3 && item.frame_type === 4
+          )
+        : [],
+    },
   };
 
   const formatDistance = (meters) => {
-    return (meters / 1000).toFixed(2);
+    if (!meters) return "0 km";
+    return `${(meters / 1000).toFixed(2)} km`;
   };
 
   const formatDuration = (seconds) => {
+    if (!seconds) return "0m";
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     if (hours > 0) {
@@ -716,216 +969,489 @@ function ComprehensiveDataDisplay({ data }) {
     return `${minutes}m`;
   };
 
-  return (
-    <ScrollView className="max-h-96">
-      {/* Athlete Info */}
-      <View className="mb-4">
-        <Text className="text-gray-800 font-bold text-base mb-2">👤 Athlete Profile</Text>
-        <View className="bg-blue-50 p-3 rounded-lg">
-          <Text className="text-gray-900 font-semibold">{summary.athlete.name}</Text>
-          {summary.athlete.username && (
-            <Text className="text-blue-600 text-sm">@{summary.athlete.username}</Text>
-          )}
-          {summary.athlete.location && (
-            <Text className="text-gray-600 text-sm">📍 {summary.athlete.location}</Text>
-          )}
-          <Text className="text-gray-500 text-xs">
-            Member since: {new Date(summary.athlete.memberSince).toLocaleDateString()}
-          </Text>
-          {summary.athlete.premium && (
-            <Text className="text-yellow-600 text-xs font-bold">⭐ Premium Member</Text>
-          )}
-        </View>
-      </View>
+  const formatElevation = (meters) => {
+    if (!meters) return "0m";
+    return `${Math.round(meters)}m`;
+  };
 
-      {/* Activities Summary */}
-      <View className="mb-4">
-        <Text className="text-gray-800 font-bold text-base mb-2">🏃 Activities Summary</Text>
-        <View className="bg-green-50 p-3 rounded-lg">
-          <Text className="text-gray-900 font-semibold">Total Activities: {summary.activities.total}</Text>
-          <Text className="text-gray-600 text-sm">
-            Total Distance: {formatDistance(summary.activities.totalDistance)} km
-          </Text>
-          <Text className="text-gray-600 text-sm">
-            Total Time: {formatDuration(summary.activities.totalTime)}
-          </Text>
-          
-          {Object.keys(summary.activities.types).length > 0 && (
-            <View className="mt-2">
-              <Text className="text-gray-700 text-sm font-semibold">Activity Types:</Text>
-              {Object.entries(summary.activities.types).map(([type, count]) => (
-                <Text key={type} className="text-gray-600 text-xs ml-2">
-                  • {type}: {count}
+  const formatSpeed = (metersPerSecond) => {
+    if (!metersPerSecond) return "0 km/h";
+    return `${(metersPerSecond * 3.6).toFixed(2)} km/h`;
+  };
+
+  const getActivityTypeEmoji = (type) => {
+    const types = {
+      Run: "🏃",
+      Ride: "🚴",
+      Swim: "🏊",
+      Walk: "🚶",
+      Workout: "💪",
+      Hike: "🥾",
+      EBikeRide: "⚡",
+      VirtualRide: "🎮",
+      WeightTraining: "🏋️",
+      Yoga: "🧘",
+    };
+    return types[type] || "🏃";
+  };
+
+  return (
+    <ScrollView showsVerticalScrollIndicator={false}>
+      <View className="space-y-4">
+        {/* Main Stats Cards */}
+
+        <View className="flex-row flex-wrap justify-between gap-2">
+          {/* Activities Card */}
+          <LinearGradient
+            colors={["#4F46E5", "#6366F1"]}
+            start={[0, 0]}
+            end={[1, 1]}
+            className="p-4 rounded-2xl flex-1 min-w-[48%] shadow-md"
+          >
+            <View className="flex-row items-center mb-3">
+              <Text className="text-white font-bold text-base ml-3">
+                Activities
+              </Text>
+            </View>
+            <Text className="text-white font-black text-3xl mb-1">
+              {summary.activities.total}
+            </Text>
+            <Text className="text-white/80 text-xs">Total workouts</Text>
+          </LinearGradient>
+
+          {/* Segments Card */}
+          <LinearGradient
+            colors={["#9333EA", "#C084FC"]}
+            start={[0, 0]}
+            end={[1, 1]}
+            className="p-4 rounded-2xl flex-1 min-w-[48%] shadow-md"
+          >
+            <View className="flex-row items-center mb-3">
+              <Text className="text-white font-bold text-base ml-3">
+                Segments
+              </Text>
+            </View>
+            <Text className="text-white font-black text-3xl mb-1">
+              {summary.segments.total}
+            </Text>
+            <Text className="text-white/80 text-xs">Starred segments</Text>
+          </LinearGradient>
+        </View>
+
+        {/* Engagement Stats */}
+        {(summary.activities.totalKudos > 0 ||
+          summary.activities.totalComments > 0) && (
+          <View className="flex-row gap-2">
+            {summary.activities.totalKudos > 0 && (
+              <View className="flex-1 bg-pink-50 p-3 rounded-xl border border-pink-100">
+                <View className="flex-row items-center mb-1">
+                  <Ionicons name="heart" size={18} color="#EC4899" />
+                  <Text className="text-pink-600 text-xs font-semibold ml-1">
+                    Total Kudos
+                  </Text>
+                </View>
+                <Text className="text-pink-900 font-bold text-xl">
+                  {summary.activities.totalKudos}
                 </Text>
+              </View>
+            )}
+            {summary.activities.totalComments > 0 && (
+              <View className="flex-1 bg-blue-50 p-3 rounded-xl border border-blue-100">
+                <View className="flex-row items-center mb-1">
+                  <Ionicons name="chatbubble" size={18} color="#3B82F6" />
+                  <Text className="text-blue-600 text-xs font-semibold ml-1">
+                    Total Comments
+                  </Text>
+                </View>
+                <Text className="text-blue-900 font-bold text-xl">
+                  {summary.activities.totalComments}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Detailed Activity Stats */}
+        <View className="bg-white rounded-xl p-4 border border-gray-200">
+          <View className="flex-row items-center mb-3">
+            <Ionicons name="stats-chart" size={20} color="#3B82F6" />
+            <Text className="text-gray-900 font-bold text-base ml-2">
+              Activity Statistics
+            </Text>
+          </View>
+
+          <View className="space-y-2">
+            <StatRow
+              icon="map-outline"
+              label="Total Distance"
+              value={formatDistance(summary.activities.totalDistance)}
+              color="#3B82F6"
+            />
+            <StatRow
+              icon="time-outline"
+              label="Total Time"
+              value={formatDuration(summary.activities.totalTime)}
+              color="#10B981"
+            />
+            <StatRow
+              icon="trending-up-outline"
+              label="Elevation Gain"
+              value={formatElevation(summary.activities.elevationGain)}
+              color="#F59E0B"
+            />
+            <StatRow
+              icon="speedometer-outline"
+              label="Avg Speed"
+              value={formatSpeed(summary.activities.avgSpeed)}
+              color="#8B5CF6"
+            />
+            {summary.activities.maxElevation > 0 && (
+              <StatRow
+                icon="trending-up"
+                label="Max Elevation"
+                value={formatElevation(summary.activities.maxElevation)}
+                color="#DC2626"
+              />
+            )}
+          </View>
+        </View>
+
+        {/* Activity Types Breakdown */}
+        {Object.keys(summary.activities.types).length > 0 && (
+          <View className="bg-white rounded-xl p-4 border border-gray-200">
+            <View className="flex-row items-center mb-3">
+              <MaterialIcons name="category" size={20} color="#EC4899" />
+              <Text className="text-gray-900 font-bold text-base ml-2">
+                Activity Types
+              </Text>
+            </View>
+            <View className="space-y-2">
+              {Object.entries(summary.activities.types).map(([type, count]) => (
+                <View
+                  key={type}
+                  className="flex-row items-center justify-between bg-gray-50 px-3 py-2 rounded-lg"
+                >
+                  <View className="flex-row items-center flex-1">
+                    <Text className="text-xl mr-2">
+                      {getActivityTypeEmoji(type)}
+                    </Text>
+                    <Text className="text-gray-700 font-medium text-sm">
+                      {type}
+                    </Text>
+                  </View>
+                  <Text className="text-gray-900 font-bold text-sm">
+                    {count}
+                  </Text>
+                </View>
               ))}
+            </View>
+          </View>
+        )}
+
+        {/* Clubs List */}
+        {summary.clubs.list && summary.clubs.list.length > 0 && (
+          <View className="bg-white rounded-xl p-4 border border-gray-200">
+            <View className="flex-row items-center mb-3">
+              <Ionicons name="people" size={20} color="#F59E0B" />
+              <Text className="text-gray-900 font-bold text-base ml-2">
+                Clubs ({summary.clubs.total})
+              </Text>
+            </View>
+            <View className="space-y-2">
+              {summary.clubs.list.map((club, index) => (
+                <View
+                  key={club.id || index}
+                  className="bg-gray-50 px-3 py-2.5 rounded-lg border border-gray-200"
+                >
+                  <View className="flex-row items-center justify-between">
+                    <View className="flex-1">
+                      <Text className="text-gray-900 font-bold text-sm">
+                        {club.name}
+                      </Text>
+                      {club.city && club.state && (
+                        <Text className="text-gray-600 text-xs mt-1">
+                          {club.city}, {club.state}
+                        </Text>
+                      )}
+                      {club.sport_type && (
+                        <Text className="text-gray-500 text-xs mt-1 capitalize">
+                          {club.localized_sport_type || club.sport_type}
+                        </Text>
+                      )}
+                    </View>
+                    {club.member_count !== undefined && (
+                      <View className="bg-orange-100 px-2 py-1 rounded">
+                        <Text className="text-orange-700 text-xs font-bold">
+                          {club.member_count} members
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  {club.verified && (
+                    <View className="flex-row items-center mt-2">
+                      <MaterialIcons
+                        name="verified"
+                        size={14}
+                        color="#10B981"
+                      />
+                      <Text className="text-green-700 text-xs ml-1">
+                        Verified Club
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Additional Resources */}
+        <View className="flex-row flex-wrap gap-2">
+          <View className="bg-green-50 p-4 rounded-xl flex-1 min-w-[48%] border border-green-100">
+            <MaterialIcons name="route" size={24} color="#10B981" />
+            <Text className="text-gray-900 font-bold text-lg mt-2">
+              {summary.routes.total}
+            </Text>
+            <Text className="text-gray-600 text-xs mt-1">Saved Routes</Text>
+          </View>
+
+          {summary.clubs.total > 0 && (
+            <View className="bg-yellow-50 p-4 rounded-xl flex-1 min-w-[48%] border border-yellow-100">
+              <Ionicons name="people" size={24} color="#F59E0B" />
+              <Text className="text-gray-900 font-bold text-lg mt-2">
+                {summary.clubs.total}
+              </Text>
+              <Text className="text-gray-600 text-xs mt-1">
+                Club Memberships
+              </Text>
             </View>
           )}
         </View>
-      </View>
 
-      {/* Segments */}
-      <View className="mb-4">
-        <Text className="text-gray-800 font-bold text-base mb-2">🏁 Segments</Text>
-        <View className="bg-purple-50 p-3 rounded-lg">
-          <Text className="text-gray-900 font-semibold">Starred Segments: {summary.segments.total}</Text>
-          {summary.segments.total > 0 && (
-            <Text className="text-gray-600 text-sm">
-              {Array.isArray(safeData.segments) ? safeData.segments.slice(0, 3).map(segment => segment.name).join(', ') : ''}
-              {summary.segments.total > 3 && '...'}
-            </Text>
+        {/* Heart Rate Zones */}
+        {safeData.zones?.heart_rate?.zones &&
+          Array.isArray(safeData.zones.heart_rate.zones) &&
+          safeData.zones.heart_rate.zones.length > 0 && (
+            <View className="bg-white rounded-xl p-4 border border-gray-200">
+              <View className="flex-row items-center mb-3">
+                <Ionicons name="pulse" size={20} color="#DC2626" />
+                <Text className="text-gray-900 font-bold text-base ml-2">
+                  Heart Rate Zones
+                </Text>
+              </View>
+              <View className="space-y-2">
+                {safeData.zones.heart_rate.zones.map((zone, index) => (
+                  <View
+                    key={index}
+                    className="bg-red-50 px-3 py-2 rounded-lg border border-red-100"
+                  >
+                    <View className="flex-row items-center justify-between">
+                      <Text className="text-red-700 font-bold text-sm">
+                        Zone {index + 1}
+                      </Text>
+                      <Text className="text-red-900 text-sm font-semibold">
+                        {zone.min}-{zone.max > 0 ? zone.max : "∞"} bpm
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+              {safeData.zones.heart_rate.custom_zones && (
+                <Text className="text-gray-500 text-xs mt-2 italic text-center">
+                  Custom zones configured
+                </Text>
+              )}
+            </View>
           )}
-        </View>
-      </View>
 
-      {/* Routes */}
-      <View className="mb-4">
-        <Text className="text-gray-800 font-bold text-base mb-2">🗺️ Routes</Text>
-        <View className="bg-orange-50 p-3 rounded-lg">
-          <Text className="text-gray-900 font-semibold">Created Routes: {summary.routes.total}</Text>
-          {summary.routes.total > 0 && (
-            <Text className="text-gray-600 text-sm">
-              {Array.isArray(safeData.routes) ? safeData.routes.slice(0, 3).map(route => route.name).join(', ') : ''}
-              {summary.routes.total > 3 && '...'}
-            </Text>
-          )}
-        </View>
-      </View>
-
-      {/* Clubs */}
-      <View className="mb-4">
-        <Text className="text-gray-800 font-bold text-base mb-2">👥 Clubs</Text>
-        <View className="bg-yellow-50 p-3 rounded-lg">
-          <Text className="text-gray-900 font-semibold">Club Memberships: {summary.clubs.total}</Text>
-          {summary.clubs.names.length > 0 && (
-            <Text className="text-gray-600 text-sm">
-              {summary.clubs.names.slice(0, 3).join(', ')}
-              {summary.clubs.names.length > 3 && '...'}
-            </Text>
-          )}
-        </View>
-      </View>
-
-      {/* Gear */}
-      <View className="mb-4">
-        <Text className="text-gray-800 font-bold text-base mb-2">🚴 Gear</Text>
-        <View className="bg-red-50 p-3 rounded-lg">
-          <Text className="text-gray-900 font-semibold">Bikes: {summary.gear.bikes.length}</Text>
-          {summary.gear.bikes.length > 0 && (
-            <Text className="text-gray-600 text-sm">
-              {summary.gear.bikes.slice(0, 2).map(bike => bike.name).join(', ')}
-              {summary.gear.bikes.length > 2 && '...'}
-            </Text>
-          )}
-          
-          <Text className="text-gray-900 font-semibold mt-2">Shoes: {summary.gear.shoes.length}</Text>
-          {summary.gear.shoes.length > 0 && (
-            <Text className="text-gray-600 text-sm">
-              {summary.gear.shoes.slice(0, 2).map(shoe => shoe.name).join(', ')}
-              {summary.gear.shoes.length > 2 && '...'}
-            </Text>
-          )}
-        </View>
-      </View>
-
-      {/* Stats */}
-      {safeData.stats && (
-        <View className="mb-4">
-          <Text className="text-gray-800 font-bold text-base mb-2">📊 Statistics</Text>
-          <View className="bg-indigo-50 p-3 rounded-lg">
-            <Text className="text-gray-900 font-semibold">All Time Stats</Text>
-            {safeData.stats.all_ride_totals && (
-              <Text className="text-gray-600 text-sm">
-                Total Rides: {safeData.stats.all_ride_totals.count} | 
-                Distance: {formatDistance(safeData.stats.all_ride_totals.distance)} km
+        {/* Gear */}
+        {(summary.gear.bikes.length > 0 || summary.gear.shoes.length > 0) && (
+          <View className="bg-white rounded-xl p-4 border border-gray-200">
+            <View className="flex-row items-center mb-3">
+              <FontAwesome5 name="toolbox" size={20} color="#F97316" />
+              <Text className="text-gray-900 font-bold text-base ml-2">
+                Gear
               </Text>
+            </View>
+            <View className="flex-row gap-3">
+              {summary.gear.bikes.length > 0 && (
+                <View className="flex-1 bg-orange-50 px-3 py-2 rounded-lg border border-orange-100">
+                  <Text className="text-orange-700 font-bold text-2xl">
+                    {summary.gear.bikes.length}
+                  </Text>
+                  <Text className="text-orange-600 text-xs">Bikes</Text>
+                </View>
+              )}
+              {summary.gear.shoes.length > 0 && (
+                <View className="flex-1 bg-orange-50 px-3 py-2 rounded-lg border border-orange-100">
+                  <Text className="text-orange-700 font-bold text-2xl">
+                    {summary.gear.shoes.length}
+                  </Text>
+                  <Text className="text-orange-600 text-xs">Shoes</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* Recent Activities */}
+        {Array.isArray(safeData.activities) &&
+          safeData.activities.length > 0 && (
+            <View className="bg-white rounded-xl p-4 border border-gray-200">
+              <View className="flex-row items-center mb-3">
+                <Ionicons name="time-outline" size={20} color="#6366F1" />
+                <Text className="text-gray-900 font-bold text-base ml-2">
+                  Recent Activities
+                </Text>
+              </View>
+              <View className="space-y-3">
+                {safeData.activities.slice(0, 3).map((activity, index) => (
+                  <View
+                    key={activity.id || index}
+                    className="bg-gray-50 px-3 py-2.5 rounded-lg border border-gray-200"
+                  >
+                    <View className="flex-row items-start justify-between mb-2">
+                      <View className="flex-1 mr-2">
+                        <Text className="text-gray-900 font-bold text-sm">
+                          {activity.name}
+                        </Text>
+                        <Text className="text-gray-600 text-xs mt-1">
+                          {new Date(
+                            activity.start_date_local
+                          ).toLocaleDateString()}
+                        </Text>
+                      </View>
+                      <Text className="text-xl">
+                        {getActivityTypeEmoji(activity.type)}
+                      </Text>
+                    </View>
+                    <View className="flex-row flex-wrap gap-2">
+                      <View className="bg-blue-50 px-2 py-1 rounded">
+                        <Text className="text-blue-700 text-xs font-semibold">
+                          {formatDistance(activity.distance)}
+                        </Text>
+                      </View>
+                      <View className="bg-green-50 px-2 py-1 rounded">
+                        <Text className="text-green-700 text-xs font-semibold">
+                          {formatDuration(activity.moving_time)}
+                        </Text>
+                      </View>
+                      {activity.total_elevation_gain > 0 && (
+                        <View className="bg-orange-50 px-2 py-1 rounded">
+                          <Text className="text-orange-700 text-xs font-semibold">
+                            {formatElevation(activity.total_elevation_gain)}
+                          </Text>
+                        </View>
+                      )}
+                      {activity.kudos_count > 0 && (
+                        <View className="flex-row items-center bg-pink-50 px-2 py-1 rounded">
+                          <Ionicons name="heart" size={12} color="#EC4899" />
+                          <Text className="text-pink-700 text-xs font-semibold ml-1">
+                            {activity.kudos_count}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                ))}
+              </View>
+              {safeData.activities.length > 3 && (
+                <Text className="text-gray-500 text-xs mt-3 text-center">
+                  +{safeData.activities.length - 3} more activities
+                </Text>
+              )}
+            </View>
+          )}
+
+        {/* Recent Stats */}
+        {safeData.stats && !safeData.stats.message && (
+          <View className="bg-white rounded-xl p-4 border border-gray-200">
+            <View className="flex-row items-center mb-3">
+              <Ionicons name="trending-up" size={20} color="#6366F1" />
+              <Text className="text-gray-900 font-bold text-base ml-2">
+                Recent 4 Weeks
+              </Text>
+            </View>
+
+            {safeData.stats.recent_run_totals && (
+              <View className="mb-3 pb-3 border-b border-gray-100">
+                <Text className="text-gray-700 font-semibold text-sm mb-2 flex-row items-center">
+                  🏃 Running Totals
+                </Text>
+                <View className="flex-row gap-2">
+                  <View className="flex-1 bg-blue-50 px-2 py-1.5 rounded">
+                    <Text className="text-blue-600 text-xs">Count</Text>
+                    <Text className="text-blue-900 font-bold text-sm">
+                      {safeData.stats.recent_run_totals.count}
+                    </Text>
+                  </View>
+                  <View className="flex-1 bg-green-50 px-2 py-1.5 rounded">
+                    <Text className="text-green-600 text-xs">Distance</Text>
+                    <Text className="text-green-900 font-bold text-sm">
+                      {formatDistance(
+                        safeData.stats.recent_run_totals.distance
+                      )}
+                    </Text>
+                  </View>
+                  <View className="flex-1 bg-purple-50 px-2 py-1.5 rounded">
+                    <Text className="text-purple-600 text-xs">Time</Text>
+                    <Text className="text-purple-900 font-bold text-sm">
+                      {formatDuration(
+                        safeData.stats.recent_run_totals.moving_time
+                      )}
+                    </Text>
+                  </View>
+                </View>
+              </View>
             )}
-            {safeData.stats.all_run_totals && (
-              <Text className="text-gray-600 text-sm">
-                Total Runs: {safeData.stats.all_run_totals.count} | 
-                Distance: {formatDistance(safeData.stats.all_run_totals.distance)} km
-              </Text>
+
+            {safeData.stats.recent_ride_totals && (
+              <View>
+                <Text className="text-gray-700 font-semibold text-sm mb-2">
+                  🚴 Riding Totals
+                </Text>
+                <View className="flex-row gap-2">
+                  <View className="flex-1 bg-blue-50 px-2 py-1.5 rounded">
+                    <Text className="text-blue-600 text-xs">Count</Text>
+                    <Text className="text-blue-900 font-bold text-sm">
+                      {safeData.stats.recent_ride_totals.count}
+                    </Text>
+                  </View>
+                  <View className="flex-1 bg-green-50 px-2 py-1.5 rounded">
+                    <Text className="text-green-600 text-xs">Distance</Text>
+                    <Text className="text-green-900 font-bold text-sm">
+                      {formatDistance(
+                        safeData.stats.recent_ride_totals.distance
+                      )}
+                    </Text>
+                  </View>
+                  <View className="flex-1 bg-purple-50 px-2 py-1.5 rounded">
+                    <Text className="text-purple-600 text-xs">Time</Text>
+                    <Text className="text-purple-900 font-bold text-sm">
+                      {formatDuration(
+                        safeData.stats.recent_ride_totals.moving_time
+                      )}
+                    </Text>
+                  </View>
+                </View>
+              </View>
             )}
           </View>
-        </View>
-      )}
-
-      {/* Data Timestamp */}
-      <View className="mt-4 pt-3 border-t border-gray-200">
-        <Text className="text-gray-500 text-xs text-center">
-          Data fetched: {new Date(data.timestamp).toLocaleString()}
-        </Text>
+        )}
       </View>
     </ScrollView>
   );
-}
+};
 
-function ActivityCard({ activity, index }) {
-  const formatDistance = (distance) => {
-    return (distance / 1000).toFixed(2);
-  };
-
-  const formatDuration = (seconds) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
-    }
-    return `${minutes}m`;
-  };
-
-  const getActivityIcon = (type) => {
-    const icons = {
-      'Run': '🏃',
-      'Ride': '🚴',
-      'Walk': '🚶',
-      'Swim': '🏊',
-      'Hike': '🥾',
-      'Workout': '💪',
-    };
-    return icons[type] || '🏃';
-  };
-
-  return (
-    <View className="bg-gray-50 p-4 rounded-xl mb-2 border border-gray-200">
-      <View className="flex-row items-start justify-between mb-2">
-        <View className="flex-1">
-          <View className="flex-row items-center mb-1">
-            <Text className="text-base mr-2">{getActivityIcon(activity.type)}</Text>
-            <Text className="text-gray-900 font-bold text-base flex-1" numberOfLines={1}>
-              {activity.name}
-            </Text>
-          </View>
-          <Text className="text-gray-500 text-xs">
-            {new Date(activity.start_date).toLocaleDateString('en-US', {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric'
-            })}
-          </Text>
-        </View>
-      </View>
-      
-      <View className="flex-row items-center justify-between pt-2 border-t border-gray-200">
-        <View className="flex-row items-center">
-          <View className="bg-blue-100 px-3 py-1 rounded-full mr-2">
-            <Text className="text-blue-700 text-xs font-bold">
-              {formatDistance(activity.distance)} km
-            </Text>
-          </View>
-          <View className="bg-purple-100 px-3 py-1 rounded-full">
-            <Text className="text-purple-700 text-xs font-bold">
-              {formatDuration(activity.moving_time)}
-            </Text>
-          </View>
-        </View>
-        {activity.average_speed && (
-          <Text className="text-gray-500 text-xs">
-            ⚡ {(activity.average_speed * 3.6).toFixed(1)} km/h
-          </Text>
-        )}
-      </View>
+// StatRow component for displaying individual stats
+const StatRow = ({ icon, label, value, color }) => (
+  <View className="flex-row items-center justify-between bg-gray-50 px-3 py-2.5 rounded-lg">
+    <View className="flex-row items-center flex-1">
+      <Ionicons name={icon} size={18} color={color} />
+      <Text className="text-gray-700 font-medium text-sm ml-2">{label}</Text>
     </View>
-  );
-}
+    <Text className="text-gray-900 font-bold text-sm">{value}</Text>
+  </View>
+);
 
 export default ConnectStrava;
